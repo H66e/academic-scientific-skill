@@ -13,15 +13,16 @@ node <skill>/scripts/research_audit.mjs init --root <已有工作目录> --name 
 node <skill>/scripts/research_audit.mjs validate <项目>/dossier.json
 node <skill>/scripts/research_audit.mjs fingerprint <项目>/dossier.json <idea_id>
 node <skill>/scripts/research_audit.mjs rank <项目>/dossier.json
+node <skill>/scripts/research_audit.mjs migrate <旧项目>/dossier.json
 ```
 
-`init` 只新建项目目录与最小记录，不覆盖已有目录。项目名由小写英文字母、数字及分隔词组的单个连字符组成，首尾不能为连字符，最长 64 字符。拒绝绝对路径、路径分隔符、`.`、`..` 和逃出 root 的路径。其他命令只读，JSON 输出到标准输出。用户需要报告时，由宿主在项目目录保存输出。
+`init` 只新建项目目录与最小记录，不覆盖已有目录。项目名由小写英文字母、数字及分隔词组的单个连字符组成，首尾不能为连字符，最长 64 字符。拒绝绝对路径、路径分隔符、`.`、`..` 和逃出 root 的路径。其他命令只读，JSON 输出到标准输出。`migrate` 不写入输入文件；由宿主检查结果后另存新文件。用户需要报告时，由宿主在项目目录保存输出。
 
 ## 顶层结构
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "project": {
     "id": "my-topic",
     "question": "",
@@ -38,6 +39,7 @@ node <skill>/scripts/research_audit.mjs rank <项目>/dossier.json
   },
   "searches": [],
   "papers": [],
+  "screening": [],
   "evidence": [],
   "ideas": [],
   "reviews": [],
@@ -48,7 +50,7 @@ node <skill>/scripts/research_audit.mjs rank <项目>/dossier.json
 
 示例是初始化结构，不含真实检索、论文或评审。项目未知信息留空或明确列为假设，不能捏造默认算力、研究目标或用户承诺。`research_type` 枚举：`empirical`、`theoretical`、`measurement`、`dataset`、`reproduction`。混合项目选择当前核心贡献类型，并在说明中注明其他部分。
 
-所有对象 ID 在对应集合内唯一；所有引用必须存在。时间使用带时区的 ISO 8601 字符串。project.assumptions 是非空字符串数组，在文字中说明未确认前提；constraints 是对象，可逐项保留来源、状态与单位。除顶层 schema_version、idea.version 和 paper.year 外，计量信息可在说明中保留单位、区间和估计依据。
+所有对象 ID 在对应集合内唯一；所有引用必须存在。时间使用带时区的 ISO 8601 字符串。project.assumptions 是非空字符串数组，在文字中说明未确认前提；constraints 是对象，可逐项保留来源、状态与单位。用于资源约束 KILL 的条目必须明确为 `{"status":"confirmed","value":"实际约束事实","source":"实际用户陈述或日志定位"}`，value 可保留非空文字、有限数字、布尔值或包含这些事实的结构；0 与 false 可以是实际事实，空对象、空数组或只有 null/空文字的结构不能支持约束 KILL。不能从旧字符串、设备惯例或模型估计推断 confirmed。除顶层 schema_version、idea.version 和 paper.year 外，计量信息可在说明中保留单位、区间和估计依据。
 
 ## searches：实际执行的检索
 
@@ -61,6 +63,8 @@ node <skill>/scripts/research_audit.mjs rank <项目>/dossier.json
 
 对于只读用户给定语料，可用 provider=`user_corpus`，query 记录实际检查范围，不伪装成外部查新。
 
+检索工具的可见性、实际调用成功、全文可得性和引用扩展是不同能力，不能用单一等级代表。按需读取 [retrieval-adapters.md](retrieval-adapters.md)，记录本次可用能力和失败边界；能力说明不代替实际 `searches`。
+
 ## papers：规范化文献身份
 
 必需：`id`、`title`、`year`、`url`、`identifiers`、`version`、`accessed_at`。
@@ -72,6 +76,18 @@ node <skill>/scripts/research_audit.mjs rank <项目>/dossier.json
 
 同一论文的预印本与会议版合并为一个身份时保留版本映射；技术内容有变化时记录所读版本，不能混用证据。优先按 DOI、arXiv base ID、OpenReview ID 合并，再核对标题、作者与版本；标题相似或嵌入相似不自动视为同一论文。
 
+## screening：针对问题的筛选记录
+
+每条必需：`id`、`search_id`、`paper_id`、`idea_ids`、`stage`、`decision`、`reason`、`screened_at`。
+
+- `paper_id` 必须属于对应 search 的 `result_paper_ids`；不能把后续筛选结果写回搜索返回列表，删除不利文献。
+- `idea_ids`：筛选适用的候选 ID 数组。项目级发现阶段允许为空；用于某个候选判断时明确关联，避免一个问题下的排除变成全项目排除。
+- `stage`：`metadata`、`title_abstract`、`full_text`。记录真实筛选深度，不能用 full_text 包装摘要筛选。
+- `decision`：`include`、`exclude`、`uncertain`；`reason` 写与当前问题的相关性、纳排条件或争议，而非只写“质量不高”。
+- `screened_at`：实际筛选时间。可保留真实 reviewer 来源，但不伪造人工或独立身份。
+
+`searches` 保存实际返回，`screening` 保存后续纳排，`nearest_work` 保存候选的技术近邻，三者不可混用。候选关联的筛选实质变化进入其评审指纹；未关联的筛选不会让该候选评审过期。同一筛选记录新增或移除其他候选的关联，保持当前候选仍关联且筛选内容不变时，也不使其评审过期。若排除的论文又作为近邻，检查是否确有问题或阶段差异，保留说明。
+
 ## evidence：论文内容的可追溯记录
 
 必需：`id`、`paper_id`、`source_version`、`read_scope`、`locator`、`observation`、`polarity`。
@@ -80,36 +96,53 @@ node <skill>/scripts/research_audit.mjs rank <项目>/dossier.json
 - `source_version`：非空文字，保留这条证据实际读取的版本；论文元数据升级后仍不改写旧证据的所读版本。无法核实明确写 unknown，说明版本差异是否影响结论。
 - `locator`：非空，精确到摘要、章节、页码、图表、公式或可检索短语；只有 URL 不足以定位决定性结论。
 - `observation`：来源实际报告了什么；解释与外推另写入候选分析，不能改写成来源事实。
-- `polarity`：`supports`、`contradicts`、`context`。
+- `polarity`：`supports`、`contradicts`、`context`，描述来源观察的方向；候选具体主张的支持或反对关系写在 `ideas[].evidence_links`，不能用此全局字段直接决定 GO。
 
 可增加 `excerpt`（简短且遵守引用限制）、`limitation_origin`（`author_stated` 或 `reader_inferred`）、`uncertainty`。metadata 只支持身份核验；abstract 可用于发现与排除明显不相关文献。决定性的机制等价判断或关键未解决问题，需要相关全文章节证据。
 
 ## ideas：当前候选版本
 
-必需：`id`、`version`、`title`、`question`、`research_type`、`hypothesis`、`contribution`、`evidence_ids`、`search_ids`、`nearest_work`、`novelty`、`feasibility`、`validation`。
+必需：`id`、`version`、`title`、`question`、`research_type`、`hypothesis`、`contribution`、`evidence_ids`、`evidence_links`、`search_ids`、`nearest_work`、`novelty`、`feasibility`、`validation`。
 
 - `version`：正整数。实质改变研究问题、机制、假设或验证设计时递增。
 - `hypothesis`：理论项目可写待证明命题及反例条件；数据集或测量项目可写待验证的构念、评价偏差或覆盖命题，不强制因果实验。
 - `evidence_ids`、`search_ids`：数组，允许在初步构思阶段为空；为空时不能认定查新已充分。
+- `evidence_links`：数组，每项含 `evidence_id`、`role`、`target`、`claim`、`relation`、`decision_relevant`。初步构思可为空，不能伪造关联以通过门控。
+  - `evidence_id` 必须属于该 idea 的 `evidence_ids` 或 `nearest_work[].evidence_ids`；`claim` 写这条来源在此候选中用于判断的具体主张。
+  - `role`：`motivation`、`nearest_work`、`contradiction`、`assumption`、`feasibility`、`validation`、`context`。
+  - `target`：`problem`、`hypothesis`、`nearest_work`、`prerequisite` 或 `validation`，区分反对已有方法/问题认识与反对候选自身的核心前提。
+  - `relation`：`supports`、`contradicts`、`context`，相对于本 link 的 claim；同一来源用于另一候选时关系可以不同。
+  - `decision_relevant`：布尔，表示关联是否实际影响当前行动决定；它不是质量评分。宿主说明来源观察怎样支持这一步推理，不能任意打标绕过门控。
 - `nearest_work`：数组，每项含 `paper_id`、`evidence_ids`、`delta`、`decisive`（布尔）。delta 写条件、问题、机制或结论差异，不能只写“性能更好”。有决定性的近邻时必须标记 decisive。
 - `novelty`：`{"status":"distinct|incremental|duplicate|unclear","reason":"...","coverage":"..."}`。空检索、未读关键近邻、仅换应用名不能支持 distinct。coverage 必须说明搜索边界和遗漏。
 - `feasibility`：`{"status":"ready|pilot_only|blocked|unknown","reason":"...","dependencies":[...]}`。每个 dependency 含 `name`、`mandatory`（布尔）、`status`（`met|failed|unknown`）、`basis`。ready 是当前验证任务的前置条件有依据，并非预判实验有效。pilot_only 表示只能做前置条件核验；先 HOLD，建议有边界的信息测试。
 - `validation`：含 `status`（`specified|missing`）、`prediction`、`falsifier`、`design`、`metric`、`resource_estimate`、`stop_rule`，均为字符串。missing 时可为空。specified 时全部非空；metric 可为理论的证明义务、反例判据，不能机械要求 benchmark 分数。
 
-可增加用户可读分析字段，但它们属于版本指纹的一部分，不要写会不断变化的生成时间或排版元数据。
+可增加用户可读分析字段；会改变科学判断的字段属于评审指纹。纯生成时间和报告排版留在报告中，避免把它们混入候选实质内容。
 
 ## reviews：基于具体输入的评估
 
-候选内容冻结后，运行 fingerprint，再写评估记录。评估必需：`id`、`idea_id`、`idea_version`、`basis_hash`、`reviewed_at`、`kind`、`decision`、`reason`、`scores`、`score_reasons`、`penalties`、`limitations`。
+候选内容冻结后，运行 fingerprint，再写评估记录。v2 评估必需：`id`、`idea_id`、`idea_version`、`review_basis_hash`、`reviewed_at`、`kind`、`decision`、`decision_scope`、`recommended_stage`、`decision_basis`、`reason`、`scores`、`score_reasons`、`penalties`、`limitations`。
 
-- `kind`：`self` 或 `independent`；只有确实由独立上下文读取证据、产生评审回执才写 independent。
+- `kind`：`self` 或 `independent`；independent 还需 `author_context`、`evaluator_context` 和可追溯评审 `artifact`。两个上下文标识必须不同；只有确实由独立上下文读取原始证据、产生回执才写 independent。记录检查不能证明模型真独立。
 - `decision`：`GO`、`HOLD`、`KILL`。GO 只授权推荐的、有预算边界的下一步，不授权无限实验、投稿、写入外部服务。
+- `decision_scope`：`scientific_framing` 或 `current_constraints`。前者判断当前科学问题与贡献框架，后者限定为当前用户资源与条件，不能推广成方向无价值。
+- `recommended_stage`：`information_test`、`pilot` 或 `full_validation`。HOLD 可建议 information_test；只有关键门槛已满足才给 GO pilot。进入 full_validation 需同版本、同 review_basis_hash 的 independent GO 回执，不因小测试便宜绕过证据门槛。
+- `decision_basis`：`{"type":"advance|insufficient|duplicate|scientific_refutation|constraints","evidence_ids":[],"pilot_ids":[],"dependency_names":[],"constraint_keys":[],"explanation":"..."}`。当前版本且 review_basis_hash 匹配的评审，其所引证据须关联当前候选，pilots 须属于其当前版本，dependency_names 须对应当前依赖，constraint_keys 须指向 project.constraints 的键。过期评审可以保留原依赖名称与约束键作为历史，不因候选修订破坏整个记录；全局证据与 pilot ID 引用仍须存在。GO 使用 advance；HOLD 使用 insufficient；KILL 需以下专门依据，不只写一个标签或总分。
 - `scores`：三个维度与 config 的键完全一致，每个为 0–4 的整数或 null；null 是未知，不能填 0。
 - `score_reasons`：三个维度各有非空依据；分数不是录用概率。
 - `penalties`：`[{"reason":"...","points":5}]`，points 是有限、非负数。无惩罚用空数组；负数报错，避免负负得正。
 - `limitations`：字符串数组，列出评估未覆盖的内容。
 
-版本指纹是规范排序后的 JSON 的 SHA-256，包含 project、config、全部 searches/papers/evidence、该 idea、关联该 idea 的 pilots；不包含 reviews/history。因此新增检索、改来源版本、改资源约束、改机制、改指标、补实验结果都会让评估过期；保守地连其他候选新增的文献也会导致复核。修改报告排版不必改 dossier。
+可选 `confidence` 一旦提供就包含与 scores 完全相同的三个维度，每项为 `low`、`medium` 或 `high`，并在 `confidence_reasons` 为三个维度说明证据覆盖、直接性、冲突及缺口。它不是概率，不参与乘分；低置信度可以提示补证与复核，不能用“高置信度”代替依据。
+
+### 评审与排序的两个指纹
+
+v2 `review_basis_hash` 是规范排序后的实质输入的 SHA-256，包含项目 question、research_type、constraints、assumptions；当前 idea；它引用的 searches 及其返回论文；引用 evidence 及其论文身份、版本；关联 pilots；`idea_ids` 关联到它的 screening。引用闭包完整进入指纹，包括搜索实际返回中未成为近邻的论文，避免漏掉会改变筛选或查新范围的依赖。
+
+无关候选的独立论文、检索、证据或筛选不影响当前指纹。项目与候选的 created_at/updated_at/formatting、论文的 accessed_at/created_at/updated_at/formatting、筛选的 screened_at 不影响科学评审。实际检索 searched_at 连同范围和返回列表仍参与指纹；来源版本、观察、筛选理由、条件和其他实质字段也参与。reviews/history 不进入指纹。新增语义字段须同步校验、指纹与测试，不能当成元数据静默忽略。
+
+`ranking_config_hash` 单独反映 `config.ranking_weights`。仅改排序偏好可重新排序，不要求重做未改变依据的科学评审；分数和其理由保持原记录。资源约束、当前候选、关联检索证据或实验发生实质变化仍会使评审过期。
 
 取每个候选最后一次评估（reviewed_at；同时间按记录顺序），不回退到较早的好评。版本或指纹不匹配时视为 stale，并优先输出 HOLD，包括当前候选中尚未重新核验的 duplicate/blocked 标签；历史 KILL 保留，不改写为已验证的 GO，也不自动当成新版本 KILL。
 
@@ -132,8 +165,32 @@ node <skill>/scripts/research_audit.mjs rank <项目>/dossier.json
 
 配置是权重唯一来源，不在脚本硬编码第二份。权重必须含科学价值、差异贡献和可检验性三个维度，值非负且总和大于 0；归一化计算 0–100 分，减非负 penalties 并截断到 0–100。排序只比较当前、合格的 GO，不补齐 Top3，不用数字绕过门控。
 
-GO 的机器可检查必要条件：当前评估；三个分数已知；novelty 为 distinct 或 incremental；有实际 complete/partial 检索及至少一个命中文献；该候选有最近工作比较；决定性近邻比较有 section/full_text 证据；有支持候选问题/差异的 section/full_text 证据；feasibility=ready 且必需依赖均 met；validation=specified 且字段非空。没有标记 decisive 的近邻时，在至少一个近邻上保守要求 section/full_text 证据。
+GO 的机器可检查必要条件：当前 GO 评估与 advance 依据；三个分数已知；novelty 为 distinct 或 incremental；有实际 complete/partial 检索及至少一个命中文献；该候选有最近工作比较；决定性近邻比较有 section/full_text 证据；有 section/full_text 的候选 evidence_link，decision_relevant=true 且 role 属于 motivation、nearest_work、contradiction、assumption、validation，并由 decision_basis.evidence_ids 引用；feasibility=ready 且必需依赖均 met；validation=specified 且字段非空；推荐阶段是 pilot 或 full_validation。没有标记 decisive 的近邻时，在至少一个近邻上保守要求 section/full_text 证据。
 
-当前评估 KILL、确认 duplicate、必需前置条件 failed/blocked 不参与排序。缺资料、空检索、abstract-only、unknown 前置条件、pilot_only、过期评估和缺分数均进入 HOLD。输出 `ranked`、`held`、`killed` 三个数组及原因；零候选是正常结果。
+证据可以来自已有方法失败、测量失效或反例，不统一要求全局 polarity=supports。但 decision_relevant=true、relation=contradicts 且 target 为 hypothesis、prerequisite 或 validation 的 link 表示候选核心条件尚受反对，GO 必须 HOLD。不存在可自标 resolved 的开关；解除反对需实质修正对应主张或前提，保留旧证据与条件，按新候选版本重新评审。针对 problem 或 nearest_work 的矛盾可以构成研究动机，仍需宿主核对推理。
+
+当前版本若仍有 kind=scientific、outcome=contradicted 的 pilot，GO 也必须 HOLD，不能仅补一条新 GO 评审抹除科学反证。该门控不自动 KILL；淘汰仍需当前且类型相符的显式 KILL 依据。旧版本 contradicted 产物保留历史与适用条件，不永久阻止实质修订后的新框架；宿主仍负责核验结果有效性与被反驳的具体主张。
+
+full_validation 另需同版本、同 review_basis_hash 的真实 independent GO 回执；当前最后一评审可以是 self，但不能使用过期或仅独立 HOLD 的回执补门槛。缺独立评审时 full_validation 进入 HOLD，可提出有界 pilot 供另行当前评审；不能把缺关键科学依据的候选自动降级为 GO pilot。
+
+KILL 必须是当前有效 KILL 评审，并且 decision_basis 满足对应类型：
+
+| type | scope 与必要依据 |
+| --- | --- |
+| duplicate | scientific_framing；当前 novelty=duplicate，每个 decisive 近邻均有被 basis 引用的 section/full_text 证据，说明等价的贡献与适用条件 |
+| scientific_refutation | scientific_framing；basis 引用深读、decision_relevant、relation=contradicts、target=hypothesis 的候选 link；或同版本 kind=scientific、outcome=contradicted 且有 artifacts 的 pilot |
+| constraints | current_constraints；当前 blocked 或存在 mandatory failed 依赖，后者须由 dependency_names 引用；同时至少一个 constraint_keys 指向有实际 value 与 source 的 confirmed 用户约束 |
+
+无当前评审、仅 duplicate/blocked 标签、仅 failed 依赖、执行故障、摘要相似、未知资源或不相符 KILL 依据均 HOLD，不自动淘汰。constraints 只终止当前约束下的框架或投入，不能作为科学反驳。缺资料、空检索、abstract-only、unknown 前置条件、pilot_only、过期评估和缺分数也进入 HOLD。输出 `ranked`、`held`、`killed` 三个数组及原因；零候选是正常结果。
 
 这些检查只能发现记录矛盾和输入不足，无法证明检索全面、证据忠实、科学价值或新颖性。宿主须读原文、检查前提，不能以 validate 通过当作研究结论成立。
+
+## 校验提醒与 v1 迁移
+
+`validate` 区分 `errors` 与 `warnings`。缺字段、非法枚举、悬空引用或非法 hash 是 errors；当前评审还校验 decision_basis 与当前候选、版本、依赖和约束键的关联。模糊全文 locator、筛选与近邻的可解释冲突、低置信度 GO 等可产生 warnings。warnings 不使 JSON 无效，也不替代门控；合法的初步构思可以没有论文或成熟验证，rank 仍应 HOLD。当前关联检查仍不证明所引观察确实支持决策，科学真实性和推理由宿主核验。
+
+v1 继续支持 validate 与旧语义 fingerprint，rank 一律 HOLD，提示迁移和重新评审。v1 的全局 basis_hash 不能充当 v2 的候选依赖指纹。
+
+`migrate` 验证 v1 后输出完整复制的新记录：schema_version=2；缺失 screening 或 evidence_links 时设空数组；旧 reviews 原样归档到 history 的 `schema_v1_review_archived` 条目，保留 original_review 与 requires_reassessment=true；当前 reviews 清空。它不替用户编造证据角色、候选主张、约束确认或新的 review_basis_hash。
+
+迁移后先检查输出另存为新文件，补充真实候选 evidence_links、筛选上下文与资源依据，再获取 v2 fingerprint、完成新 review。空 links 与未重评的迁移记录仍 HOLD；原文件和旧评审理由保持可追溯。

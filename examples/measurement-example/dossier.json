@@ -1,0 +1,179 @@
+{
+  "schema_version": 2,
+  "project": {
+    "id": "synthetic-measurement",
+    "question": "SYNTHETIC: does an invented proxy measure its claimed target?",
+    "research_type": "measurement",
+    "constraints": {
+      "budget": {
+        "status": "unknown",
+        "value": "Not supplied",
+        "source": "SYNTHETIC demonstration; not a user commitment"
+      }
+    },
+    "assumptions": []
+  },
+  "config": {
+    "ranking_weights": {
+      "scientific_value": 40,
+      "differentiation": 35,
+      "testability": 25
+    }
+  },
+  "searches": [
+    {
+      "id": "S1",
+      "query": "SYNTHETIC check of one fictional record",
+      "provider": "synthetic_fixture",
+      "searched_at": "2026-10-05T08:00:00Z",
+      "status": "complete",
+      "scope": "Fictional corpus only; no real retrieval",
+      "limitations": [
+        "SYNTHETIC: no real search or scientific evidence"
+      ],
+      "result_paper_ids": [
+        "P1"
+      ]
+    }
+  ],
+  "papers": [
+    {
+      "id": "P1",
+      "title": "SYNTHETIC SOURCE — NOT A REAL PAPER",
+      "year": null,
+      "url": "https://example.invalid/synthetic-source",
+      "identifiers": {},
+      "version": "fictional version",
+      "accessed_at": "2026-10-05T08:00:00Z"
+    }
+  ],
+  "screening": [
+    {
+      "id": "SC1",
+      "search_id": "S1",
+      "paper_id": "P1",
+      "idea_ids": [
+        "I1"
+      ],
+      "stage": "title_abstract",
+      "decision": "include",
+      "reason": "Fictional example relevance; no real screening",
+      "screened_at": "2026-10-05T08:00:00Z"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "E1",
+      "paper_id": "P1",
+      "source_version": "fictional version",
+      "read_scope": "section",
+      "locator": "Fictional section 1",
+      "observation": "An invented proxy might respond to a nuisance factor; no measurement was performed.",
+      "polarity": "context"
+    }
+  ],
+  "ideas": [
+    {
+      "id": "I1",
+      "version": 1,
+      "title": "SYNTHETIC measurement candidate",
+      "question": "SYNTHETIC: does an invented proxy measure its claimed target?",
+      "research_type": "measurement",
+      "hypothesis": "The invented proxy changes with a confound even if the target remains fixed.",
+      "contribution": "A fictional construct-validity assessment.",
+      "evidence_ids": [
+        "E1"
+      ],
+      "evidence_links": [
+        {
+          "evidence_id": "E1",
+          "role": "contradiction",
+          "target": "problem",
+          "claim": "The fictional prior understanding sufficiently describes this invented setting",
+          "relation": "contradicts",
+          "decision_relevant": true
+        }
+      ],
+      "search_ids": [
+        "S1"
+      ],
+      "nearest_work": [
+        {
+          "paper_id": "P1",
+          "evidence_ids": [
+            "E1"
+          ],
+          "delta": "An invented condition differs; no real novelty is claimed",
+          "decisive": true
+        }
+      ],
+      "novelty": {
+        "status": "incremental",
+        "reason": "SYNTHETIC schema illustration only",
+        "coverage": "One fictional record; no real-world claim"
+      },
+      "feasibility": {
+        "status": "unknown",
+        "reason": "Resources are deliberately unknown",
+        "dependencies": [
+          {
+            "name": "Fictional budget",
+            "mandatory": true,
+            "status": "unknown",
+            "basis": "Synthetic demonstration only"
+          }
+        ]
+      },
+      "validation": {
+        "status": "specified",
+        "prediction": "The invented proxy changes with a confound even if the target remains fixed.",
+        "falsifier": "The prespecified opposite result or counterexample occurs",
+        "design": "Use separate target and nuisance interventions with matched inputs.",
+        "metric": "Prespecified sensitivity to target and nuisance interventions",
+        "resource_estimate": "One fictional task; no GPU or actual time commitment",
+        "stop_rule": "Stop at the fictional budget or decisive result; execution failure is separate"
+      }
+    }
+  ],
+  "reviews": [
+    {
+      "id": "R1",
+      "idea_id": "I1",
+      "idea_version": 1,
+      "review_basis_hash": "8fe9cfc738183f54c5b87d38ef49b4bda28e2bbce9b874e027138f2918977b5e",
+      "reviewed_at": "2026-10-05T08:00:00Z",
+      "kind": "self",
+      "decision": "HOLD",
+      "decision_scope": "scientific_framing",
+      "recommended_stage": "information_test",
+      "decision_basis": {
+        "type": "insufficient",
+        "evidence_ids": [
+          "E1"
+        ],
+        "pilot_ids": [],
+        "dependency_names": [],
+        "constraint_keys": [],
+        "explanation": "SYNTHETIC: illustrates a record state, not a scientific endorsement"
+      },
+      "reason": "SYNTHETIC demonstration only; never reuse as scientific evidence",
+      "scores": {
+        "scientific_value": null,
+        "differentiation": null,
+        "testability": null
+      },
+      "score_reasons": {
+        "scientific_value": "Fictional illustration",
+        "differentiation": "Fictional illustration",
+        "testability": "Fictional illustration"
+      },
+      "penalties": [],
+      "limitations": [
+        "SYNTHETIC EXAMPLE — NOT A REAL SCIENTIFIC CLAIM",
+        "No real paper, retrieval, validation, or expert review"
+      ]
+    }
+  ],
+  "pilots": [],
+  "history": []
+}

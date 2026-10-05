@@ -50,7 +50,7 @@ smoke 通过可以记录 supported，但 summary 必须限定为流程通过，�
 ## 反馈后重新评估
 
 将新运行或科学结果写入 pilots；会改变当前判断的来源证据进入 evidence 或当前候选分析。
-补充或纠正 papers、searches、evidence、project.constraints、config、当前 idea 或关联 pilots 后，旧 basis_hash 失效。
+补充或纠正当前候选依赖的 papers、searches、evidence、screening、project.constraints、当前 idea 或关联 pilots 后，旧 review_basis_hash 失效。引用搜索的结果论文也属于依赖，不能因未成为近邻就忽略变化；无关候选的独立来源不触发复评。仅修改 config.ranking_weights 改变 ranking_config_hash，可重新排序而不使科学评审失效。
 不得沿用旧 GO 排名。过期评估保持历史记录，当前候选进入 HOLD，重开相关检查后再给新决策。
 问题、机制、假设或验证设计实质改变时递增 idea.version；只新增结果也会改变指纹，无需伪造方法变化。
 
@@ -63,6 +63,8 @@ smoke 通过可以记录 supported，但 summary 必须限定为流程通过，�
 
 新候选与证据冻结后重新 fingerprint，再形成当前 review；不把旧好评复制成新评估。
 KILL 只作用于有证据的当前版本与条件；反证支持改机制、缩小主张或终止投入，不能由脚本自动改科学结论。
+科学 refutation 需对应当前版本、有效测试与可定位产物；核心假设的反对 evidence_link 不能直接改为背景或自标 resolved 以恢复 GO。实质修正主张或条件时更新候选版本和关联推理，再完成当前评审。旧 duplicate、blocked 或 failed 标签不足以继续 KILL；资源终止需明确确认约束与 current_constraints 范围。
+当前版本仍记录 scientific/contradicted pilot 时，即使有新 GO 评审也保持 HOLD，不能用评审标签覆盖反证；它不会自动成为 KILL，淘汰仍需明确的当前评审依据。旧版本反证不永久阻止修订后的候选。若复核发现测试无效，宿主应据真实产物纠正结果分类与理由，而非为恢复 GO 改标签。
 若只是文档排版或措辞修正，不必修改 dossier；若影响判断，应更新对应事实字段。
 
 ## 保存条件，不设永久黑名单

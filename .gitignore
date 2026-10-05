@@ -1,5 +1,9 @@
 # Research work products belong in user projects, not this skill repository.
 **/dossier.json
+# Only the three explicitly fictional public examples are versioned.
+!examples/empirical-example/dossier.json
+!examples/theoretical-example/dossier.json
+!examples/measurement-example/dossier.json
 node_modules/
 .env
 .env.*

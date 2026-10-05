@@ -1,0 +1,30 @@
+name: Validate skill and release package
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Run research, evolution, and packaging tests
+        run: node evaluation/run-tests.mjs
+      - name: Check skill metadata and local references
+        run: node evaluation/check-skill.mjs skills/ai-research-mentor
+      - name: Validate explicitly synthetic examples
+        run: node evaluation/check-examples.mjs
+      - name: Compare release package with skill source
+        run: node evaluation/check-package.mjs

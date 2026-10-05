@@ -7,6 +7,7 @@ const required = ['SKILL.md', 'agents/openai.yaml', 'scripts/research_audit.mjs'
   'references/data-contract.md', 'references/literature.md', 'references/ideation.md',
   'references/evaluation.md', 'references/feedback.md', 'references/design-basis.md',
   'references/self-improvement.md', 'scripts/evolution_guard.mjs',
+  'references/retrieval-adapters.md',
   'tests/research_audit.test.mjs', 'tests/evolution_guard.test.mjs'];
 for (const file of required) {
   try { await fs.access(path.join(root, file)); } catch { errors.push(`Missing ${file}`); }

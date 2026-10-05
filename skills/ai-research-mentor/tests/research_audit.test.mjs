@@ -6,9 +6,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import {
   createInitialDossier, validateDossier, canonicalStringify,
-  fingerprintIdea, rankDossier, initProject,
+  fingerprintIdea, rankingConfigHash, rankDossier, migrateDossier, initProject,
 } from '../scripts/research_audit.mjs';
 
 const when = '2026-10-05T08:00:00Z';
@@ -27,6 +28,8 @@ function fixture() {
   d.ideas.push({ id: 'I1', version: 1, title: 'Synthetic candidate', question: 'Fictional boundary question',
     research_type: 'empirical', hypothesis: 'A fictional condition changes a fictional response',
     contribution: 'A conditional extension; this is not a real scientific claim', evidence_ids: ['E1'], search_ids: ['S1'],
+    evidence_links: [{ evidence_id: 'E1', role: 'motivation', target: 'problem',
+      claim: 'A fictional condition warrants a bounded comparison', relation: 'supports', decision_relevant: true }],
     nearest_work: [{ paper_id: 'P1', evidence_ids: ['E1'], delta: 'Synthetic condition differs', decisive: true }],
     novelty: { status: 'distinct', reason: 'Fixture assertion only', coverage: 'One fictional document' },
     feasibility: { status: 'ready', reason: 'Fixture prerequisite met',
@@ -41,7 +44,10 @@ function fixture() {
 function addReview(d, id, options = {}) {
   const idea = d.ideas.find(i => i.id === id);
   const r = { id: `R${d.reviews.length + 1}`, idea_id: id, idea_version: idea.version,
-    basis_hash: fingerprintIdea(d, id), reviewed_at: when, kind: 'self', decision: 'GO',
+    review_basis_hash: fingerprintIdea(d, id), reviewed_at: when, kind: 'self', decision: 'GO',
+    decision_scope: 'scientific_framing', recommended_stage: 'pilot',
+    decision_basis: { type: 'advance', evidence_ids: ['E1'], pilot_ids: [], dependency_names: [],
+      constraint_keys: [], explanation: 'Synthetic linked evidence warrants this bounded comparison' },
     reason: 'Synthetic review for software tests only',
     scores: { scientific_value: 4, differentiation: 4, testability: 4 },
     score_reasons: { scientific_value: 'Fixture reason', differentiation: 'Fixture reason', testability: 'Fixture reason' },
@@ -53,12 +59,61 @@ function addReview(d, id, options = {}) {
 function refresh(d) {
   for (const r of d.reviews) {
     r.idea_version = d.ideas.find(i => i.id === r.idea_id).version;
-    r.basis_hash = fingerprintIdea(d, r.idea_id);
+    r.review_basis_hash = fingerprintIdea(d, r.idea_id);
   }
+}
+
+function decide(d, decision, type, basis = {}) {
+  const r = d.reviews[0];
+  r.decision = decision;
+  r.decision_basis = { type, evidence_ids: [], pilot_ids: [], dependency_names: [], constraint_keys: [],
+    explanation: 'Synthetic decision basis for software validation only', ...basis };
+  refresh(d);
+  return r;
+}
+
+function duplicate(d = fixture()) {
+  d.ideas[0].novelty.status = 'duplicate';
+  d.ideas[0].evidence_links[0] = { evidence_id: 'E1', role: 'nearest_work', target: 'nearest_work',
+    claim: 'The synthetic contribution is covered by this nearest work', relation: 'supports', decision_relevant: true };
+  decide(d, 'KILL', 'duplicate', { evidence_ids: ['E1'] });
+  return d;
+}
+
+function addUnrelated(d) {
+  const p = { ...structuredClone(d.papers[0]), id: 'P2', url: 'https://example.invalid/paper-2' };
+  d.papers.push(p);
+  d.searches.push({ ...structuredClone(d.searches[0]), id: 'S2', result_paper_ids: ['P2'] });
+  d.evidence.push({ ...structuredClone(d.evidence[0]), id: 'E2', paper_id: 'P2' });
+  const i = structuredClone(d.ideas[0]);
+  Object.assign(i, { id: 'I2', evidence_ids: ['E2'], search_ids: ['S2'],
+    evidence_links: [{ ...i.evidence_links[0], evidence_id: 'E2' }],
+    nearest_work: [{ ...i.nearest_work[0], paper_id: 'P2', evidence_ids: ['E2'] }] });
+  d.ideas.push(i);
+  d.pilots.push({ id: 'X2', idea_id: 'I2', idea_version: 1, kind: 'scientific', outcome: 'inconclusive',
+    artifacts: ['synthetic-i2.csv'], summary: 'An unrelated synthetic result', limitations: [] });
+  d.screening.push({ id: 'SC2', search_id: 'S2', paper_id: 'P2', idea_ids: ['I2'],
+    stage: 'full_text', decision: 'include', reason: 'Synthetic relevance to I2', screened_at: when });
+  return d;
+}
+
+function v1Fixture() {
+  const d = fixture();
+  d.schema_version = 1;
+  delete d.screening;
+  for (const idea of d.ideas) delete idea.evidence_links;
+  for (const r of d.reviews) {
+    for (const key of ['review_basis_hash', 'decision_scope', 'recommended_stage', 'decision_basis']) delete r[key];
+    r.basis_hash = '0'.repeat(64);
+  }
+  for (const r of d.reviews) r.basis_hash = fingerprintIdea(d, r.idea_id);
+  return d;
 }
 
 test('empty initialization is valid and yields zero survivors', () => {
   const d = createInitialDossier('empty-test');
+  assert.equal(d.schema_version, 2);
+  assert.deepEqual(d.screening, []);
   assert.equal(validateDossier(d).valid, true);
   const r = rankDossier(d);
   assert.deepEqual(r.ranked, []);
@@ -102,14 +157,14 @@ test('negative penalties are invalid rather than increasing scores', () => {
   assert.equal(validateDossier(d).valid, false);
 });
 
-test('explicit KILL cannot be outweighed by a perfect score', () => {
-  const d = fixture(); d.reviews[0].decision = 'KILL';
+test('an evidence-backed current KILL cannot be outweighed by a perfect score', () => {
+  const d = duplicate();
   const r = rankDossier(d);
   assert.equal(r.ranked.length, 0); assert.equal(r.killed[0].idea_id, 'I1');
 });
 
 test('explicit HOLD is retained despite perfect scores', () => {
-  const d = fixture(); d.reviews[0].decision = 'HOLD';
+  const d = fixture(); decide(d, 'HOLD', 'insufficient');
   const r = rankDossier(d);
   assert.equal(r.ranked.length, 0); assert.equal(r.held.length, 1);
 });
@@ -145,11 +200,11 @@ test('unmarked nearest work is conservatively checked at section depth', () => {
   assert.equal(rankDossier(d).held.length, 1);
 });
 
-test('unknown prerequisite calls for HOLD while failed prerequisite kills this framing', () => {
+test('unknown or failed prerequisite needs reassessment rather than automatic KILL', () => {
   const d = fixture(); d.ideas[0].feasibility.dependencies[0].status = 'unknown'; refresh(d);
   assert.equal(rankDossier(d).held.length, 1);
   d.ideas[0].feasibility.dependencies[0].status = 'failed'; refresh(d);
-  assert.equal(rankDossier(d).killed.length, 1);
+  assert.equal(rankDossier(d).held.length, 1);
 });
 
 test('pilot-only status is not permission for the full scientific validation', () => {
@@ -157,9 +212,9 @@ test('pilot-only status is not permission for the full scientific validation', (
   assert.equal(rankDossier(d).held.length, 1);
 });
 
-test('confirmed duplicate overrides a GO review', () => {
+test('a duplicate label with a current GO review calls for HOLD', () => {
   const d = fixture(); d.ideas[0].novelty.status = 'duplicate'; refresh(d);
-  assert.equal(rankDossier(d).killed.length, 1);
+  assert.equal(rankDossier(d).held.length, 1);
 });
 
 test('missing evaluation design prevents ranking', () => {
@@ -231,14 +286,15 @@ test('old pilot versions can remain in history', () => {
 
 test('a latest stale review does not fall back to an earlier favorable review', () => {
   const d = fixture();
-  addReview(d, 'I1', { reviewed_at: '2026-10-05T09:00:00Z', basis_hash: '0'.repeat(64), decision: 'KILL' });
+  addReview(d, 'I1', { reviewed_at: '2026-10-05T09:00:00Z', review_basis_hash: '0'.repeat(64), decision: 'KILL',
+    decision_basis: { type: 'insufficient', evidence_ids: [], pilot_ids: [], dependency_names: [], constraint_keys: [],
+      explanation: 'Synthetic stale review, not a valid reason to kill' } });
   const r = rankDossier(d);
   assert.equal(r.ranked.length, 0); assert.equal(r.held.length, 1);
 });
 
 test('changing a previously killed framing calls for reassessment rather than a permanent ban', () => {
-  const d = fixture(); d.ideas[0].novelty.status = 'duplicate';
-  d.reviews[0].decision = 'KILL'; refresh(d);
+  const d = duplicate();
   assert.equal(rankDossier(d).killed.length, 1);
   d.ideas[0].question = 'A revised question with a different scientific target';
   const r = rankDossier(d);
@@ -251,6 +307,480 @@ test('JSON key order and history logging do not alter the fingerprint', () => {
   d.history.push({ event: 'Synthetic archival note', applies_when: 'Synthetic only' });
   assert.equal(fingerprintIdea(d, 'I1'), h);
   assert.equal(canonicalStringify({ b: 2, a: 1 }), canonicalStringify({ a: 1, b: 2 }));
+});
+
+test('unrelated papers, retrievals, evidence, pilots and screenings do not stale another idea', () => {
+  const d = fixture(); const hash = fingerprintIdea(d, 'I1');
+  addUnrelated(d);
+  assert.equal(validateDossier(d).valid, true);
+  assert.equal(fingerprintIdea(d, 'I1'), hash);
+  assert.equal(rankDossier(d).ranked[0].idea_id, 'I1');
+  d.evidence[1].observation = 'Revised observation for I2';
+  d.searches[1].limitations.push('Different coverage boundary for I2');
+  d.papers[1].version = 'fixture v3';
+  d.pilots[0].summary = 'Updated unrelated scientific result';
+  d.screening[0].decision = 'uncertain';
+  assert.equal(fingerprintIdea(d, 'I1'), hash);
+});
+
+test('ranking preferences change ordering without staling scientific reviews', () => {
+  const d = fixture(); addUnrelated(d);
+  addReview(d, 'I2', { decision_basis: { type: 'advance', evidence_ids: ['E2'], pilot_ids: [],
+    dependency_names: [], constraint_keys: [], explanation: 'Synthetic I2 basis' } });
+  d.reviews[0].scores = { scientific_value: 4, differentiation: 1, testability: 1 };
+  d.reviews[1].scores = { scientific_value: 1, differentiation: 4, testability: 4 };
+  const scientific = fingerprintIdea(d, 'I1'); const ranking = rankingConfigHash(d);
+  d.config.ranking_weights = { scientific_value: 80, differentiation: 10, testability: 10 };
+  assert.equal(fingerprintIdea(d, 'I1'), scientific);
+  assert.notEqual(rankingConfigHash(d), ranking);
+  assert.equal(rankDossier(d).ranked[0].idea_id, 'I1');
+  d.config.ranking_weights = { scientific_value: 10, differentiation: 80, testability: 10 };
+  const output = rankDossier(d);
+  assert.equal(output.ranked[0].idea_id, 'I2');
+  assert.equal(output.held.length, 0);
+  assert.equal(output.ranking_config_hash, rankingConfigHash(d));
+});
+
+test('access and screening record timestamps do not change the scientific basis', () => {
+  const d = fixture();
+  d.screening.push({ id: 'SC1', search_id: 'S1', paper_id: 'P1', idea_ids: ['I1'],
+    stage: 'full_text', decision: 'include', reason: 'Synthetic candidate relevance', screened_at: when });
+  refresh(d); const hash = fingerprintIdea(d, 'I1');
+  d.papers[0].accessed_at = '2026-10-06T08:00:00Z';
+  d.screening[0].screened_at = '2026-10-06T08:00:00Z';
+  assert.equal(fingerprintIdea(d, 'I1'), hash);
+  assert.equal(rankDossier(d).ranked.length, 1);
+});
+
+test('retrieval execution dates remain part of the scientific coverage boundary', () => {
+  const d = fixture(); const hash = fingerprintIdea(d, 'I1');
+  d.searches[0].searched_at = '2026-10-06T08:00:00Z';
+  assert.notEqual(fingerprintIdea(d, 'I1'), hash);
+  assert.equal(rankDossier(d).held.length, 1);
+});
+
+test('linked search results include paper versions even when not marked nearest work', () => {
+  const d = fixture(); addUnrelated(d);
+  d.searches[0].result_paper_ids.push('P2'); refresh(d);
+  d.papers[1].version = 'fixture v2';
+  assert.equal(rankDossier(d).held.find(r => r.idea_id === 'I1').decision, 'HOLD');
+});
+
+test('evidence-linked papers enter the closure without a search or nearest-work link', () => {
+  const d = fixture(); addUnrelated(d);
+  d.ideas[0].evidence_ids.push('E2');
+  d.ideas[0].evidence_links.push({ evidence_id: 'E2', role: 'context', target: 'problem',
+    claim: 'Additional synthetic problem context', relation: 'context', decision_relevant: false });
+  refresh(d); const hash = fingerprintIdea(d, 'I1');
+  d.papers[1].version = 'fixture v2';
+  assert.notEqual(fingerprintIdea(d, 'I1'), hash);
+});
+
+test('screening-linked retrieval and papers enter only the associated candidate closure', () => {
+  const d = fixture(); addUnrelated(d);
+  const before = fingerprintIdea(d, 'I1');
+  d.screening[0].idea_ids.push('I1');
+  assert.notEqual(fingerprintIdea(d, 'I1'), before);
+  refresh(d); const linked = fingerprintIdea(d, 'I1');
+  d.searches[1].query = 'A changed screening-associated retrieval';
+  assert.notEqual(fingerprintIdea(d, 'I1'), linked);
+});
+
+test('collection ordering does not alter the scoped fingerprint', () => {
+  const d = fixture(); addUnrelated(d);
+  const before = fingerprintIdea(d, 'I1');
+  for (const name of ['papers', 'searches', 'evidence', 'ideas', 'screening', 'pilots']) d[name].reverse();
+  assert.equal(fingerprintIdea(d, 'I1'), before);
+});
+
+test('project labels do not replace scientific inputs as a reason for reassessment', () => {
+  const d = fixture(); const hash = fingerprintIdea(d, 'I1');
+  d.project.id = 'renamed-synthetic-project';
+  assert.equal(fingerprintIdea(d, 'I1'), hash);
+  assert.equal(rankDossier(d).ranked.length, 1);
+});
+
+test('candidate-associated screening decisions stale reviews while preserving actual search results', () => {
+  const d = fixture();
+  d.screening.push({ id: 'SC1', search_id: 'S1', paper_id: 'P1', idea_ids: ['I1'], stage: 'title_abstract',
+    decision: 'include', reason: 'Synthetic initial relevance', screened_at: when });
+  refresh(d); const results = structuredClone(d.searches[0].result_paper_ids);
+  d.screening[0].decision = 'uncertain'; d.screening[0].reason = 'Synthetic unresolved inclusion condition';
+  assert.deepEqual(d.searches[0].result_paper_ids, results);
+  assert.equal(rankDossier(d).held.length, 1);
+});
+
+test('sharing an unchanged screening record with another candidate does not stale its original candidate', () => {
+  const d = fixture(); addUnrelated(d);
+  d.screening.push({ id: 'SC1', search_id: 'S1', paper_id: 'P1', idea_ids: ['I1'], stage: 'full_text',
+    decision: 'include', reason: 'Synthetic relevance shared between candidates', screened_at: when });
+  refresh(d); const hash = fingerprintIdea(d, 'I1');
+  d.screening.find(s => s.id === 'SC1').idea_ids.push('I2');
+  assert.equal(fingerprintIdea(d, 'I1'), hash);
+  assert.equal(rankDossier(d).ranked.find(r => r.idea_id === 'I1').decision, 'GO');
+});
+
+test('nearest-work differences and candidate evidence-link meaning stale prior reviews', () => {
+  for (const update of [
+    d => d.ideas[0].nearest_work[0].delta = 'A new technical difference',
+    d => d.ideas[0].evidence_links[0].claim = 'A different claim from the same source',
+    d => d.evidence[0].observation = 'An updated source observation',
+  ]) {
+    const d = fixture(); update(d);
+    assert.equal(rankDossier(d).held.length, 1);
+  }
+});
+
+test('duplicate or blocked labels without a current review cannot KILL', () => {
+  for (const modify of [
+    d => d.ideas[0].novelty.status = 'duplicate',
+    d => d.ideas[0].feasibility.status = 'blocked',
+    d => d.ideas[0].feasibility.dependencies[0].status = 'failed',
+  ]) {
+    const d = fixture(); d.reviews = []; modify(d);
+    const result = rankDossier(d);
+    assert.equal(result.killed.length, 0);
+    assert.equal(result.held.length, 1);
+  }
+});
+
+test('a bare current KILL without a matching decision basis remains HOLD', () => {
+  const d = fixture(); decide(d, 'KILL', 'insufficient');
+  assert.equal(rankDossier(d).killed.length, 0);
+  assert.equal(rankDossier(d).held.length, 1);
+});
+
+test('duplicate KILL needs deep decisive evidence, not an abstract or unchecked nearest claim', () => {
+  for (const modify of [
+    d => d.evidence[0].read_scope = 'abstract',
+    d => d.ideas[0].nearest_work[0].decisive = false,
+    d => d.reviews[0].decision_basis.evidence_ids = [],
+  ]) {
+    const d = duplicate(); modify(d); refresh(d);
+    assert.equal(rankDossier(d).killed.length, 0);
+    assert.equal(rankDossier(d).held.length, 1);
+  }
+});
+
+test('constraints KILL is scoped and requires confirmed facts plus an actual failed prerequisite', () => {
+  const d = fixture();
+  d.project.constraints.compute = { status: 'confirmed', value: 'No synthetic device available', source: 'Synthetic user confirmation, fixture only' };
+  d.ideas[0].feasibility.status = 'blocked';
+  d.ideas[0].feasibility.dependencies[0].status = 'failed';
+  const r = decide(d, 'KILL', 'constraints', { constraint_keys: ['compute'], dependency_names: ['Synthetic resource'] });
+  r.decision_scope = 'current_constraints';
+  const result = rankDossier(d);
+  assert.equal(result.killed.length, 1);
+  assert.equal(result.killed[0].decision_scope, 'current_constraints');
+  assert.equal(result.ranked.length, 0);
+  r.decision_scope = 'scientific_framing';
+  assert.equal(rankDossier(d).held.length, 1);
+});
+
+test('unconfirmed resource claims or an unfailed dependency cannot justify constraints KILL', () => {
+  for (const modify of [
+    d => d.project.constraints.compute = 'An unconfirmed resource claim',
+    d => d.ideas[0].feasibility.dependencies[0].status = 'met',
+    d => d.ideas[0].feasibility.dependencies[0].mandatory = false,
+    d => d.reviews[0].decision_basis.constraint_keys = [],
+  ]) {
+    const d = fixture();
+    d.project.constraints.compute = { status: 'confirmed', value: 'Synthetic unavailable resource', source: 'Synthetic user record' };
+    d.ideas[0].feasibility.dependencies[0].status = 'failed';
+    decide(d, 'KILL', 'constraints', { constraint_keys: ['compute'], dependency_names: ['Synthetic resource'] }).decision_scope = 'current_constraints';
+    modify(d);
+    if (validateDossier(d).valid) {
+      refresh(d); assert.equal(rankDossier(d).killed.length, 0);
+    } else {
+      assert.equal(validateDossier(d).valid, false);
+    }
+  }
+});
+
+test('constraints KILL rejects empty facts while retaining meaningful zero and false values', () => {
+  for (const value of [{}, [], [''], { resource: null }, { resource: { devices: [] } }, 0, false]) {
+    const d = fixture();
+    d.project.constraints.compute = { status: 'confirmed', value, source: 'Synthetic user resource record' };
+    d.ideas[0].feasibility.status = 'blocked';
+    d.ideas[0].feasibility.dependencies[0].status = 'failed';
+    decide(d, 'KILL', 'constraints', { constraint_keys: ['compute'], dependency_names: ['Synthetic resource'] }).decision_scope = 'current_constraints';
+    const meaningful = value === 0 || value === false;
+    const output = rankDossier(d);
+    assert.equal(output.killed.length, meaningful ? 1 : 0);
+    assert.equal(output.held.length, meaningful ? 0 : 1);
+  }
+});
+
+test('a scientific contradiction can KILL this framing while smoke or failed execution cannot', () => {
+  for (const [kind, outcome, expected] of [
+    ['scientific', 'contradicted', 'KILL'],
+    ['smoke', 'contradicted', 'HOLD'],
+    ['scientific', 'execution_failed', 'HOLD'],
+    ['scientific', 'inconclusive', 'HOLD'],
+  ]) {
+    const d = fixture();
+    d.pilots.push({ id: 'X1', idea_id: 'I1', idea_version: 1, kind, outcome,
+      artifacts: ['synthetic-result.log'], summary: 'Synthetic attempted falsification', limitations: ['No scientific experiment performed'] });
+    decide(d, 'KILL', 'scientific_refutation', { pilot_ids: ['X1'] });
+    const output = rankDossier(d);
+    assert.equal(output.killed.length, expected === 'KILL' ? 1 : 0);
+    assert.equal(output.held.length, expected === 'HOLD' ? 1 : 0);
+  }
+});
+
+test('a refreshed GO review cannot erase a current-version scientific pilot contradiction', () => {
+  const d = fixture();
+  d.pilots.push({ id: 'X1', idea_id: 'I1', idea_version: 1, kind: 'scientific', outcome: 'contradicted',
+    artifacts: ['synthetic-refutation.csv'], summary: 'Synthetic current hypothesis failed its stated test',
+    limitations: ['A software fixture, not scientific evidence'] });
+  refresh(d);
+  assert.equal(validateDossier(d).valid, true);
+  assert.equal(d.reviews[0].decision, 'GO');
+  const output = rankDossier(d);
+  assert.equal(output.ranked.length, 0);
+  assert.equal(output.held.length, 1);
+  assert.equal(output.killed.length, 0);
+});
+
+test('an old scientific contradiction does not permanently ban a freshly reviewed revised framing', () => {
+  const d = fixture();
+  d.pilots.push({ id: 'X1', idea_id: 'I1', idea_version: 1, kind: 'scientific', outcome: 'contradicted',
+    artifacts: ['synthetic-old-refutation.csv'], summary: 'Synthetic historical framing was contradicted',
+    limitations: ['Historical fixture, not a test of the revised question'] });
+  d.ideas[0].version = 2;
+  d.ideas[0].question = 'A revised synthetic question whose framing addresses the historical limitation';
+  d.ideas[0].hypothesis = 'A different conditional prediction for the revised synthetic question';
+  refresh(d);
+  assert.equal(validateDossier(d).valid, true);
+  const output = rankDossier(d);
+  assert.equal(output.ranked.length, 1);
+  assert.equal(output.held.length, 0);
+  assert.equal(output.killed.length, 0);
+  assert.equal(d.pilots[0].outcome, 'contradicted');
+});
+
+test('a contradictory old-version pilot cannot be cited as a current refutation', () => {
+  const d = fixture(); d.ideas[0].version = 2;
+  d.pilots.push({ id: 'X1', idea_id: 'I1', idea_version: 1, kind: 'scientific', outcome: 'contradicted',
+    artifacts: ['synthetic-old.csv'], summary: 'A different historical framing', limitations: [] });
+  d.reviews[0].idea_version = 2;
+  d.reviews[0].review_basis_hash = fingerprintIdea(d, 'I1');
+  d.reviews[0].decision = 'KILL';
+  d.reviews[0].decision_basis.type = 'scientific_refutation';
+  d.reviews[0].decision_basis.pilot_ids = ['X1'];
+  assert.equal(validateDossier(d).valid, false);
+});
+
+test('theory, measurement and reproduction can advance on deep non-support problem evidence', () => {
+  for (const research_type of ['theoretical', 'measurement', 'reproduction']) {
+    const d = fixture(); d.ideas[0].research_type = research_type;
+    d.evidence[0].polarity = 'contradicts';
+    Object.assign(d.ideas[0].evidence_links[0], { role: 'contradiction', target: 'problem', relation: 'contradicts',
+      claim: 'A flaw in the existing formulation motivates this distinct research question' });
+    refresh(d);
+    assert.equal(rankDossier(d).ranked.length, 1);
+  }
+  const d = fixture(); d.ideas[0].research_type = 'theoretical';
+  d.evidence[0].polarity = 'context'; d.ideas[0].evidence_links[0].relation = 'context'; refresh(d);
+  assert.equal(rankDossier(d).ranked.length, 1);
+});
+
+test('metadata-only decision evidence and a deep but irrelevant source cannot establish GO', () => {
+  for (const modify of [
+    d => d.evidence[0].read_scope = 'metadata',
+    d => d.ideas[0].evidence_links[0].decision_relevant = false,
+    d => d.ideas[0].evidence_links = [],
+  ]) {
+    const d = fixture(); modify(d); refresh(d);
+    assert.equal(rankDossier(d).held.length, 1);
+  }
+});
+
+test('a decision-relevant contradiction of this hypothesis, prerequisite or design blocks GO', () => {
+  for (const target of ['hypothesis', 'prerequisite', 'validation']) {
+    const d = fixture(); d.evidence[0].polarity = 'contradicts';
+    Object.assign(d.ideas[0].evidence_links[0], { role: 'contradiction', target, relation: 'contradicts' });
+    refresh(d);
+    assert.equal(rankDossier(d).ranked.length, 0);
+    assert.equal(rankDossier(d).held.length, 1);
+  }
+});
+
+test('candidate-specific evidence links cannot refer outside that candidate evidence set', () => {
+  const d = fixture(); addUnrelated(d);
+  d.ideas[0].evidence_links[0].evidence_id = 'E2';
+  assert.equal(validateDossier(d).valid, false);
+});
+
+test('decision-basis evidence, pilots, dependency names and constraints must resolve in candidate scope', () => {
+  const modifications = [
+    d => d.reviews[0].decision_basis.evidence_ids = ['E2'],
+    d => d.reviews[0].decision_basis.pilot_ids = ['X2'],
+    d => d.reviews[0].decision_basis.dependency_names = ['Missing dependency'],
+    d => d.reviews[0].decision_basis.constraint_keys = ['Missing resource'],
+  ];
+  for (const modify of modifications) {
+    const d = fixture(); addUnrelated(d); modify(d);
+    assert.equal(validateDossier(d).valid, false);
+  }
+});
+
+test('historical review bases remain readable after candidate links change but cannot authorize GO', () => {
+  const d = fixture(); addUnrelated(d);
+  Object.assign(d.ideas[0], { evidence_ids: ['E2'], search_ids: ['S2'],
+    evidence_links: [{ ...d.ideas[0].evidence_links[0], evidence_id: 'E2' }],
+    nearest_work: [{ ...d.ideas[0].nearest_work[0], paper_id: 'P2', evidence_ids: ['E2'] }] });
+  assert.equal(validateDossier(d).valid, true);
+  assert.equal(rankDossier(d).ranked.length, 0);
+  assert.equal(rankDossier(d).held.find(r => r.idea_id === 'I1').decision, 'HOLD');
+  assert.deepEqual(d.reviews[0].decision_basis.evidence_ids, ['E1']);
+});
+
+test('new contract fields require valid enums, complete references and a decision explanation', () => {
+  const updates = [
+    d => delete d.reviews[0].review_basis_hash,
+    d => d.reviews[0].decision_scope = 'whole_field',
+    d => d.reviews[0].recommended_stage = 'publication',
+    d => d.reviews[0].decision_basis.type = 'auto_scientific_truth',
+    d => d.reviews[0].decision_basis.explanation = '',
+    d => delete d.reviews[0].decision_basis.constraint_keys,
+    d => d.ideas[0].evidence_links[0].target = 'entire_field',
+    d => d.ideas[0].evidence_links[0].role = 'ground_truth',
+    d => d.ideas[0].evidence_links[0].relation = 'proves',
+    d => d.ideas[0].evidence_links[0].decision_relevant = 'yes',
+  ];
+  for (const change of updates) { const d = fixture(); change(d); assert.equal(validateDossier(d).valid, false); }
+});
+
+test('screening rejects missing references, invalid enums and papers absent from search results', () => {
+  const updates = [
+    s => s.search_id = 'missing', s => s.paper_id = 'missing', s => s.idea_ids = ['missing'],
+    s => s.stage = 'imagined_reading', s => s.decision = 'possibly',
+    s => s.paper_id = 'P2',
+  ];
+  for (const update of updates) {
+    const d = fixture(); addUnrelated(d);
+    const s = { id: 'SC1', search_id: 'S1', paper_id: 'P1', idea_ids: ['I1'], stage: 'metadata',
+      decision: 'uncertain', reason: 'Synthetic uncertainty', screened_at: when };
+    update(s); d.screening.push(s);
+    assert.equal(validateDossier(d).valid, false);
+  }
+});
+
+test('warnings preserve structural validity and never replace decision gates', () => {
+  const d = fixture(); d.evidence[0].read_scope = 'full_text'; d.evidence[0].locator = 'paper'; refresh(d);
+  const validation = validateDossier(d);
+  assert.equal(validation.valid, true); assert.deepEqual(validation.errors, []);
+  assert.ok(validation.warnings.length > 0);
+});
+
+test('screening exclusion of recorded nearest work is a consistency warning, not invalid JSON', () => {
+  const d = fixture();
+  d.screening.push({ id: 'SC1', search_id: 'S1', paper_id: 'P1', idea_ids: ['I1'], stage: 'full_text',
+    decision: 'exclude', reason: 'Synthetic exclusion needs reconciliation', screened_at: when });
+  const validation = validateDossier(d);
+  assert.equal(validation.valid, true);
+  assert.ok(validation.warnings.length > 0);
+});
+
+test('malformed candidate records with exclusions return aggregate validation errors without throwing', () => {
+  const d = fixture();
+  d.ideas = [null];
+  d.screening.push({ id: 'SC1', search_id: 'S1', paper_id: 'P1', idea_ids: ['I1'], stage: 'full_text',
+    decision: 'exclude', reason: 'Synthetic excluded work', screened_at: when });
+  let validation;
+  assert.doesNotThrow(() => { validation = validateDossier(d); });
+  assert.equal(validation.valid, false);
+  assert.ok(validation.errors.length >= 2);
+});
+
+test('low confidence retains score and requires explicit reasons for every dimension', () => {
+  const d = fixture();
+  d.reviews[0].confidence = { scientific_value: 'low', differentiation: 'medium', testability: 'high' };
+  d.reviews[0].confidence_reasons = { scientific_value: 'Only synthetic motivation', differentiation: 'Only one fixture neighbor',
+    testability: 'Synthetic design is fully specified' };
+  assert.equal(validateDossier(d).valid, true);
+  assert.equal(rankDossier(d).ranked[0].score, 100);
+  assert.ok(validateDossier(d).warnings.length > 0);
+  delete d.reviews[0].confidence_reasons;
+  assert.equal(validateDossier(d).valid, false);
+});
+
+test('partial or invalid confidence is rejected instead of becoming a hidden score multiplier', () => {
+  for (const confidence of [
+    { scientific_value: 'certain', differentiation: 'medium', testability: 'high' },
+    { scientific_value: 'low', differentiation: 'medium' },
+  ]) {
+    const d = fixture(); d.reviews[0].confidence = confidence;
+    d.reviews[0].confidence_reasons = { scientific_value: 'Fixture', differentiation: 'Fixture', testability: 'Fixture' };
+    assert.equal(validateDossier(d).valid, false);
+  }
+});
+
+test('full validation needs a current independent GO receipt; bounded pilot does not', () => {
+  const d = fixture();
+  assert.equal(rankDossier(d).ranked.length, 1);
+  d.reviews[0].recommended_stage = 'full_validation';
+  assert.equal(rankDossier(d).held.length, 1);
+  addReview(d, 'I1', { kind: 'independent', author_context: 'Synthetic author context A',
+    evaluator_context: 'Synthetic independent context B', artifact: 'synthetic-review.md',
+    recommended_stage: 'full_validation', reviewed_at: '2026-10-05T09:00:00Z' });
+  assert.equal(rankDossier(d).ranked.length, 1);
+  assert.equal(rankDossier(d).ranked[0].recommended_stage, 'full_validation');
+});
+
+test('a stale independent receipt cannot authorize a latest self full-validation recommendation', () => {
+  const d = fixture();
+  addReview(d, 'I1', { kind: 'independent', author_context: 'Synthetic author A', evaluator_context: 'Synthetic evaluator B',
+    artifact: 'synthetic-review.md', reviewed_at: '2026-10-05T09:00:00Z' });
+  d.ideas[0].question = 'A revised synthetic target';
+  addReview(d, 'I1', { recommended_stage: 'full_validation', reviewed_at: '2026-10-05T10:00:00Z' });
+  assert.equal(rankDossier(d).held.length, 1);
+});
+
+test('independent labeling needs distinct context identifiers and a review artifact', () => {
+  for (const options of [
+    { author_context: 'same', evaluator_context: 'same', artifact: 'synthetic-review.md' },
+    { author_context: 'author', evaluator_context: 'evaluator' },
+  ]) {
+    const d = fixture(); Object.assign(d.reviews[0], { kind: 'independent' }, options);
+    assert.equal(validateDossier(d).valid, false);
+  }
+});
+
+test('v1 remains readable with its original hash but its old decisions require reassessment', () => {
+  const d = v1Fixture();
+  assert.equal(validateDossier(d).valid, true);
+  const expected = createHash('sha256').update(canonicalStringify({ project: d.project, config: d.config,
+    searches: d.searches, papers: d.papers, evidence: d.evidence, idea: d.ideas[0],
+    pilots: d.pilots.filter(pilot => pilot.idea_id === 'I1') }), 'utf8').digest('hex');
+  assert.equal(fingerprintIdea(d, 'I1'), expected);
+  for (const decision of ['GO', 'HOLD', 'KILL']) {
+    d.reviews[0].decision = decision;
+    const output = rankDossier(d);
+    assert.equal(output.ranked.length, 0); assert.equal(output.killed.length, 0); assert.equal(output.held.length, 1);
+  }
+});
+
+test('migration archives full v1 reviews without fabricating reassessment or mutating input', () => {
+  const d = v1Fixture(); const before = JSON.stringify(d); const oldReview = structuredClone(d.reviews[0]);
+  const migrated = migrateDossier(d);
+  assert.equal(JSON.stringify(d), before);
+  assert.equal(migrated.schema_version, 2);
+  assert.equal(validateDossier(migrated).valid, true);
+  assert.deepEqual(migrated.reviews, []);
+  assert.deepEqual(migrated.ideas[0].evidence_links, []);
+  const archived = migrated.history.find(entry => entry.original_review?.id === oldReview.id);
+  assert.deepEqual(archived.original_review, oldReview);
+  assert.equal(archived.requires_reassessment, true);
+  assert.equal(rankDossier(migrated).held.length, 1);
+  assert.equal(rankDossier(migrated).ranked.length, 0);
+});
+
+test('migrating a v2 dossier preserves its current records without rewriting hashes', () => {
+  const d = fixture(); const before = structuredClone(d);
+  assert.deepEqual(migrateDossier(d), before);
+  assert.deepEqual(d, before);
 });
 
 test('invalid references, scores, dates and weights are rejected', () => {
@@ -311,13 +841,28 @@ test('CLI validates and ranks a dossier without changing it', async () => {
   try {
     const file = path.join(root, 'dossier.json');
     const content = JSON.stringify(fixture(), null, 2); await writeFile(file, content);
-    for (const command of ['validate', 'rank', 'fingerprint']) {
+    for (const command of ['validate', 'rank', 'fingerprint', 'migrate']) {
       const args = command === 'fingerprint' ? [command, file, 'I1'] : [command, file];
       const r = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' });
       assert.equal(r.status, 0, r.stderr);
       if (command !== 'fingerprint') JSON.parse(r.stdout);
       assert.equal(await readFile(file, 'utf8'), content);
     }
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('CLI migration emits a valid reassessment dossier without overwriting the v1 file', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'research-skill-test-'));
+  try {
+    const file = path.join(root, 'old-dossier.json');
+    const content = JSON.stringify(v1Fixture(), null, 2); await writeFile(file, content);
+    const result = spawnSync(process.execPath, [script, 'migrate', file], { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.schema_version, 2);
+    assert.equal(validateDossier(output).valid, true);
+    assert.deepEqual(output.reviews, []);
+    assert.equal(await readFile(file, 'utf8'), content);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 

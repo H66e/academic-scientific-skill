@@ -17,6 +17,8 @@
 - unknown：尚未确认；已有实验配置和公开租赁价格只能帮助估算，不能替用户承诺资源。
 - 以上是来源说明，不是 dependency.status 的新枚举。依赖仍使用 `met`、`failed`、`unknown`，依据写进 `basis`。
 
+持久记录中，用于资源约束 KILL 的 project.constraints 条目须有 status=confirmed、实际 value 和 source；decision_basis.constraint_keys 指向这些条目。确认标签只声明实际来源，不证明其诚实；不能把旧自由文本约束自动升级为用户确认。
+
 把会阻止当前验证任务的条件写入 `feasibility.dependencies`，明确 `mandatory`：
 
 | 前置条件 | 判断时需要的依据 |
@@ -41,6 +43,8 @@
 - `duplicate` 需要当前候选贡献与已有工作等价的决定性证据；只换任务名称不支持差异，但仍需确认实际内容。
 - 检索失败、空结果、只有摘要、关键全文未读或关键近邻遗漏时，保留 `unclear` 与 HOLD。
 - 区分作者陈述的局限、读者推断的缺口和已经验证的问题；论文 future work 是线索，不是问题价值证明。
+
+不统一要求来源 polarity=supports。已有方法的反例、构念无效或复现矛盾可以提供研究动机，候选 evidence_links 须把观察与具体 claim 连起来，并记录 role、target、relation 和是否影响决策。target=problem/nearest_work 的反对可以驱动新问题；decision_relevant 的 hypothesis/prerequisite/validation 被反对时，当前候选保持 HOLD，不能自标“已解决”跳过修改与复评。
 
 ## 验证设计：最便宜的决定性测试
 
@@ -86,27 +90,34 @@ stop_rule 应区分预算耗尽、执行故障、已达反例条件和证据仍�
 `penalties` 仅用于未被维度或门控体现的明确风险，说明原因；不能再次扣必需依赖失败或新颖性低分。
 权重敏感性或成对比较可辅助解释排序；候选相互接近时写出偏好的条件，不伪造精确胜率。
 
+需要表达判断稳健性时，可给各维度 low/medium/high confidence，并在 confidence_reasons 说明证据覆盖、直接性、冲突与缺口。置信度不乘进分数，也不是成功或录用概率；同分数的候选可以有不同的不确定性。单改 ranking_weights 只改变相对排序，不使未改科学依据的评审过期。
+
 ## GO / HOLD / KILL
 
 | 决策 | 必须满足的判断 |
 | --- | --- |
 | GO | 科学依据支持一个具体的下一步；合同全部 GO 必要条件满足，资源与停止条件可审查 |
 | HOLD | 关键证据、必需资源、有效对照或验证设计尚未知；说明最小补证行动及复评条件 |
-| KILL | 对当前版本有决定性反证、已确认贡献重复，或当前约束下必需条件确认失败；写明证据和适用条件 |
+| KILL | 当前有效 KILL 评审有与 duplicate、scientific_refutation 或 constraints 类型相符的依据；写明科学框架或当前用户约束的作用范围 |
 
 GO 的最小记录要求、最近工作全文证据、已知分数与依赖状态按合同检查；通过校验仍需人工判断来源忠实性与科学推理。
 `pilot_only`、过期评估、缺分数、必需依赖 unknown 和查新不足均 HOLD。摘要级相似性或未发现论文不构成 KILL 证据。
 已被反驳的主张可以 KILL 当前版本；执行故障或低功效测试不足以认定主张被反驳。
 用户偏好和预算可以终止当前投入，但应写清这是当前目标或资源下的决定，不能推广成方向无价值。
+
+每次评审保存 decision_basis，不只写 reason。duplicate 需引用深读的决定性近邻与等价论证；scientific_refutation 需深读、与候选核心假设冲突的 link，或当前版本有效 scientific/contradicted 产物；constraints 需明确确认的用户约束与当前阻塞，并引用相应 constraint_keys、必需失败依赖。没有评审、只有 duplicate/blocked 标签或失败日志时先 HOLD，避免误淘汰。
+
+recommended_stage 区分 information_test、pilot 和 full_validation。信息测试可以在 HOLD 下推荐，用来查未知前提、全文或评价可用性。GO pilot 也需全部基础门槛满足；完整验证还需当前独立 GO 回执。成本低不是证据薄弱的豁免，不设所有项目都要 GPU、小样本或固定时间的要求。
 排序只包含当前合格 GO；允许没有 GO、只有一个 GO 或分数相近，不补齐 Top3。
 给出 decision、证据与限制、下一步、预算和复评触发条件；条件不足时返回有信息的 HOLD，不强推一个赢家。
 
 ## 自评与独立评估
 
-在候选内容冻结后获取 fingerprint，再记录 review 的 idea_version 与 basis_hash。
-默认可做自评；关键投入或有明确争议时，可用独立上下文复核决定性证据与判断。
+在候选依赖内容冻结后获取 fingerprint，再记录 review 的 idea_version 与 review_basis_hash；ranking_config_hash 单独记录排序偏好。旧 v1 评审必须迁移并复评，不能机械改 hash 字段名获得有效 v2 评审。
+默认可做自评；高投入 full_validation 需同版本、同 review_basis_hash 的独立 GO 回执。当前最后一次评审可以是 self，但其独立依据不能来自旧版本、过期输入或独立 HOLD。
 独立评估者读取用户范围、预算、当前候选和原始证据，自行产生回执；不能只阅读自评结论后换一个审稿人角色。
-只有真实独立上下文才写 `kind=independent`；三种 persona 或同一上下文的多段评论不形成独立投票。
+只有真实独立上下文才写 `kind=independent`，并保存 author_context、不同的 evaluator_context 和可追溯 artifact；三种 persona 或同一上下文的多段评论不形成独立投票。静态校验只核对字段，不能证实独立性、读取深度或回执内容。
+决定数周以上投入的近邻等价判断、关键评审争议、数据集或 benchmark 的长期公开影响，也优先采用独立复核。按实际成本与用户计划确定范围，不以固定 GPU 数量或天数作为所有项目门槛。
 意见分歧追溯到证据、前提、资源或验证设计；新增证据回到相关检查，不按票数决定科学真假。
-模型不可用时保持自评标签并说明限制，不模拟已完成的外部评审。
-研究问题、资源、来源、机制或实验结果改变后，旧评估按合同失效；复核相关判断并重新冻结指纹。
+模型不可用时保持自评标签并说明限制，完整验证保持 HOLD；其他门槛已满足时可另行评估有界 GO pilot，不模拟已完成的外部评审。
+研究问题、资源、关联来源、机制或实验结果改变后，旧评估按合同失效；复核相关判断并重新冻结指纹。候选依赖之外的独立论文或仅排序偏好变化不要求重做该科学评审。
