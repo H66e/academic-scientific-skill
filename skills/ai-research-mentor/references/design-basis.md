@@ -21,6 +21,7 @@
 | [AstaBench：PaperFindingBench](https://github.com/allenai/asta-bench/blob/main/astabench/evals/paper_finder/README.md) | 用具体查找任务验收检索行为 | 把能力分数当作选题价值或完备性证明 |
 | [AutoSci：research_wiki.py](https://github.com/skyllwt/AutoSci/blob/main/tools/research_wiki.py) | 保存失败原因和适用条件，后续复用 | 永久 banlist 和新颖性加权的自动淘汰 |
 | [autoresearch：program.md](https://github.com/karpathy/autoresearch/blob/master/program.md) | 固定比较协议、日志关联版本、失败类别区分 | 单指标优化代替科学价值判断 |
+| [Darwin Skill：固定版本协议](https://github.com/alchaincyf/darwin-skill/blob/8a8b66258e3c45d6ae4aea39719468c6428fcb0a/SKILL.md) | 实际反馈、小步修改、前后行为对照、独立比较、有限尝试 | 通用自评分、全 tie 保留、依赖变化中的 HEAD、每阶段强制暂停及截图工具 |
 
 这些来源的部分代码为 MIT 或 Apache-2.0，部分早期参考资料有其他许可；若未来实际复制文本、代码或数据，需要逐项检查当时的适用许可。本版本不依赖这些仓库的运行环境。
 
@@ -29,3 +30,5 @@
 运行 `node --test tests/research_audit.test.mjs`。检查权重确实生效、负惩罚拒绝、KILL 不被高分覆盖、未知保持 HOLD、关键近邻只读摘要不能 GO、过期评审被拒绝、结果反馈导致复核、路径不能逃出指定项目根目录。测试数据是虚构的，只用于代码行为。
 
 还需要独立上下文前向测试：提供现实用户请求与原始材料，不透露预期答案；检查它是否忠实区分读取范围、零候选、前置条件和结果类别。结构校验和离线模拟不能证明真实文献检索质量、全方向科研有效性或投稿成功率。未来升级应基于实际使用中的失败，避免不断增加普遍硬规则。
+
+自优化扩展使用 scripts/evolution_guard.mjs 与 tests/evolution_guard.test.mjs 核验文件与评估版本、科学原则不退化、缺验证不保留、预算与并发修改保护。它是独立编写的只读验收工具，实际运行与文件应用仍由已获授权的宿主执行，没有引入后台自动更新服务。

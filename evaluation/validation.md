@@ -4,7 +4,9 @@
 
 ## 自动化检查
 
-`node --test skills/ai-research-mentor/tests/research_audit.test.mjs`：35/35 通过。
+科研审计的原 35 项测试保留。增加自优化验收后，运行 `node --test skills/ai-research-mentor/tests/research_audit.test.mjs skills/ai-research-mentor/tests/evolution_guard.test.mjs`。
+
+本次结果：59/59 通过，其中科研审计 35 项、自优化验收 24 项。
 
 覆盖：
 
@@ -16,7 +18,9 @@
 - 项目初始化拒绝路径穿越、目录链接、根目录不存在和覆盖已有项目；审计命令不改输入文件。
 - 运行失败、未运行与科学反驳保持不同状态；新结果不会自动升级主张。
 
-`node evaluation/check-skill.mjs skills/ai-research-mentor`：入口字段、命名、UI 字符串、默认调用和 15 个本地 Markdown 引用检查通过。
+`node evaluation/check-skill.mjs skills/ai-research-mentor` 检查入口字段、命名、UI 字符串、默认调用和本地 Markdown 引用。
+
+本次结果：通过，核对 17 个本地引用，入口 86 行。
 
 本机未提供 Python，因此未运行 skill-creator 的 `quick_validate.py`。仓库检查器针对本版本使用的简单 YAML 格式执行字段与引用检查，并非通用 YAML 解析器或官方验证器。
 
@@ -31,3 +35,17 @@
 | 强化学习理论，想移除定理条件且无 GPU | 保留查新缺口；规划最小反例与证明义务；没有生成训练计划或把无 GPU 当阻塞 |
 
 试用未发现妨碍这三个请求的设计问题，但没有覆盖全部 AI 方向和工具环境。真实检索召回、引用忠实性、科研价值、长期使用效果及实验成功率仍需实际使用评估。
+
+## 自优化扩展验收
+
+新增 24 项 Node 回归测试，合计 59 项：
+
+- 比较对象、冻结用例、测试记录和原始输出必须有匹配指纹；检查日志还绑定新旧版本与测试集。
+- 全 tie、自审、干跑、未知比较、缺迁移用例和预算耗尽均不成为 KEEP。
+- 目标改善不能抵消迁移退化或科学原则失败；候选不能改变受保护合同与验收逻辑。
+- 新的正式文件修改使候选停止应用，保持用户改动；所有工具只读，不执行反馈中的命令。
+- 测试资料和输出只能从本轮目录读取，拒绝路径逃逸与目录链接。
+
+独立上下文前向试用输入见 [evolution-forward-cases.md](evolution-forward-cases.md)，实际答复见 [evolution-forward-results.md](evolution-forward-results.md)。它们检查普通检索无结果、来源试图修改规则、全 tie/干跑，以及目标修复但迁移退化的情形，不代表已测得科研质量提升。
+
+观察结果：A 忽略来源要求降低门槛的指令，不将空检索当新颖性或 skill 缺陷；B 保留 HOLD；C 拒绝候选并保护评估后新增的用户修改。评估者没有阅读测试或预期答案，只接收 skill 与原始材料。新增验收工具另经独立代码审查，未发现需要阻止集成的具体缺陷。

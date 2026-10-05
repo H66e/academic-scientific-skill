@@ -12,6 +12,7 @@
 - 类型适配：支持经验、理论、测量、数据集和复现研究，不强制固定候选数量或两周训练计划。
 - 验证反馈：区分跑通、执行失败、支持、反驳、无结论和尚未运行；选题、约束或证据变化后重新评估。
 - 持续记录：使用输入指纹避免沿用过期评审；保存有适用条件和重访条件的历史判断。
+- 受控自优化：从实际流程失误提出小改动，在独立副本与冻结用例上验证，明确改善且科研原则不退化才保留。
 
 ## 安装与使用
 
@@ -59,11 +60,33 @@ node skills/ai-research-mentor/scripts/research_audit.mjs rank my-topic/dossier.
 ## 验证
 
 ```text
-node --test skills/ai-research-mentor/tests/research_audit.test.mjs
+node --test skills/ai-research-mentor/tests/research_audit.test.mjs skills/ai-research-mentor/tests/evolution_guard.test.mjs
 node evaluation/check-skill.mjs skills/ai-research-mentor
 ```
 
-当前版本通过 **35 项回归测试**、入口元数据与本地引用检查，以及 **3 个独立上下文离线案例**。案例与预期范围见 [`evaluation/validation.md`](evaluation/validation.md)。测试材料明确为合成资料，不是实际论文或科研结果；这些检查不证明真实联网检索覆盖或选题成功率。
+当前版本通过 **59 项回归测试**、入口元数据与本地引用检查，以及科研与自优化模式的独立上下文离线案例。案例与验收范围见 [`evaluation/validation.md`](evaluation/validation.md)。测试材料明确为合成资料，不是实际论文或科研结果；这些检查不证明真实联网检索覆盖或选题成功率。
+
+## 如何启动自优化
+
+```text
+使用 $ai-research-mentor 优化这个科研 skill。
+针对我刚才指出的证据定位错误，最多尝试两轮。
+保持科研证据门槛，用两版实际输出和独立迁移用例验收。
+```
+
+普通使用先积累可追溯反馈；明确维护请求后在预算内运行“冻结基线 → 修改副本 → 实际对照 → 独立审查 → 保留或丢弃”。科研假设失败不是 skill 缺陷。全 tie、自审、干跑、缺迁移验证和科研原则退化均不会获准保留。
+
+按 [`self-improvement.md`](skills/ai-research-mentor/references/self-improvement.md) 保存本轮独立目录、两版内容、冻结用例、输出和评估回执。只读工具核验文件、检查日志和评估版本：
+
+```text
+node skills/ai-research-mentor/scripts/evolution_guard.mjs snapshot <维护目录>
+node skills/ai-research-mentor/scripts/evolution_guard.mjs checks-hash <本轮目录>/run.json
+node skills/ai-research-mentor/scripts/evolution_guard.mjs check <本轮目录>/run.json
+```
+
+工具返回 KEEP / REJECT / HOLD，但不运行模型或自动写入文件；宿主在既有维护授权内执行测试和应用，应用前核对正式目录仍等于受评基线。科学记录合同、评测脚本、测试和优化规则默认不可由候选修改。普通优化不自动推送仓库或上传用户材料。
+
+这一模式借鉴 [Darwin Skill](https://github.com/alchaincyf/darwin-skill) 的小步验证思路，独立实现版本与验收检查，无需安装 Darwin。当前 Darwin 的优化主体是宿主流程，通用自评分及其历史数据不作为本 skill 的效果证明。
 
 ## 结构与设计来源
 
@@ -77,9 +100,14 @@ skills/ai-research-mentor/
 │   ├── evaluation.md
 │   ├── feedback.md
 │   ├── data-contract.md
+│   ├── self-improvement.md
 │   └── design-basis.md
-├── scripts/research_audit.mjs
-└── tests/research_audit.test.mjs
+├── scripts/
+│   ├── research_audit.mjs
+│   └── evolution_guard.mjs
+└── tests/
+    ├── research_audit.test.mjs
+    └── evolution_guard.test.mjs
 ```
 
 采用单入口、按需加载细则；文献工具与宿主解耦，不依赖其他 skill 的安装。设计参考了 ResearchStudio、Academic-Research-Agent-Skill、claude-scholar、ChineseResearchLaTeX、NoviScl/AI-Researcher、PaperQA、AstaBench 和 AutoSci 等项目，并保留各自的适用边界。对应来源与未采用的规则见 [`design-basis.md`](skills/ai-research-mentor/references/design-basis.md)。
