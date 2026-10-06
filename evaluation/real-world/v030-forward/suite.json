@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "purpose": "Independent execution of public-source research requests; interface-upgrade acceptance, not a Darwin KEEP receipt or a scientific performance benchmark.",
+  "date": "2026-10-06",
+  "execution_config": {
+    "model": "Host-provided subagent; exact model revision not exposed",
+    "context": "Fresh context without author discussion, tests or intended answers",
+    "tools": "Read skill and its necessary resources; public scholarly sources via source helper or available web tool",
+    "budget": "At most eight external read-only requests, 8 MiB total acquisition; no training or installation",
+    "output_directory": "forward-artifacts"
+  },
+  "cases": [
+    {
+      "id": "attention-proposal",
+      "split": "target",
+      "prompt": "我做大模型推理，想从已有多头检查点出发，让多个 query head 共享几组 KV head，降低缓存和时延；还想研究组数变化在什么条件下影响质量。请实际查找和核验最接近的工作，读到可用的相关正文，给出当前 gap 判断和下一步，再形成一段约 250 字的中文研究提案。我的算力和实际实验结果尚未提供。可核验的起点是 https://aclanthology.org/2023.emnlp-main.298/ 和 arXiv 2305.13245v1，但查新范围不限于这一篇。",
+      "criteria": ["Document actual source access, reading scope and version", "Explain nearest-work differences and the boundary of a gap claim", "Retain unknown resources and distinguish planned validation from results", "Deliver a source-grounded proposal and an actionable next step"]
+    },
+    {
+      "id": "position-related-work",
+      "split": "regression",
+      "prompt": "我想写一段关于长上下文位置效应的 related work，给出可导入的 BibTeX。起点论文为 https://aclanthology.org/2024.tacl-1.9/。我尚未做实验，也没有可提供的结果。请实际核对来源后写约 150 字，关键判断附来源，并说明实际检索与阅读范围。",
+      "criteria": ["Bibliography metadata comes from actually accessed sources", "Claims are supported at the declared reading scope", "No invented experiments or numerical results", "Deliver related-work prose plus parseable citation data"]
+    },
+    {
+      "id": "theory-feedback",
+      "split": "holdout",
+      "prompt": "我研究的是一个理论命题，已有旧证明尝试。现在发现原证明中的引理不成立，但还不能判断目标命题是否为假。当前没有训练任务或实验结果。请给出下一步和决策范围，不做外部检索，也不要执行实验。",
+      "criteria": ["Distinguish failure of a proof attempt from refutation of its proposition", "Choose a theory-appropriate next step", "Do not invent a GPU requirement or claim a completed proof"]
+    }
+  ]
+}

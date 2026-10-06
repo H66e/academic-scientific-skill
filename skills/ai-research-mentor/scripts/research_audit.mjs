@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 // Structural checks and bounded ranking; never a proof of scientific merit.
 // Public APIs: createInitialDossier, validateDossier, canonicalStringify,
-// fingerprintIdea, rankingConfigHash, migrateDossier, rankDossier, initProject.
+// fingerprintIdea, rankingConfigHash, migrateDossier, rankDossier, initProject,
+// createReviewReceipt, verifyIndependentReceipts, DECISION_CONTRACT_VERSION.
 // Importing this file has no effects.
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+export const DECISION_CONTRACT_VERSION = 2;
+const verifiedReceipts = new WeakMap();
 
 const DIMENSIONS = ['scientific_value', 'differentiation', 'testability'];
 const TYPES = ['empirical', 'theoretical', 'measurement', 'dataset', 'reproduction'];
@@ -54,7 +58,7 @@ function sourceUrl(value) {
 function artifact(value) {
   if (!nonempty(value) || /[\x00-\x1f]/.test(value)) return false;
   if (/^[a-z][a-z\d+.-]*:/i.test(value) && !/^[a-z]:[\\/]/i.test(value)) return sourceUrl(value);
-  return true; // Actual paths are recorded, never followed by this audit tool.
+  return true; // The structural validator records paths; explicit receipt verification is separate.
 }
 
 /** Validate the data contract without changing the dossier or following URLs. */
@@ -85,11 +89,14 @@ export function validateDossier(dossier) {
   if (![1, 2].includes(dossier.schema_version)) fail('schema_version', 'must equal 1 or 2');
   const v2 = dossier.schema_version === 2;
   if (v2 && !own(dossier, 'screening')) fail('screening', 'required');
+  if (v2 && own(dossier, 'decision_contract_version')) positive(dossier.decision_contract_version, 'decision_contract_version');
+  if (v2 && dossier.decision_contract_version !== DECISION_CONTRACT_VERSION) warn('decision_contract_version', 'Legacy or unsupported decision contract; decisions remain HOLD until migration and reassessment');
   if (keys(dossier.project, 'project', ['id', 'question', 'research_type', 'constraints', 'assumptions'])) {
     text(dossier.project.id, 'project.id');
     text(dossier.project.question, 'project.question', true);
     choice(dossier.project.research_type, 'project.research_type', TYPES);
     if (!object(dossier.project.constraints)) fail('project.constraints', 'must be an object');
+    if (own(dossier.project, 'notes') && !object(dossier.project.notes)) fail('project.notes', 'must be an object of supplied source notes');
     strings(dossier.project.assumptions, 'project.assumptions');
   }
   if (keys(dossier.config, 'config', ['ranking_weights'])) {
@@ -215,6 +222,12 @@ export function validateDossier(dossier) {
         boolean(dependency.mandatory, `${location}.mandatory`);
         choice(dependency.status, `${location}.status`, ['met', 'failed', 'unknown']);
         text(dependency.basis, `${location}.basis`);
+        if (own(dependency, 'constraint_keys')) {
+          strings(dependency.constraint_keys, `${location}.constraint_keys`);
+          if (Array.isArray(dependency.constraint_keys) && object(dossier.project.constraints)) {
+            for (const key of dependency.constraint_keys) if (!own(dossier.project.constraints, key)) fail(`${location}.constraint_keys`, `Unknown current constraint ${key}`);
+          }
+        }
       });
     }
     const fields = ['prediction', 'falsifier', 'design', 'metric', 'resource_estimate', 'stop_rule'];
@@ -250,6 +263,8 @@ export function validateDossier(dossier) {
     });
     strings(item.limitations, `${where}.limitations`);
     if (v2) {
+      if (own(item, 'decision_contract_version')) positive(item.decision_contract_version, `${where}.decision_contract_version`);
+      if (item.decision_contract_version !== DECISION_CONTRACT_VERSION) warn(`${where}.decision_contract_version`, 'Legacy or unsupported review contract; reassessment is required');
       choice(item.decision_scope, `${where}.decision_scope`, ['scientific_framing', 'current_constraints']);
       choice(item.recommended_stage, `${where}.recommended_stage`, ['information_test', 'pilot', 'full_validation']);
       const basis = item.decision_basis;
@@ -265,6 +280,8 @@ export function validateDossier(dossier) {
         for (const field of ['author_context', 'evaluator_context']) text(item[field], `${where}.${field}`);
         if (nonempty(item.author_context) && item.author_context === item.evaluator_context) fail(`${where}.evaluator_context`, 'Must be different from the author context');
         if (!artifact(item.artifact)) fail(`${where}.artifact`, 'Independent review needs its actual receipt path or URL');
+        if (own(item, 'artifact_sha256') && (typeof item.artifact_sha256 !== 'string' || !/^[a-f\d]{64}$/.test(item.artifact_sha256))) fail(`${where}.artifact_sha256`, 'must be a lowercase SHA-256 hex digest');
+        if (!own(item, 'artifact_sha256')) warn(`${where}.artifact_sha256`, 'Receipt bytes have not been bound; full validation remains HOLD without explicit verification');
       }
       if (own(item, 'confidence')) {
         if (keys(item.confidence, `${where}.confidence`, DIMENSIONS)) {
@@ -324,19 +341,24 @@ export function validateDossier(dossier) {
   }
   // Old reviews may refer to superseded candidate links. Check the cross-references
   // only for an actually current review, so editing an idea does not corrupt history.
-  if (v2 && errors.length === 0) dossier.reviews.forEach((review, index) => {
-    const idea = dossier.ideas.find(idea => idea.id === review.idea_id);
-    if (review.idea_version !== idea.version || review.review_basis_hash !== basisHash(dossier, idea)) return;
+  if (v2) collections.reviews.forEach((review, index) => {
+    if (!object(review)) return;
+    const idea = collections.ideas.find(idea => idea?.id === review.idea_id);
+    if (!object(idea) || review.idea_version !== idea.version || !object(review.decision_basis)) return;
+    let hash;
+    try { hash = basisHash(dossier, idea); } catch { return; } // Only malformed hash inputs prevent this candidate's check.
+    if (review.review_basis_hash !== hash) return;
     const where = `reviews[${index}].decision_basis`;
     const basis = review.decision_basis;
-    const attached = new Set([...idea.evidence_ids, ...idea.nearest_work.flatMap(nearest => nearest.evidence_ids)]);
-    for (const id of basis.evidence_ids) if (!attached.has(id)) fail(`${where}.evidence_ids`, `Evidence ${id} is not attached to this candidate`);
-    for (const id of basis.pilot_ids) {
-      const pilot = dossier.pilots.find(pilot => pilot.id === id);
-      if (pilot.idea_id !== idea.id || pilot.idea_version !== idea.version) fail(`${where}.pilot_ids`, `Pilot ${id} is not from this candidate version`);
+    const attached = new Set([...(Array.isArray(idea.evidence_ids) ? idea.evidence_ids : []),
+      ...(Array.isArray(idea.nearest_work) ? idea.nearest_work.flatMap(nearest => Array.isArray(nearest?.evidence_ids) ? nearest.evidence_ids : []) : [])]);
+    for (const id of Array.isArray(basis.evidence_ids) ? basis.evidence_ids : []) if (!attached.has(id)) fail(`${where}.evidence_ids`, `Evidence ${id} is not attached to this candidate`);
+    for (const id of Array.isArray(basis.pilot_ids) ? basis.pilot_ids : []) {
+      const pilot = collections.pilots.find(pilot => pilot?.id === id);
+      if (pilot && (pilot.idea_id !== idea.id || pilot.idea_version !== idea.version)) fail(`${where}.pilot_ids`, `Pilot ${id} is not from this candidate version`);
     }
-    for (const name of basis.dependency_names) if (!idea.feasibility.dependencies.some(dependency => dependency.name === name)) fail(`${where}.dependency_names`, `Unknown current dependency ${name}`);
-    for (const key of basis.constraint_keys) if (!own(dossier.project.constraints, key)) fail(`${where}.constraint_keys`, `Unknown current constraint ${key}`);
+    if (Array.isArray(idea.feasibility?.dependencies)) for (const name of Array.isArray(basis.dependency_names) ? basis.dependency_names : []) if (!idea.feasibility.dependencies.some(dependency => dependency?.name === name)) fail(`${where}.dependency_names`, `Unknown current dependency ${name}`);
+    if (object(dossier.project?.constraints)) for (const key of Array.isArray(basis.constraint_keys) ? basis.constraint_keys : []) if (!own(dossier.project.constraints, key)) fail(`${where}.constraint_keys`, `Unknown current constraint ${key}`);
   });
   return { valid: errors.length === 0, errors, warnings, notice: NOTICE };
 }
@@ -384,12 +406,14 @@ const canonicalOrder = (a, b) => {
 };
 
 function reviewBasisHash(dossier, idea) {
-  const screening = dossier.screening.filter(record => record.idea_ids.includes(idea.id));
+  // Invalid unrelated entries already have validation errors. They must not
+  // prevent scoped checks for candidates whose own hash inputs are intact.
+  const screening = dossier.screening.filter(record => object(record) && Array.isArray(record.idea_ids) && record.idea_ids.includes(idea.id));
   const searchIds = new Set([...idea.search_ids, ...screening.map(record => record.search_id)]);
-  const searches = dossier.searches.filter(record => searchIds.has(record.id));
+  const searches = dossier.searches.filter(record => object(record) && searchIds.has(record.id));
   const evidenceIds = new Set([...idea.evidence_ids, ...idea.nearest_work.flatMap(record => record.evidence_ids),
     ...idea.evidence_links.map(link => link.evidence_id)]);
-  const evidence = dossier.evidence.filter(record => evidenceIds.has(record.id));
+  const evidence = dossier.evidence.filter(record => object(record) && evidenceIds.has(record.id));
   const paperIds = new Set([...searches.flatMap(record => record.result_paper_ids), ...evidence.map(record => record.paper_id),
     ...idea.nearest_work.map(record => record.paper_id), ...screening.map(record => record.paper_id)]);
   const semanticIdea = without(idea, ['created_at', 'updated_at', 'formatting']);
@@ -400,13 +424,14 @@ function reviewBasisHash(dossier, idea) {
   semanticIdea.evidence_links = [...idea.evidence_links].sort(canonicalOrder);
   return digest({
     schema_version: 2,
+    ...(own(dossier, 'decision_contract_version') ? { decision_contract_version: dossier.decision_contract_version } : {}),
     project: without(dossier.project, ['id', 'created_at', 'updated_at', 'formatting']),
     idea: semanticIdea,
     searches: byId(searches).map(record => ({ ...record, result_paper_ids: [...record.result_paper_ids].sort() })),
-    papers: byId(dossier.papers.filter(record => paperIds.has(record.id))).map(record => without(record, ['accessed_at', 'created_at', 'updated_at', 'formatting'])),
+    papers: byId(dossier.papers.filter(record => object(record) && paperIds.has(record.id))).map(record => without(record, ['accessed_at', 'created_at', 'updated_at', 'formatting'])),
     evidence: byId(evidence),
     screening: byId(screening).map(record => ({ ...without(record, ['screened_at']), idea_ids: [idea.id] })),
-    pilots: byId(dossier.pilots.filter(record => record.idea_id === idea.id)),
+    pilots: byId(dossier.pilots.filter(record => object(record) && record.idea_id === idea.id)),
   });
 }
 
@@ -419,17 +444,38 @@ export function rankingConfigHash(dossier) {
 /** Migration is pure and does not manufacture new evidence or a current review. */
 export function migrateDossier(dossier) {
   requireValid(dossier);
+  if (dossier.schema_version === 2 && (dossier.decision_contract_version > DECISION_CONTRACT_VERSION || dossier.reviews.some(review => review.decision_contract_version > DECISION_CONTRACT_VERSION))) throw new Error('Cannot migrate an unsupported future decision contract; use a compatible tool and preserve the original record');
   const migrated = JSON.parse(JSON.stringify(dossier));
-  if (migrated.schema_version === 2) return migrated;
+  const fromV1 = migrated.schema_version === 1;
+  const oldContract = migrated.decision_contract_version;
   migrated.schema_version = 2;
+  migrated.decision_contract_version = DECISION_CONTRACT_VERSION;
   migrated.screening ??= [];
   for (const idea of migrated.ideas) idea.evidence_links ??= [];
-  for (const review of migrated.reviews) migrated.history.push({
-    event: 'schema_v1_review_archived', idea_id: review.idea_id, idea_version: review.idea_version,
-    reason: 'Schema v1 review retained as history; new evidence links and a v2 review require reassessment.',
-    original_review: review, requires_reassessment: true,
+  const latest = new Map(), latestIndependent = new Map();
+  for (const review of migrated.reviews) {
+    const current = latest.get(review.idea_id);
+    if (!current || notEarlier(review.reviewed_at, current.reviewed_at)) latest.set(review.idea_id, review);
+    if (review.kind === 'independent') {
+      const peer = latestIndependent.get(review.idea_id);
+      if (!peer || notEarlier(review.reviewed_at, peer.reviewed_at)) latestIndependent.set(review.idea_id, review);
+    }
+  }
+  migrated.reviews = migrated.reviews.filter(review => {
+    // Removing a newer legacy record must not expose an older approval that
+    // rank would have held. Preserve the same restriction for independent stage approval.
+    const blockedByLegacy = latest.get(review.idea_id).decision_contract_version !== DECISION_CONTRACT_VERSION ||
+      (review.kind === 'independent' && latestIndependent.get(review.idea_id).decision_contract_version !== DECISION_CONTRACT_VERSION);
+    if (!fromV1 && oldContract === DECISION_CONTRACT_VERSION && review.decision_contract_version === DECISION_CONTRACT_VERSION && !blockedByLegacy) return true;
+    migrated.history.push({
+      event: fromV1 ? 'schema_v1_review_archived' : 'decision_contract_review_archived', idea_id: review.idea_id, idea_version: review.idea_version,
+      reason: blockedByLegacy && review.decision_contract_version === DECISION_CONTRACT_VERSION ?
+        'Original review archived unchanged because a newer legacy review blocked its authority; migration must not revive an older approval.' :
+        'Original review archived unchanged; decision contract 2 requires explicit reassessment, not a rehashed old decision.',
+      original_review: review, requires_reassessment: true,
+    });
+    return false;
   });
-  migrated.reviews = [];
   requireValid(migrated);
   return migrated;
 }
@@ -452,8 +498,10 @@ export function fingerprintIdea(dossier, ideaId) {
 }
 
 /** Rank current eligible GO records; labels alone cannot justify KILL. */
-export function rankDossier(dossier) {
+export function rankDossier(dossier, { receiptVerification } = {}) {
   requireValid(dossier);
+  const attestation = verifiedReceipts.get(receiptVerification);
+  const receiptBindings = attestation?.dossier_hash === digest(dossier) ? attestation.reviews : undefined;
   const output = { ranked: [], held: [], killed: [], ranking_config_hash: rankingConfigHash(dossier), notice: NOTICE };
   if (dossier.schema_version === 1) {
     output.held = dossier.ideas.map(idea => ({ idea_id: idea.id, title: idea.title, decision: 'HOLD', score: null,
@@ -471,12 +519,13 @@ export function rankDossier(dossier) {
     let review;
     for (const candidate of dossier.reviews) if (candidate.idea_id === idea.id && (!review || notEarlier(candidate.reviewed_at, review.reviewed_at))) review = candidate;
     const hash = basisHash(dossier, idea);
-    const current = review && review.idea_version === idea.version && review.review_basis_hash === hash;
+    const contractCurrent = dossier.decision_contract_version === DECISION_CONTRACT_VERSION && review?.decision_contract_version === DECISION_CONTRACT_VERSION;
+    const current = review && contractCurrent && review.idea_version === idea.version && review.review_basis_hash === hash;
     const row = { idea_id: idea.id, title: idea.title, decision: 'HOLD', score: null, reasons: [], ...(review ? { review_id: review.id } : {}) };
     // A changed framing may invalidate both favorable and unfavorable judgments.
     // Do not carry an old duplicate/block label across an outdated review.
     if (review && !current) {
-      row.reasons = ['Latest review is stale: idea version or basis hash changed; all decisions need reassessment'];
+      row.reasons = [!contractCurrent ? 'Latest review uses a legacy or unsupported decision contract; explicit migration and reassessment are required' : 'Latest review is stale: idea version or basis hash changed; all decisions need reassessment'];
       output.held.push(row);
       continue;
     }
@@ -497,12 +546,13 @@ export function rankDossier(dossier) {
           });
       } else if (basis.type === 'constraints' && review.decision_scope === 'current_constraints') {
         const failed = mandatory.filter(dependency => dependency.status === 'failed');
-        const confirmed = basis.constraint_keys.some(key => {
+        const confirmed = key => {
           const constraint = dossier.project.constraints[key];
           return object(constraint) && constraint.status === 'confirmed' && nonempty(constraint.source) &&
             own(constraint, 'value') && hasFact(constraint.value);
-        });
-        justified = confirmed && (idea.feasibility.status === 'blocked' || failed.some(dependency => basis.dependency_names.includes(dependency.name)));
+        };
+        justified = failed.some(dependency => basis.dependency_names.includes(dependency.name) &&
+          Array.isArray(dependency.constraint_keys) && dependency.constraint_keys.some(key => basis.constraint_keys.includes(key) && confirmed(key)));
       }
       if (justified) {
         row.decision = 'KILL'; row.decision_scope = review.decision_scope;
@@ -545,11 +595,15 @@ export function rankDossier(dossier) {
     if (idea.feasibility.status !== 'ready') reasons.push(`Feasibility is ${idea.feasibility.status}: ${idea.feasibility.reason}`);
     for (const dependency of mandatory) if (dependency.status !== 'met') reasons.push(`Mandatory dependency not verified: ${dependency.name}`);
     if (idea.validation.status !== 'specified') reasons.push('Validation is not specified');
-    if (current && review.recommended_stage === 'full_validation' && !dossier.reviews.some(peer => peer.idea_id === idea.id &&
-      peer.idea_version === idea.version && peer.review_basis_hash === hash && peer.kind === 'independent' && peer.decision === 'GO' &&
-      peer.decision_basis.type === 'advance' && peer.recommended_stage !== 'information_test' &&
+    let peer;
+    for (const candidate of dossier.reviews) if (candidate.idea_id === idea.id && candidate.kind === 'independent' &&
+      (!peer || notEarlier(candidate.reviewed_at, peer.reviewed_at))) peer = candidate;
+    if (current && review.recommended_stage === 'full_validation' && !(peer &&
+      peer.idea_version === idea.version && peer.review_basis_hash === hash && peer.decision_contract_version === DECISION_CONTRACT_VERSION && peer.decision === 'GO' &&
+      peer.decision_basis.type === 'advance' && peer.recommended_stage === 'full_validation' &&
+      receiptBindings?.get(peer.id) === digest(peer) &&
       DIMENSIONS.every(key => peer.scores[key] !== null) && relevant.some(link => peer.decision_basis.evidence_ids.includes(link.evidence_id)))) {
-      reasons.push('Full validation needs a current independent GO receipt; consider a bounded pilot instead');
+      reasons.push('Full validation needs an explicitly verified current independent GO full_validation receipt; a pilot approval cannot authorize escalation');
     }
     if (reasons.length) { row.reasons = reasons; output.held.push(row); continue; }
     const total = DIMENSIONS.reduce((sum, key) => sum + (review.scores[key] / 4) * (weights[key] / weightSum) * 100, 0);
@@ -568,6 +622,7 @@ export function createInitialDossier(name) {
   if (typeof name !== 'string' || name.length > 64 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)) throw new Error('Project name must use lowercase letters and digits separated by single hyphens (1–64 characters)');
   return {
     schema_version: 2,
+    decision_contract_version: DECISION_CONTRACT_VERSION,
     project: { id: name, question: '', research_type: 'empirical', constraints: {}, assumptions: [] },
     config: { ranking_weights: { scientific_value: 40, differentiation: 35, testability: 25 } },
     searches: [], papers: [], screening: [], evidence: [], ideas: [], reviews: [], pilots: [], history: [],
@@ -589,6 +644,62 @@ async function rejectDirectoryLinks(directory) {
     if (parent === cursor) break;
     cursor = parent;
   }
+}
+
+/** A JSON receipt template, not evidence that an independent review occurred. */
+export function createReviewReceipt(review) {
+  if (!object(review) || review.kind !== 'independent' || review.decision_contract_version !== DECISION_CONTRACT_VERSION) throw new Error('Receipt needs a contract-2 independent review');
+  return { receipt_version: 1, review: JSON.parse(canonicalStringify(without(review, ['artifact', 'artifact_sha256']))) };
+}
+
+/** Explicit local-only verification. No URLs are followed and no records are written. */
+export async function verifyIndependentReceipts(dossier, { root } = {}) {
+  requireValid(dossier);
+  if (!nonempty(root)) throw new Error('Receipt verification requires an explicit existing local root');
+  const resolvedRoot = path.resolve(root);
+  await rejectDirectoryLinks(resolvedRoot);
+  const realRoot = await fs.realpath(resolvedRoot);
+  const snapshot = digest(dossier);
+  const report = { verified: [], failed: [], notice: 'Verifies receipt bytes and bindings at this read only; cannot prove honest evidence, real model independence, or later file immutability.' };
+  const bindings = new Map();
+  for (const review of dossier.reviews.filter(review => review.kind === 'independent')) {
+    try {
+      if (dossier.decision_contract_version !== DECISION_CONTRACT_VERSION || review.decision_contract_version !== DECISION_CONTRACT_VERSION) throw new Error('Legacy or unsupported decision contract');
+      const idea = dossier.ideas.find(idea => idea.id === review.idea_id);
+      if (review.idea_version !== idea.version || review.review_basis_hash !== basisHash(dossier, idea)) throw new Error('Receipt belongs to stale candidate inputs');
+      if (!/^[a-f\d]{64}$/.test(review.artifact_sha256 ?? '')) throw new Error('An expected artifact_sha256 is required before verification');
+      if (/^[a-z][a-z\d+.-]*:/i.test(review.artifact) && !/^[a-z]:[\\/]/i.test(review.artifact)) throw new Error('Only local file paths below the explicit root can be verified; URLs are not followed');
+      const target = path.resolve(realRoot, review.artifact);
+      if (target === realRoot || !inside(realRoot, target)) throw new Error('Receipt path escapes the explicit root');
+      await rejectDirectoryLinks(path.dirname(target));
+      const before = await fs.lstat(target);
+      if (before.isSymbolicLink() || !before.isFile()) throw new Error('Receipt must be a regular file, without symbolic links');
+      if (before.size > 1024 * 1024) throw new Error('Receipt exceeds the 1 MiB read limit');
+      const resolvedTarget = await fs.realpath(target);
+      if (!inside(realRoot, resolvedTarget)) throw new Error('Receipt real path escapes the root');
+      const handle = await fs.open(target, 'r');
+      let bytes;
+      try {
+        const opened = await handle.stat();
+        if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino || opened.size !== before.size || opened.mtimeMs !== before.mtimeMs) throw new Error('Receipt changed before reading');
+        bytes = Buffer.alloc(before.size + 1);
+        const { bytesRead } = await handle.read(bytes, 0, bytes.length, 0);
+        bytes = bytes.subarray(0, bytesRead);
+        const after = await handle.stat();
+        const currentPath = await fs.lstat(target);
+        if (bytesRead !== before.size || after.size !== before.size || after.mtimeMs !== before.mtimeMs || currentPath.isSymbolicLink() || currentPath.dev !== before.dev || currentPath.ino !== before.ino) throw new Error('Receipt changed while reading');
+      } finally { await handle.close(); }
+      const hash = createHash('sha256').update(bytes).digest('hex');
+      if (hash !== review.artifact_sha256) throw new Error('Receipt SHA-256 does not match actual bytes');
+      const receipt = JSON.parse(bytes.toString('utf8'));
+      if (canonicalStringify(receipt) !== canonicalStringify(createReviewReceipt(review))) throw new Error('Receipt review fields do not match the recorded candidate, decision, stage, inputs, or contexts');
+      bindings.set(review.id, digest(review));
+      report.verified.push({ review_id: review.id, artifact_sha256: hash, idea_id: review.idea_id, idea_version: review.idea_version, review_basis_hash: review.review_basis_hash });
+    } catch (error) { report.failed.push({ review_id: review.id, reason: error.message }); }
+  }
+  if (digest(dossier) !== snapshot) throw new Error('Dossier changed during receipt verification; repeat with a stable snapshot');
+  verifiedReceipts.set(report, { dossier_hash: snapshot, reviews: bindings });
+  return report;
 }
 
 /** The only writing API: create a fresh project below an existing real root. */
@@ -629,7 +740,10 @@ async function main(args) {
     }
     return { ok: true, ...await initProject(options['--root'], options['--name']) };
   }
-  if (!['validate', 'fingerprint', 'rank', 'migrate'].includes(command) || rest.length !== (command === 'fingerprint' ? 2 : 1)) throw new Error('Usage: validate <dossier.json> | fingerprint <dossier.json> <idea_id> | rank <dossier.json> | migrate <dossier.json>');
+  const rankWithRoot = command === 'rank' && rest.length === 3 && rest[1] === '--receipt-root';
+  const verifyWithRoot = command === 'verify-receipts' && rest.length === 3 && rest[1] === '--root';
+  if (!['validate', 'fingerprint', 'rank', 'migrate', 'verify-receipts'].includes(command) ||
+    (command === 'verify-receipts' ? !verifyWithRoot : !rankWithRoot && rest.length !== (command === 'fingerprint' ? 2 : 1))) throw new Error('Usage: validate <dossier.json> | fingerprint <dossier.json> <idea_id> | rank <dossier.json> [--receipt-root <local-root>] | verify-receipts <dossier.json> --root <local-root> | migrate <dossier.json>');
   const dossier = JSON.parse(await fs.readFile(rest[0], 'utf8'));
   if (command === 'validate') {
     const result = validateDossier(dossier);
@@ -638,6 +752,11 @@ async function main(args) {
   }
   if (command === 'fingerprint') return { idea_id: rest[1], [dossier.schema_version === 2 ? 'review_basis_hash' : 'basis_hash']: fingerprintIdea(dossier, rest[1]), notice: NOTICE };
   if (command === 'migrate') return migrateDossier(dossier);
+  if (verifyWithRoot) return verifyIndependentReceipts(dossier, { root: rest[2] });
+  if (rankWithRoot) {
+    const receiptVerification = await verifyIndependentReceipts(dossier, { root: rest[2] });
+    return { ...rankDossier(dossier, { receiptVerification }), receipt_verification: receiptVerification };
+  }
   return rankDossier(dossier);
 }
 

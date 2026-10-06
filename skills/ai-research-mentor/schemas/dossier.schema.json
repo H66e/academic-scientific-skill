@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ai-research-mentor:dossier:2",
+  "title": "AI research dossier schema 2",
+  "description": "Editor assistance for schema-2 records, including legacy decision contracts. research_audit.mjs remains authoritative for references, input fingerprints, migration and GO/HOLD/KILL. Schema validation does not verify sources.",
+  "type": "object",
+  "required": ["schema_version", "project", "config", "searches", "papers", "screening", "evidence", "ideas", "reviews", "pilots", "history"],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "decision_contract_version": { "type": "integer", "minimum": 1, "description": "Current contract is 2. Missing, old or unsupported contracts require reassessment; do not rewrite old reviews into current ones." },
+    "project": {
+      "type": "object", "required": ["id", "question", "research_type", "constraints", "assumptions"],
+      "properties": {
+        "id": { "$ref": "#/$defs/text" }, "question": { "type": "string" },
+        "research_type": { "$ref": "#/$defs/researchType" },
+        "constraints": { "type": "object" }, "assumptions": { "$ref": "#/$defs/texts" },
+        "notes": { "type": "object", "description": "Preserved supplied notes; not fabricated evidence or reviews. Scientific context participates in the input fingerprint." }
+      }
+    },
+    "config": {
+      "type": "object", "required": ["ranking_weights"],
+      "properties": { "ranking_weights": {
+        "type": "object", "required": ["scientific_value", "differentiation", "testability"], "additionalProperties": false,
+        "properties": { "scientific_value": { "type": "number", "minimum": 0 }, "differentiation": { "type": "number", "minimum": 0 }, "testability": { "type": "number", "minimum": 0 } }
+      } }
+    },
+    "searches": { "type": "array", "items": { "$ref": "#/$defs/search" } },
+    "papers": { "type": "array", "items": { "$ref": "#/$defs/paper" } },
+    "screening": { "type": "array", "items": { "$ref": "#/$defs/screening" } },
+    "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
+    "ideas": { "type": "array", "items": { "$ref": "#/$defs/idea" } },
+    "reviews": { "type": "array", "items": { "$ref": "#/$defs/review" } },
+    "pilots": { "type": "array", "items": { "$ref": "#/$defs/pilot" } },
+    "history": { "type": "array", "items": { "type": "object" } }
+  },
+  "$defs": {
+    "text": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "texts": { "type": "array", "items": { "$ref": "#/$defs/text" } },
+    "date": { "type": "string", "format": "date-time" },
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "researchType": { "enum": ["empirical", "theoretical", "measurement", "dataset", "reproduction"] },
+    "decision": { "enum": ["GO", "HOLD", "KILL"] },
+    "search": {
+      "type": "object", "required": ["id", "query", "provider", "searched_at", "status", "scope", "limitations", "result_paper_ids"],
+      "properties": { "id": { "$ref": "#/$defs/text" }, "query": { "$ref": "#/$defs/text" }, "provider": { "$ref": "#/$defs/text" },
+        "searched_at": { "$ref": "#/$defs/date" }, "status": { "enum": ["complete", "partial", "failed"] },
+        "scope": { "$ref": "#/$defs/text" }, "limitations": { "$ref": "#/$defs/texts" }, "result_paper_ids": { "$ref": "#/$defs/texts" } }
+    },
+    "paper": {
+      "type": "object", "required": ["id", "title", "year", "url", "identifiers", "version", "accessed_at"],
+      "properties": { "id": { "$ref": "#/$defs/text" }, "title": { "$ref": "#/$defs/text" }, "year": { "type": ["integer", "null"] },
+        "url": { "type": "string", "format": "uri", "pattern": "^(https?://|file://)" },
+        "identifiers": { "type": "object", "additionalProperties": { "$ref": "#/$defs/text" } },
+        "version": { "$ref": "#/$defs/text" }, "accessed_at": { "$ref": "#/$defs/date" } }
+    },
+    "screening": {
+      "type": "object", "required": ["id", "search_id", "paper_id", "idea_ids", "stage", "decision", "reason", "screened_at"],
+      "properties": { "id": { "$ref": "#/$defs/text" }, "search_id": { "$ref": "#/$defs/text" }, "paper_id": { "$ref": "#/$defs/text" },
+        "idea_ids": { "$ref": "#/$defs/texts" }, "stage": { "enum": ["metadata", "title_abstract", "full_text"] },
+        "decision": { "enum": ["include", "exclude", "uncertain"] }, "reason": { "$ref": "#/$defs/text" }, "screened_at": { "$ref": "#/$defs/date" } }
+    },
+    "evidence": {
+      "type": "object", "required": ["id", "paper_id", "source_version", "read_scope", "locator", "observation", "polarity"],
+      "properties": { "id": { "$ref": "#/$defs/text" }, "paper_id": { "$ref": "#/$defs/text" }, "source_version": { "$ref": "#/$defs/text" },
+        "read_scope": { "enum": ["metadata", "abstract", "section", "full_text"] }, "locator": { "$ref": "#/$defs/text" },
+        "observation": { "$ref": "#/$defs/text" }, "polarity": { "enum": ["supports", "contradicts", "context"] },
+        "limitation_origin": { "enum": ["author_stated", "reader_inferred"] },
+        "excerpt": { "$ref": "#/$defs/text" }, "uncertainty": { "type": "string" } }
+    },
+    "link": {
+      "type": "object", "required": ["evidence_id", "role", "target", "claim", "relation", "decision_relevant"],
+      "properties": { "evidence_id": { "$ref": "#/$defs/text" }, "claim": { "$ref": "#/$defs/text" },
+        "role": { "enum": ["motivation", "nearest_work", "contradiction", "assumption", "feasibility", "validation", "context"] },
+        "target": { "enum": ["problem", "hypothesis", "nearest_work", "prerequisite", "validation"] },
+        "relation": { "enum": ["supports", "contradicts", "context"] }, "decision_relevant": { "type": "boolean" } }
+    },
+    "dependency": {
+      "type": "object", "required": ["name", "mandatory", "status", "basis"],
+      "properties": { "name": { "$ref": "#/$defs/text" }, "mandatory": { "type": "boolean" },
+        "status": { "enum": ["met", "failed", "unknown"] }, "basis": { "$ref": "#/$defs/text" }, "constraint_keys": { "$ref": "#/$defs/texts" } }
+    },
+    "idea": {
+      "type": "object", "required": ["id", "version", "title", "question", "research_type", "hypothesis", "contribution", "evidence_ids", "search_ids", "evidence_links", "nearest_work", "novelty", "feasibility", "validation"],
+      "properties": {
+        "id": { "$ref": "#/$defs/text" }, "version": { "type": "integer", "minimum": 1 },
+        "title": { "$ref": "#/$defs/text" }, "question": { "$ref": "#/$defs/text" }, "research_type": { "$ref": "#/$defs/researchType" },
+        "hypothesis": { "$ref": "#/$defs/text" }, "contribution": { "$ref": "#/$defs/text" },
+        "evidence_ids": { "$ref": "#/$defs/texts" }, "search_ids": { "$ref": "#/$defs/texts" },
+        "evidence_links": { "type": "array", "items": { "$ref": "#/$defs/link" } },
+        "nearest_work": { "type": "array", "items": { "type": "object", "required": ["paper_id", "evidence_ids", "delta", "decisive"],
+          "properties": { "paper_id": { "$ref": "#/$defs/text" }, "evidence_ids": { "$ref": "#/$defs/texts" }, "delta": { "$ref": "#/$defs/text" }, "decisive": { "type": "boolean" } } } },
+        "novelty": { "type": "object", "required": ["status", "reason", "coverage"],
+          "properties": { "status": { "enum": ["distinct", "incremental", "duplicate", "unclear"] }, "reason": { "$ref": "#/$defs/text" }, "coverage": { "$ref": "#/$defs/text" } } },
+        "feasibility": { "type": "object", "required": ["status", "reason", "dependencies"],
+          "properties": { "status": { "enum": ["ready", "pilot_only", "blocked", "unknown"] }, "reason": { "$ref": "#/$defs/text" }, "dependencies": { "type": "array", "items": { "$ref": "#/$defs/dependency" } } } },
+        "validation": { "$ref": "#/$defs/validation" }
+      }
+    },
+    "validation": {
+      "type": "object", "required": ["status", "prediction", "falsifier", "design", "metric", "resource_estimate", "stop_rule"],
+      "properties": { "status": { "enum": ["specified", "missing"] }, "prediction": { "type": "string" }, "falsifier": { "type": "string" },
+        "design": { "type": "string" }, "metric": { "type": "string" }, "resource_estimate": { "type": "string" }, "stop_rule": { "type": "string" } },
+      "allOf": [{ "if": { "properties": { "status": { "const": "specified" } } }, "then": { "properties": {
+        "prediction": { "$ref": "#/$defs/text" }, "falsifier": { "$ref": "#/$defs/text" }, "design": { "$ref": "#/$defs/text" },
+        "metric": { "$ref": "#/$defs/text" }, "resource_estimate": { "$ref": "#/$defs/text" }, "stop_rule": { "$ref": "#/$defs/text" }
+      } } }]
+    },
+    "scores": {
+      "type": "object", "required": ["scientific_value", "differentiation", "testability"], "additionalProperties": false,
+      "properties": { "scientific_value": { "type": ["integer", "null"], "minimum": 0, "maximum": 4 },
+        "differentiation": { "type": ["integer", "null"], "minimum": 0, "maximum": 4 }, "testability": { "type": ["integer", "null"], "minimum": 0, "maximum": 4 } }
+    },
+    "reasons": {
+      "type": "object", "required": ["scientific_value", "differentiation", "testability"], "additionalProperties": false,
+      "properties": { "scientific_value": { "$ref": "#/$defs/text" }, "differentiation": { "$ref": "#/$defs/text" }, "testability": { "$ref": "#/$defs/text" } }
+    },
+    "confidence": {
+      "type": "object", "required": ["scientific_value", "differentiation", "testability"], "additionalProperties": false,
+      "properties": { "scientific_value": { "enum": ["low", "medium", "high"] },
+        "differentiation": { "enum": ["low", "medium", "high"] }, "testability": { "enum": ["low", "medium", "high"] } }
+    },
+    "review": {
+      "type": "object", "required": ["id", "idea_id", "idea_version", "review_basis_hash", "reviewed_at", "kind", "decision", "decision_scope", "recommended_stage", "decision_basis", "reason", "scores", "score_reasons", "penalties", "limitations"],
+      "properties": {
+        "id": { "$ref": "#/$defs/text" }, "idea_id": { "$ref": "#/$defs/text" }, "idea_version": { "type": "integer", "minimum": 1 },
+        "decision_contract_version": { "type": "integer", "minimum": 1 }, "review_basis_hash": { "$ref": "#/$defs/hash" },
+        "reviewed_at": { "$ref": "#/$defs/date" }, "kind": { "enum": ["self", "independent"] }, "decision": { "$ref": "#/$defs/decision" },
+        "decision_scope": { "enum": ["scientific_framing", "current_constraints"] }, "recommended_stage": { "enum": ["information_test", "pilot", "full_validation"] },
+        "reason": { "$ref": "#/$defs/text" }, "scores": { "$ref": "#/$defs/scores" }, "score_reasons": { "$ref": "#/$defs/reasons" },
+        "decision_basis": { "type": "object", "required": ["type", "evidence_ids", "pilot_ids", "dependency_names", "constraint_keys", "explanation"],
+          "properties": { "type": { "enum": ["advance", "insufficient", "duplicate", "scientific_refutation", "constraints"] },
+            "evidence_ids": { "$ref": "#/$defs/texts" }, "pilot_ids": { "$ref": "#/$defs/texts" }, "dependency_names": { "$ref": "#/$defs/texts" },
+            "constraint_keys": { "$ref": "#/$defs/texts" }, "explanation": { "$ref": "#/$defs/text" } } },
+        "penalties": { "type": "array", "items": { "type": "object", "required": ["reason", "points"],
+          "properties": { "reason": { "$ref": "#/$defs/text" }, "points": { "type": "number", "minimum": 0 } } } },
+        "limitations": { "$ref": "#/$defs/texts" }, "author_context": { "$ref": "#/$defs/text" }, "evaluator_context": { "$ref": "#/$defs/text" },
+        "artifact": { "$ref": "#/$defs/text" }, "artifact_sha256": { "$ref": "#/$defs/hash" },
+        "confidence": { "$ref": "#/$defs/confidence" }, "confidence_reasons": { "$ref": "#/$defs/reasons" }
+      },
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "independent" } } }, "then": { "required": ["author_context", "evaluator_context", "artifact"] } },
+        { "if": { "required": ["confidence"] }, "then": { "required": ["confidence_reasons"] } }
+      ]
+    },
+    "pilot": {
+      "type": "object", "required": ["id", "idea_id", "idea_version", "kind", "outcome", "artifacts", "summary", "limitations"],
+      "properties": { "id": { "$ref": "#/$defs/text" }, "idea_id": { "$ref": "#/$defs/text" }, "idea_version": { "type": "integer", "minimum": 1 },
+        "kind": { "enum": ["smoke", "scientific"] }, "outcome": { "enum": ["execution_failed", "supported", "contradicted", "inconclusive", "not_run"] },
+        "artifacts": { "$ref": "#/$defs/texts" }, "summary": { "$ref": "#/$defs/text" }, "limitations": { "$ref": "#/$defs/texts" } }
+    }
+  }
+}

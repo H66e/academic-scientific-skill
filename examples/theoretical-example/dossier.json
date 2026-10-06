@@ -140,7 +140,7 @@
       "id": "R1",
       "idea_id": "I1",
       "idea_version": 1,
-      "review_basis_hash": "0ae342c5749365d49876756937d224bff67cb01fe8e12a9dbb107fe879fb0727",
+      "review_basis_hash": "8f5cba03c46244d1172f1f72498705d92efe9584ae81e201491349446a5a9716",
       "reviewed_at": "2026-10-05T08:00:00Z",
       "kind": "self",
       "decision": "GO",
@@ -171,9 +171,11 @@
       "limitations": [
         "SYNTHETIC EXAMPLE — NOT A REAL SCIENTIFIC CLAIM",
         "No real paper, retrieval, validation, or expert review"
-      ]
+      ],
+      "decision_contract_version": 2
     }
   ],
   "pilots": [],
-  "history": []
+  "history": [],
+  "decision_contract_version": 2
 }

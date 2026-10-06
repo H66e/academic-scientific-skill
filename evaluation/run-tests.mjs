@@ -13,7 +13,8 @@ for (const directory of directories) {
   }
 }
 files.sort();
-for (const required of ['research_audit.test.mjs', 'evolution_guard.test.mjs', 'packaging.test.mjs']) {
+for (const required of ['research_audit.test.mjs', 'research_sources.test.mjs', 'research_outputs.test.mjs',
+  'evolution_guard.test.mjs', 'packaging.test.mjs', 'source-workflow.test.mjs']) {
   if (!files.some(file => path.basename(file) === required)) throw new Error(`Missing required test file: ${required}`);
 }
 const result = spawnSync(process.execPath, ['--test', ...files], { cwd: repo, stdio: 'inherit', shell: false });

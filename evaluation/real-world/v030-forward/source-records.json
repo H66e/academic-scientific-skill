@@ -1,0 +1,87 @@
+{
+  "papers": [
+    {
+      "id": "gqa",
+      "citation_key": "ainslie2023gqa",
+      "title": "GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints",
+      "authors": [
+        "Ainslie, Joshua",
+        "Lee-Thorp, James",
+        "de Jong, Michiel",
+        "Zemlyanskiy, Yury",
+        "Lebron, Federico",
+        "Sanghai, Sumit"
+      ],
+      "year": 2023,
+      "identifiers": {
+        "doi": "10.18653/v1/2023.emnlp-main.298",
+        "arxiv": "2305.13245"
+      },
+      "version": "arXiv 2305.13245v1 technical reading; ACL EMNLP 2023 publication metadata",
+      "url": "https://aclanthology.org/2023.emnlp-main.298/",
+      "venue": "Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing, pp. 4895–4901",
+      "metadata_basis": "ACL source returned by executed search/open, supplemented by PDF v1 front page",
+      "reading_scope": "section"
+    },
+    {
+      "id": "qcqa",
+      "citation_key": "joshi2024qcqa",
+      "title": "QCQA: Quality and Capacity-aware grouped Query Attention",
+      "authors": [
+        "Joshi, Vinay",
+        "Laddha, Prashant",
+        "Sinha, Shambhavi",
+        "Omer, Om Ji",
+        "Subramoney, Sreenivas"
+      ],
+      "year": 2024,
+      "identifiers": {
+        "arxiv": "2406.10247"
+      },
+      "version": "v1",
+      "url": "https://arxiv.org/html/2406.10247v1",
+      "venue": "arXiv preprint; version 1 read",
+      "metadata_basis": "Official arXiv HTML title/author spans and executed arXiv search record",
+      "reading_scope": "section"
+    },
+    {
+      "id": "wgqa",
+      "citation_key": "chinnakonduru2024wgqa",
+      "title": "Weighted Grouped Query Attention in Transformers",
+      "authors": [
+        "Chinnakonduru, Sai Sena",
+        "Mohapatra, Astarag"
+      ],
+      "year": 2024,
+      "identifiers": {
+        "arxiv": "2407.10855"
+      },
+      "version": "v1",
+      "url": "https://arxiv.org/html/2407.10855v1",
+      "venue": "arXiv preprint; version 1 read",
+      "metadata_basis": "Official arXiv HTML title/author spans and versioned identifier",
+      "reading_scope": "section"
+    },
+    {
+      "id": "lost-middle",
+      "citation_key": "liu2024lost",
+      "title": "Lost in the Middle: How Language Models Use Long Contexts",
+      "authors": [
+        "Liu, Nelson F.",
+        "Lin, Kevin",
+        "Hewitt, John",
+        "Paranjape, Ashwin",
+        "Bevilacqua, Michele",
+        "Petroni, Fabio",
+        "Liang, Percy"
+      ],
+      "year": 2024,
+      "identifiers": {},
+      "version": "TACL published journal PDF, volume 12, pp. 157–173",
+      "url": "https://aclanthology.org/2024.tacl-1.9/",
+      "venue": "Transactions of the Association for Computational Linguistics, volume 12, pp. 157–173",
+      "metadata_basis": "Accessed journal PDF title page, file page 1 / printed page 157; DOI omitted because extracted underscores are damaged and no further identity request remains",
+      "reading_scope": "section"
+    }
+  ]
+}

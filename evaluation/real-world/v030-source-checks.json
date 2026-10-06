@@ -1,0 +1,207 @@
+{
+  "purpose": "Three actual public requests; acquisition and pagination checks, not research quality or recall",
+  "crossref": {
+    "checked_at": "2026-10-06T06:47:39.585Z",
+    "result": {
+      "searches": [
+        {
+          "id": "search-crossref-eff478bae4f5a4d1",
+          "query": "GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints",
+          "provider": "crossref",
+          "searched_at": "2026-10-06T06:47:36.08Z",
+          "status": "partial",
+          "scope": "Crossref deposited work metadata; bibliographic query ordered by provider relevance score descending; at most 2 page(s) of 2 records",
+          "limitations": [
+            "Crossref coverage is not exhaustive for AI preprints; metadata search is not full-text reading.",
+            "Returned results truncated by page/request budget or pagination boundary."
+          ],
+          "result_paper_ids": [
+            "doi-3cf6b754ff5fe164e9ae0d42",
+            "doi-7b1186c5cea429f6e252f5bf",
+            "doi-f431ceba649e9320d3604f34",
+            "doi-6b7ae9f30b2e4ae0ec454a0d"
+          ],
+          "total_results_reported": 1470580,
+          "pages_received": 2
+        }
+      ],
+      "papers": [
+        {
+          "id": "doi-3cf6b754ff5fe164e9ae0d42",
+          "title": "GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints",
+          "year": 2023,
+          "url": "https://doi.org/10.18653/v1/2023.emnlp-main.298",
+          "identifiers": {
+            "doi": "10.18653/v1/2023.emnlp-main.298"
+          },
+          "version": "unknown",
+          "accessed_at": "2026-10-06T06:47:36.08Z",
+          "authors": [
+            "Joshua Ainslie",
+            "James Lee-Thorp",
+            "Michiel de Jong",
+            "Yury Zemlyanskiy",
+            "Federico Lebron",
+            "Sumit Sanghai"
+          ],
+          "source_metadata": {
+            "provider": "crossref",
+            "type": "proceedings-article",
+            "deposited_at": "2023-12-10T17:04:06Z",
+            "provider_relevance_score": 74.65835
+          },
+          "version_note": "Registration metadata does not establish the technical version actually read."
+        },
+        {
+          "id": "doi-7b1186c5cea429f6e252f5bf",
+          "title": "Figure 1: The transformer and multi head attention.",
+          "year": null,
+          "url": "https://doi.org/10.7717/peerj-cs.2890/fig-1",
+          "identifiers": {
+            "doi": "10.7717/peerj-cs.2890/fig-1"
+          },
+          "version": "unknown",
+          "accessed_at": "2026-10-06T06:47:36.08Z",
+          "authors": [],
+          "source_metadata": {
+            "provider": "crossref",
+            "type": "component",
+            "deposited_at": "2025-05-23T07:20:28Z",
+            "provider_relevance_score": 33.602943
+          },
+          "version_note": "Registration metadata does not establish the technical version actually read."
+        },
+        {
+          "id": "doi-f431ceba649e9320d3604f34",
+          "title": "Multi-Band Residual Fusion with Per-Head Gating for Enhanced Transformer Language Models",
+          "year": 2025,
+          "url": "https://doi.org/10.2139/ssrn.5856888",
+          "identifiers": {
+            "doi": "10.2139/ssrn.5856888"
+          },
+          "version": "unknown",
+          "accessed_at": "2026-10-06T06:47:36.08Z",
+          "authors": [
+            "Zhigao Huang",
+            "Miao Pan",
+            "Quanfa Li"
+          ],
+          "source_metadata": {
+            "provider": "crossref",
+            "type": "posted-content",
+            "deposited_at": "2025-12-03T22:55:25Z",
+            "provider_relevance_score": 33.171432
+          },
+          "version_note": "Registration metadata does not establish the technical version actually read."
+        },
+        {
+          "id": "doi-6b7ae9f30b2e4ae0ec454a0d",
+          "title": "QUBVIS: query based multi-modal summarization system using CLIP based transformer and vision language models",
+          "year": 2025,
+          "url": "https://doi.org/10.1016/j.softx.2025.102303",
+          "identifiers": {
+            "doi": "10.1016/j.softx.2025.102303"
+          },
+          "version": "unknown",
+          "accessed_at": "2026-10-06T06:47:36.08Z",
+          "authors": [
+            "Turan Goktug Altundogan",
+            "Mehmet Karakose"
+          ],
+          "source_metadata": {
+            "provider": "crossref",
+            "type": "journal-article",
+            "deposited_at": "2026-04-26T11:42:39Z",
+            "provider_relevance_score": 32.875244
+          },
+          "version_note": "Registration metadata does not establish the technical version actually read."
+        }
+      ],
+      "transport": {
+        "requests": [
+          {
+            "url": "https://api.crossref.org/works?query.bibliographic=GQA%3A+Training+Generalized+Multi-Query+Transformer+Models+from+Multi-Head+Checkpoints&rows=2&cursor=*&sort=score&order=desc",
+            "status": 200,
+            "bytes": 3387,
+            "transport_mode": "trusted_provider_tls",
+            "response_sha256": "6284523d4c70f4284a66b212f5aee304da74ae299f84f40796d8c6daebddbc24"
+          },
+          {
+            "url": "https://api.crossref.org/works?query.bibliographic=GQA%3A+Training+Generalized+Multi-Query+Transformer+Models+from+Multi-Head+Checkpoints&rows=2&cursor=MzMuNjAyOTQzLDE3NDc5ODQ4MDcwMDAsMTAuNzcxNyUyRnBlZXJqLWNzLjI4OTAlMkZmaWctMQ%3D%3D&sort=score&order=desc",
+            "status": 200,
+            "bytes": 20116,
+            "transport_mode": "trusted_provider_tls",
+            "response_sha256": "0003b06d1f01960c3583f2fc95a6c216caf8632a311c68e78fdbe69ad4bc7a16"
+          }
+        ],
+        "bytes_received": 23503,
+        "byte_budget": 10485760,
+        "request_budget": 2
+      },
+      "notice": "Acquisition and identity checks only; source existence does not prove faithful reading, coverage, novelty, or scientific correctness."
+    },
+    "seen": [
+      {
+        "request_url": "https://api.crossref.org/works?query.bibliographic=GQA%3A+Training+Generalized+Multi-Query+Transformer+Models+from+Multi-Head+Checkpoints&rows=2&cursor=*&sort=score&order=desc",
+        "status": 200,
+        "cursor": "*",
+        "next_cursor": "MzMuNjAyOTQzLDE3NDc5ODQ4MDcwMDAsMTAuNzcxNyUyRnBlZXJqLWNzLjI4OTAlMkZmaWctMQ==",
+        "returned_dois": [
+          "10.18653/v1/2023.emnlp-main.298",
+          "10.7717/peerj-cs.2890/fig-1"
+        ]
+      },
+      {
+        "request_url": "https://api.crossref.org/works?query.bibliographic=GQA%3A+Training+Generalized+Multi-Query+Transformer+Models+from+Multi-Head+Checkpoints&rows=2&cursor=MzMuNjAyOTQzLDE3NDc5ODQ4MDcwMDAsMTAuNzcxNyUyRnBlZXJqLWNzLjI4OTAlMkZmaWctMQ%3D%3D&sort=score&order=desc",
+        "status": 200,
+        "cursor": "MzMuNjAyOTQzLDE3NDc5ODQ4MDcwMDAsMTAuNzcxNyUyRnBlZXJqLWNzLjI4OTAlMkZmaWctMQ==",
+        "next_cursor": "MzIuODc1MjQ0LDE3NTQ5MTMwNzMwMDAsMTAuMTAxNiUyRmouc29mdHguMjAyNS4xMDIzMDM=",
+        "returned_dois": [
+          "10.2139/ssrn.5856888",
+          "10.1016/j.softx.2025.102303"
+        ]
+      }
+    ],
+    "scope": "Two real public API requests; source acquisition only, no reading, recall, or novelty assessment."
+  },
+  "arxiv_html": {
+    "checked_at": "2026-10-06T06:50:23.039Z",
+    "source_script": "candidate/skills/ai-research-mentor/scripts/research_sources.mjs",
+    "scope": "One real public HTML acquisition; no assigned reading scope, novelty assessment, or full-paper translation.",
+    "result": {
+      "requested_url": "https://arxiv.org/html/2305.13245v1",
+      "retrieved_at": "2026-10-06T06:50:22.243Z",
+      "status": "needs_host_review",
+      "content_kind": "unknown",
+      "reading_scope": "not_assigned",
+      "saved_path": null,
+      "limitations": [
+        "Lossy HTML blocks; host must confirm this is the paper body, verify equations/tables/figures, and assign actual reading scope. Unknown named entities are preserved.",
+        "Original source bytes were not saved; provide root and a new out path when a durable source artifact is needed."
+      ],
+      "notice": "Acquisition and identity checks only; source existence does not prove faithful reading, coverage, novelty, or scientific correctness.",
+      "source_url": "https://arxiv.org/html/2305.13245v1",
+      "byte_length": 159510,
+      "sha256": "45a31f0145b7b844db2c65356bcce411a3263ae68c5d0a7c36e20a8e6fe5d28c",
+      "content_type": "text/html; charset=utf-8",
+      "extraction_status": "html_blocks_extracted",
+      "transport": {
+        "requests": [
+          {
+            "url": "https://arxiv.org/html/2305.13245v1",
+            "status": 200,
+            "bytes": 159510,
+            "transport_mode": "trusted_provider_tls",
+            "response_sha256": "45a31f0145b7b844db2c65356bcce411a3263ae68c5d0a7c36e20a8e6fe5d28c"
+          }
+        ],
+        "bytes_received": 159510,
+        "byte_budget": 10485760,
+        "request_budget": 1
+      },
+      "block_count": 169,
+      "blocks_with_anchor": 141,
+      "offset_unit": "UTF-16 code units"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 ---
 name: ai-research-mentor
-description: Help AI/ML researchers explore topics, find related papers, assess novelty and feasibility, and revise research decisions from validation results. Use for 科研选题、选题评估、相关论文检索、查新、开题与研究方向迭代, or feedback-based improvement of this research skill. Distinguish proposal assessment from evidence-backed research claims.
+description: Help AI/ML researchers investigate literature and research gaps, assess topics, read papers, draft source-grounded proposals, reviews or manuscripts, and revise research decisions or this skill from verified feedback. Use for 科研选题、查新、文献检索与精读、开题和科研写作. Distinguish planned research from observed results.
 ---
 
 # AI Research Mentor
@@ -15,8 +15,10 @@ description: Help AI/ML researchers explore topics, find related papers, assess 
 |---|---|---|
 | 只有宽泛方向、想找题目 | 定义问题范围，检索已有认识，提出少量有证据的候选 | [literature.md](references/literature.md)、[ideation.md](references/ideation.md) |
 | 找同方向、相似方法或最近论文 | 检索与筛选；说明相关性、版本和阅读深度 | [literature.md](references/literature.md) |
+| 读论文、核对公式或决定性图表 | 获取实际版本，读取相关正文，核验解析和页面定位 | [fulltext.md](references/fulltext.md) |
 | 已有想法，要查新或找漏洞 | 拆分贡献，找最接近和最可能否定它的工作，核对关键全文 | [literature.md](references/literature.md)、[evaluation.md](references/evaluation.md) |
 | 评估价值、资源或能否开题 | 区分提案逻辑、已有证据和前置条件，建议有边界的验证 | [evaluation.md](references/evaluation.md) |
+| 做决策卡、开题、综述或论文草稿 | 按用户所需文稿组织真实来源、研究主张与结果 | [research-outputs.md](references/research-outputs.md) |
 | 有试验、证明尝试或负结果 | 分类结果，更新主张与历史，重开受影响的检查 | [feedback.md](references/feedback.md) |
 | 保存项目、跨轮恢复、需要排序 | 使用统一记录与版本指纹 | [data-contract.md](references/data-contract.md) |
 | 优化本科研 skill、复盘它的失误 | 从实际错误提出小改动，在副本中验证，合格才保留 | [self-improvement.md](references/self-improvement.md) |
@@ -44,7 +46,7 @@ description: Help AI/ML researchers explore topics, find related papers, assess 
 
 先检查宿主实际可用的搜索、论文元数据、全文读取和本地文献工具；用发现到的接口，不硬编码不存在的 MCP 名称。不依赖指定付费数据库、账号或外部 skill。
 
-能联网时检索当前工作；只能访问用户语料时明确语料边界；无检索能力时可以做论证审查、整理现有材料与生成查询方案，但不能声称完成外部查新。查 PDF 可使用宿主现有提取能力，决定性公式/图表再核对页面；不要为一次选题任务自动安装重型框架。
+能联网时检索当前工作；只能访问用户语料时明确语料边界；无检索能力时可以做论证审查、整理现有材料与生成查询方案，但不能声称完成外部查新。正文获取与实读按 fulltext.md：优先可读 HTML；PDF 由宿主提取，决定性图表、公式回到页面核验。下载或解析成功不等于已阅读，不为一次任务自动安装重型框架。
 
 在任务和既有授权范围内执行检索、读取和本地记录；实验执行依据用户的实际请求与预算。遇到限流、语料缺失、预算耗尽或连续低收益时，保留已有结果与未解决项，提出最有价值的补证动作。
 
@@ -62,7 +64,7 @@ description: Help AI/ML researchers explore topics, find related papers, assess 
 
 分数仅辅助比较合格候选，未知保留未知，不作为 0 分，不因高分绕过门控。详细锚点与相对比较见 evaluation.md。
 
-高投入的完整验证需当前真正独立上下文 GO 回执；争议判断也优先独立复核，提供研究问题、原始证据和资源约束，不提示预期结论。没有独立代理时说明是自审，完整验证保持 HOLD；满足其他门槛时可评估有界 pilot。独立复核不是投票认证。
+高投入的完整验证需当前真正独立上下文明确批准 full_validation 的 GO 回执，并按合同核验真实回执文件与指纹；pilot 回执不能授权升级。争议判断也优先独立复核，提供研究问题、原始证据和资源约束，不提示预期结论。无法获得独立评审时保持自审标签，完整验证 HOLD；满足其他门槛时可评估有界 pilot。独立复核不是投票认证。
 
 候选依赖的新论文、机制调整、数据或算力变化、实验/证明结果会使相关评估失效；仅改排序权重不改科学评审。保存有条件的历史判断并重新检查，不永久封禁失败方向。代码跑通、假设被反驳、缺乏统计信息和尚未运行是不同状态。
 
@@ -70,9 +72,9 @@ description: Help AI/ML researchers explore topics, find related papers, assess 
 
 先给当前结论与信心边界，再给决定性依据、最近工作差异、主要风险和下一步。论文列表说明每篇为何相关、所读范围与链接；选题卡说明问题、依据、贡献假设、证伪方法、资源前提与决策。未验证收益写成预测，不写成发现。
 
-简单请求直接回复。持续项目按 data-contract.md 创建或更新 dossier.json，并只保存有实际内容的笔记与产物。不要将空文件、schema 检查通过或模型一致意见当作证据充分。
+简单请求直接回复；需要保留判断但尚未持续维护时，用 research-outputs.md 的 Markdown 决策卡或 gap 卡。跨轮恢复、机器排序或跟踪证据变化时再按 data-contract.md 升级 dossier.json，不要求所有请求填写全套记录。不要将空文件、schema 检查通过或模型一致意见当作证据充分。
 
-如使用辅助脚本，先 validate，v1 记录须 migrate 并补依据复评；v2 用 fingerprint 绑定当前候选依赖后再 rank。scripts/research_audit.mjs 只核验记录、版本和排序必要条件；它不评定论文真实性、检索完备性或科学新颖性。无 Node.js 时依合同手动核验，不因此停止用户的研究任务。
+如使用辅助脚本，先 validate；旧接口评审保持 HOLD，按合同补依据并复评。fingerprint 绑定当前候选依赖；full_validation 用 rank 的 receipt-root 对真实回执核验。scripts/research_audit.mjs 核验记录、版本和排序必要条件，不评定论文真实性、检索完备性或科学新颖性。无 Node.js 时依合同手动核验，不因此停止用户的研究任务。
 
 维护或改造本 skill 时可读 [design-basis.md](references/design-basis.md)。脚本回归测试位于 tests/，以 Node 标准测试运行器执行；不要把开发测试数据混入真实研究证据。
 

@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto';
 import {
   createInitialDossier, validateDossier, canonicalStringify,
   fingerprintIdea, rankingConfigHash, rankDossier, migrateDossier, initProject,
+  DECISION_CONTRACT_VERSION, createReviewReceipt, verifyIndependentReceipts,
 } from '../scripts/research_audit.mjs';
 
 const when = '2026-10-05T08:00:00Z';
@@ -44,6 +45,7 @@ function fixture() {
 function addReview(d, id, options = {}) {
   const idea = d.ideas.find(i => i.id === id);
   const r = { id: `R${d.reviews.length + 1}`, idea_id: id, idea_version: idea.version,
+    decision_contract_version: DECISION_CONTRACT_VERSION,
     review_basis_hash: fingerprintIdea(d, id), reviewed_at: when, kind: 'self', decision: 'GO',
     decision_scope: 'scientific_framing', recommended_stage: 'pilot',
     decision_basis: { type: 'advance', evidence_ids: ['E1'], pilot_ids: [], dependency_names: [],
@@ -61,6 +63,18 @@ function refresh(d) {
     r.idea_version = d.ideas.find(i => i.id === r.idea_id).version;
     r.review_basis_hash = fingerprintIdea(d, r.idea_id);
   }
+}
+
+async function sealReceipt(root, review, receipt = createReviewReceipt(review)) {
+  const bytes = Buffer.from(`${JSON.stringify(receipt, null, 2)}\n`, 'utf8');
+  await writeFile(path.join(root, review.artifact), bytes);
+  review.artifact_sha256 = createHash('sha256').update(bytes).digest('hex');
+}
+
+function independentReview(d, options = {}) {
+  return addReview(d, 'I1', { kind: 'independent', author_context: 'Synthetic author context',
+    evaluator_context: 'Synthetic evaluator context', artifact: 'review.json', recommended_stage: 'full_validation',
+    reviewed_at: '2026-10-05T09:00:00Z', ...options });
 }
 
 function decide(d, decision, type, basis = {}) {
@@ -100,10 +114,11 @@ function addUnrelated(d) {
 function v1Fixture() {
   const d = fixture();
   d.schema_version = 1;
+  delete d.decision_contract_version;
   delete d.screening;
   for (const idea of d.ideas) delete idea.evidence_links;
   for (const r of d.reviews) {
-    for (const key of ['review_basis_hash', 'decision_scope', 'recommended_stage', 'decision_basis']) delete r[key];
+    for (const key of ['review_basis_hash', 'decision_scope', 'recommended_stage', 'decision_basis', 'decision_contract_version']) delete r[key];
     r.basis_hash = '0'.repeat(64);
   }
   for (const r of d.reviews) r.basis_hash = fingerprintIdea(d, r.idea_id);
@@ -467,6 +482,7 @@ test('constraints KILL is scoped and requires confirmed facts plus an actual fai
   d.project.constraints.compute = { status: 'confirmed', value: 'No synthetic device available', source: 'Synthetic user confirmation, fixture only' };
   d.ideas[0].feasibility.status = 'blocked';
   d.ideas[0].feasibility.dependencies[0].status = 'failed';
+  d.ideas[0].feasibility.dependencies[0].constraint_keys = ['compute'];
   const r = decide(d, 'KILL', 'constraints', { constraint_keys: ['compute'], dependency_names: ['Synthetic resource'] });
   r.decision_scope = 'current_constraints';
   const result = rankDossier(d);
@@ -487,6 +503,7 @@ test('unconfirmed resource claims or an unfailed dependency cannot justify const
     const d = fixture();
     d.project.constraints.compute = { status: 'confirmed', value: 'Synthetic unavailable resource', source: 'Synthetic user record' };
     d.ideas[0].feasibility.dependencies[0].status = 'failed';
+    d.ideas[0].feasibility.dependencies[0].constraint_keys = ['compute'];
     decide(d, 'KILL', 'constraints', { constraint_keys: ['compute'], dependency_names: ['Synthetic resource'] }).decision_scope = 'current_constraints';
     modify(d);
     if (validateDossier(d).valid) {
@@ -503,6 +520,7 @@ test('constraints KILL rejects empty facts while retaining meaningful zero and f
     d.project.constraints.compute = { status: 'confirmed', value, source: 'Synthetic user resource record' };
     d.ideas[0].feasibility.status = 'blocked';
     d.ideas[0].feasibility.dependencies[0].status = 'failed';
+    d.ideas[0].feasibility.dependencies[0].constraint_keys = ['compute'];
     decide(d, 'KILL', 'constraints', { constraint_keys: ['compute'], dependency_names: ['Synthetic resource'] }).decision_scope = 'current_constraints';
     const meaningful = value === 0 || value === false;
     const output = rankDossier(d);
@@ -717,16 +735,23 @@ test('partial or invalid confidence is rejected instead of becoming a hidden sco
   }
 });
 
-test('full validation needs a current independent GO receipt; bounded pilot does not', () => {
+test('full validation needs a byte-verified current independent full-stage GO receipt; pilot does not', async () => {
   const d = fixture();
   assert.equal(rankDossier(d).ranked.length, 1);
   d.reviews[0].recommended_stage = 'full_validation';
   assert.equal(rankDossier(d).held.length, 1);
-  addReview(d, 'I1', { kind: 'independent', author_context: 'Synthetic author context A',
-    evaluator_context: 'Synthetic independent context B', artifact: 'synthetic-review.md',
+  const review = addReview(d, 'I1', { kind: 'independent', author_context: 'Synthetic author context A',
+    evaluator_context: 'Synthetic independent context B', artifact: 'synthetic-review.json',
     recommended_stage: 'full_validation', reviewed_at: '2026-10-05T09:00:00Z' });
-  assert.equal(rankDossier(d).ranked.length, 1);
-  assert.equal(rankDossier(d).ranked[0].recommended_stage, 'full_validation');
+  assert.equal(rankDossier(d).held.length, 1);
+  const root = await mkdtemp(path.join(tmpdir(), 'research-receipt-'));
+  try {
+    await sealReceipt(root, review);
+    const receiptVerification = await verifyIndependentReceipts(d, { root });
+    assert.deepEqual(receiptVerification.failed, []);
+    assert.equal(rankDossier(d, { receiptVerification }).ranked.length, 1);
+    assert.equal(rankDossier(d, { receiptVerification }).ranked[0].recommended_stage, 'full_validation');
+  } finally { await rm(root, { recursive: true, force: true }); }
 });
 
 test('a stale independent receipt cannot authorize a latest self full-validation recommendation', () => {
@@ -736,6 +761,292 @@ test('a stale independent receipt cannot authorize a latest self full-validation
   d.ideas[0].question = 'A revised synthetic target';
   addReview(d, 'I1', { recommended_stage: 'full_validation', reviewed_at: '2026-10-05T10:00:00Z' });
   assert.equal(rankDossier(d).held.length, 1);
+});
+
+test('a verified independent pilot cannot authorize a later self full-validation GO', async () => {
+  const d = fixture(); const peer = independentReview(d, { recommended_stage: 'pilot' });
+  addReview(d, 'I1', { recommended_stage: 'full_validation', reviewed_at: '2026-10-05T10:00:00Z' });
+  const root = await mkdtemp(path.join(tmpdir(), 'research-stage-'));
+  try {
+    await sealReceipt(root, peer);
+    const receiptVerification = await verifyIndependentReceipts(d, { root });
+    assert.equal(receiptVerification.verified.length, 1);
+    const output = rankDossier(d, { receiptVerification });
+    assert.equal(output.ranked.length, 0);
+    assert.match(output.held[0].reasons.join(' '), /pilot approval cannot authorize escalation/);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('a verified full-validation independent GO can cover a later matching self review', async () => {
+  const d = fixture(); const peer = independentReview(d);
+  addReview(d, 'I1', { recommended_stage: 'full_validation', reviewed_at: '2026-10-05T10:00:00Z' });
+  const root = await mkdtemp(path.join(tmpdir(), 'research-full-'));
+  try {
+    await sealReceipt(root, peer);
+    const receiptVerification = await verifyIndependentReceipts(d, { root });
+    assert.equal(rankDossier(d, { receiptVerification }).ranked.length, 1);
+    assert.equal(rankDossier(d, { receiptVerification: structuredClone(receiptVerification) }).ranked.length, 0);
+    assert.equal(rankDossier(d, { receiptVerification: { verified: [{ review_id: peer.id }] } }).ranked.length, 0);
+    d.reviews.at(-1).reason = 'A changed recommendation after verification';
+    assert.equal(rankDossier(d, { receiptVerification }).ranked.length, 0);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('receipt verification compares actual bytes and complete review bindings', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'research-binding-'));
+  try {
+    for (const mutate of [
+      receipt => receipt.review.idea_version++,
+      receipt => receipt.review.review_basis_hash = '0'.repeat(64),
+      receipt => receipt.review.recommended_stage = 'pilot',
+      receipt => receipt.review.decision = 'HOLD',
+      receipt => receipt.review.evaluator_context = 'Another evaluator',
+      receipt => receipt.review.decision_basis.evidence_ids = [],
+      receipt => receipt.review.scores.scientific_value = 0,
+      receipt => receipt.review.decision_contract_version = 1,
+    ]) {
+      const d = fixture(); const peer = independentReview(d); const receipt = createReviewReceipt(peer); mutate(receipt);
+      await sealReceipt(root, peer, receipt);
+      const report = await verifyIndependentReceipts(d, { root });
+      assert.equal(report.verified.length, 0);
+      assert.match(report.failed[0].reason, /fields do not match/);
+    }
+    const d = fixture(); const peer = independentReview(d); await sealReceipt(root, peer);
+    await writeFile(path.join(root, peer.artifact), `${JSON.stringify(createReviewReceipt(peer))} `);
+    const report = await verifyIndependentReceipts(d, { root });
+    assert.equal(report.verified.length, 0);
+    assert.match(report.failed[0].reason, /SHA-256/);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('later independent HOLD supersedes an older verified full-validation approval', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'research-new-peer-'));
+  try {
+    const d = fixture(); const first = independentReview(d); await sealReceipt(root, first);
+    const later = independentReview(d, { artifact: 'hold.json', decision: 'HOLD', reviewed_at: '2026-10-05T10:00:00Z',
+      decision_basis: { type: 'insufficient', evidence_ids: ['E1'], pilot_ids: [], dependency_names: [], constraint_keys: [], explanation: 'Synthetic remaining doubt' } });
+    await sealReceipt(root, later);
+    addReview(d, 'I1', { recommended_stage: 'full_validation', reviewed_at: '2026-10-05T11:00:00Z' });
+    const receiptVerification = await verifyIndependentReceipts(d, { root });
+    assert.equal(receiptVerification.verified.length, 2);
+    assert.equal(rankDossier(d, { receiptVerification }).ranked.length, 0);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('later independent pilot approval supersedes an older full approval even at the same timestamp', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'research-peer-stage-'));
+  try {
+    const d = fixture(); const first = independentReview(d); await sealReceipt(root, first);
+    const later = independentReview(d, { artifact: 'pilot.json', recommended_stage: 'pilot' });
+    await sealReceipt(root, later);
+    addReview(d, 'I1', { recommended_stage: 'full_validation', reviewed_at: '2026-10-05T11:00:00Z' });
+    const receiptVerification = await verifyIndependentReceipts(d, { root });
+    assert.equal(receiptVerification.verified.length, 2);
+    assert.equal(rankDossier(d, { receiptVerification }).ranked.length, 0);
+    assert.match(rankDossier(d, { receiptVerification }).held[0].reasons.join(' '), /pilot approval cannot authorize escalation/);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('receipt claims and paths do not replace explicit local-root file verification', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'research-path-'));
+  try {
+    for (const artifact of ['literally anything', '../outside-review.json', 'https://example.invalid/receipt.json', 'file:///receipt.json']) {
+      const d = fixture(); const peer = independentReview(d, { artifact, artifact_sha256: '0'.repeat(64) });
+      peer.verified = true;
+      const report = await verifyIndependentReceipts(d, { root });
+      assert.equal(report.verified.length, 0);
+      assert.equal(rankDossier(d, { receiptVerification: report }).ranked.length, 0);
+    }
+    const d = fixture(); independentReview(d);
+    await assert.rejects(verifyIndependentReceipts(d), /explicit existing local root/);
+    assert.equal((await verifyIndependentReceipts(d, { root })).verified.length, 0);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('receipt verification rejects symbolic links instead of following them', async t => {
+  const root = await mkdtemp(path.join(tmpdir(), 'research-link-'));
+  try {
+    const d = fixture(); const peer = independentReview(d, { artifact: 'actual.json' }); await sealReceipt(root, peer);
+    try { await symlink(path.join(root, 'actual.json'), path.join(root, 'review.json'), 'file'); }
+    catch (error) { if (['EPERM', 'EACCES', 'ENOTSUP'].includes(error.code)) { t.skip('File symlink creation unavailable on this host'); return; } throw error; }
+    peer.artifact = 'review.json';
+    const report = await verifyIndependentReceipts(d, { root });
+    assert.equal(report.verified.length, 0);
+    assert.match(report.failed[0].reason, /symbolic links/);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('receipt verification accepts local spaces and absolute paths inside the root, and bounds reads', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'research-space-'));
+  try {
+    const d = fixture(); const peer = independentReview(d, { artifact: 'a real receipt.json' });
+    await sealReceipt(root, peer);
+    assert.equal((await verifyIndependentReceipts(d, { root })).verified.length, 1);
+    peer.artifact = path.join(root, peer.artifact);
+    assert.equal((await verifyIndependentReceipts(d, { root })).verified.length, 1);
+    await writeFile(peer.artifact, Buffer.alloc(1024 * 1024 + 1));
+    const report = await verifyIndependentReceipts(d, { root });
+    assert.equal(report.verified.length, 0);
+    assert.match(report.failed[0].reason, /1 MiB/);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('a changed receipt is rechecked by the explicit CLI rank rather than a persisted verified flag', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'research-cli-receipt-'));
+  try {
+    const d = fixture(); const peer = independentReview(d); await sealReceipt(root, peer);
+    const file = path.join(root, 'dossier.json'); await writeFile(file, JSON.stringify(d));
+    let run = spawnSync(process.execPath, [script, 'rank', file, '--receipt-root', root], { encoding: 'utf8' });
+    assert.equal(run.status, 0, run.stdout); assert.equal(JSON.parse(run.stdout).ranked.length, 1);
+    await writeFile(path.join(root, peer.artifact), '{}');
+    run = spawnSync(process.execPath, [script, 'rank', file, '--receipt-root', root], { encoding: 'utf8' });
+    assert.equal(run.status, 0, run.stdout); assert.equal(JSON.parse(run.stdout).held.length, 1);
+    const verify = spawnSync(process.execPath, [script, 'verify-receipts', file, '--root', root], { encoding: 'utf8' });
+    assert.equal(verify.status, 0, verify.stdout); assert.equal(JSON.parse(verify.stdout).failed.length, 1);
+    assert.deepEqual(JSON.parse(await readFile(file, 'utf8')), d);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('unrelated confirmed preferences or a blocked label cannot justify constraints KILL', () => {
+  for (const modify of [
+    d => d.ideas[0].feasibility.dependencies[0].status = 'met',
+    d => d.ideas[0].feasibility.dependencies[0].constraint_keys = [],
+    d => delete d.ideas[0].feasibility.dependencies[0].constraint_keys,
+    d => d.reviews[0].decision_basis.constraint_keys = ['format'],
+  ]) {
+    const d = fixture();
+    d.project.constraints.compute = { status: 'confirmed', value: 0, source: 'Synthetic resource observation' };
+    d.project.constraints.format = { status: 'confirmed', value: 'Markdown', source: 'Synthetic user preference' };
+    d.ideas[0].feasibility.status = 'blocked';
+    Object.assign(d.ideas[0].feasibility.dependencies[0], { status: 'failed', constraint_keys: ['compute'] });
+    decide(d, 'KILL', 'constraints', { constraint_keys: ['compute'], dependency_names: ['Synthetic resource'] }).decision_scope = 'current_constraints';
+    modify(d); refresh(d);
+    assert.equal(rankDossier(d).killed.length, 0);
+    assert.equal(rankDossier(d).held.length, 1);
+  }
+});
+
+test('unrelated validation errors do not hide current decision-basis scope errors', () => {
+  const d = addUnrelated(fixture());
+  d.reviews[0].decision_basis.evidence_ids = ['E2'];
+  d.history.push({ evidence_ids: ['ghost'] });
+  const errors = validateDossier(d).errors.join('\n');
+  assert.match(errors, /history\[0\].evidence_ids/);
+  assert.match(errors, /Evidence E2 is not attached to this candidate/);
+  assert.throws(() => rankDossier(d), /Invalid dossier/);
+});
+
+test('malformed unrelated hash collections do not hide a valid candidate decision-basis error', () => {
+  for (const modify of [
+    d => d.screening[0].idea_ids = null,
+    d => d.screening.push(null),
+    d => d.searches.push(null),
+    d => d.papers.push(null),
+    d => d.evidence.push(null),
+    d => d.pilots.push(null),
+  ]) {
+    const d = addUnrelated(fixture());
+    d.reviews[0].decision_basis.evidence_ids = ['E2'];
+    modify(d);
+    const result = validateDossier(d);
+    assert.equal(result.valid, false);
+    assert.match(result.errors.join('\n'), /Evidence E2 is not attached to this candidate/);
+    assert.throws(() => rankDossier(d), /Invalid dossier/);
+  }
+});
+
+test('source notes must be an object and their type errors aggregate with other record errors', () => {
+  for (const notes of ['unstructured string', [], null, 3]) {
+    const d = fixture(); d.project.notes = notes;
+    d.history.push({ evidence_ids: ['ghost'] });
+    const errors = validateDossier(d).errors.join('\n');
+    assert.match(errors, /project.notes: must be an object/);
+    assert.match(errors, /history\[0\].evidence_ids/);
+  }
+  const d = fixture(); d.project.notes = { gap: 'A supplied hypothesis still awaiting verification' }; refresh(d);
+  assert.equal(validateDossier(d).valid, true);
+});
+
+test('legacy v2 decisions remain readable but cannot become current through relabelling a review', () => {
+  const d = fixture(); delete d.decision_contract_version; delete d.reviews[0].decision_contract_version; refresh(d);
+  const legacyHash = d.reviews[0].review_basis_hash;
+  assert.equal(validateDossier(d).valid, true);
+  for (const decision of ['GO', 'HOLD', 'KILL']) {
+    d.reviews[0].decision = decision;
+    assert.equal(rankDossier(d).held.length, 1);
+  }
+  d.reviews[0].decision_contract_version = DECISION_CONTRACT_VERSION;
+  assert.equal(rankDossier(d).held.length, 1);
+  d.decision_contract_version = DECISION_CONTRACT_VERSION;
+  assert.notEqual(fingerprintIdea(d, 'I1'), legacyHash);
+  assert.equal(rankDossier(d).held.length, 1);
+});
+
+test('contract migration archives legacy v2 reviews unchanged without making replacement approvals', () => {
+  const d = fixture(); d.decision_contract_version = 1; d.reviews[0].decision_contract_version = 1; refresh(d);
+  const original = structuredClone(d); const migrated = migrateDossier(d);
+  assert.deepEqual(d, original);
+  assert.equal(migrated.schema_version, 2);
+  assert.equal(migrated.decision_contract_version, DECISION_CONTRACT_VERSION);
+  assert.deepEqual(migrated.reviews, []);
+  assert.deepEqual(migrated.history.at(-1).original_review, original.reviews[0]);
+  assert.equal(migrated.history.at(-1).requires_reassessment, true);
+  assert.equal(rankDossier(migrated).held.length, 1);
+});
+
+test('contract migration cannot expose an older GO after archiving the latest legacy review', () => {
+  for (const reviewed_at of [when, '2026-10-05T10:00:00Z']) {
+    const d = fixture();
+    addReview(d, 'I1', { decision_contract_version: 1, decision: 'HOLD', reviewed_at });
+    const original = structuredClone(d);
+    assert.equal(rankDossier(d).held.length, 1);
+    const migrated = migrateDossier(d);
+    assert.equal(rankDossier(migrated).ranked.length, 0);
+    assert.equal(rankDossier(migrated).held.length, 1);
+    assert.deepEqual(migrated.reviews, []);
+    assert.deepEqual(migrated.history.map(item => item.original_review), original.reviews);
+    assert.deepEqual(d, original);
+    assert.deepEqual(migrateDossier(migrated), migrated);
+  }
+});
+
+test('contract migration cannot restore an older independent full approval hidden by a legacy peer', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'research-migration-peer-'));
+  try {
+    const d = fixture(); const first = independentReview(d); await sealReceipt(root, first);
+    const blocker = independentReview(d, { artifact: 'legacy-hold.json', decision: 'HOLD',
+      decision_contract_version: 1, reviewed_at: '2026-10-05T10:00:00Z' });
+    const latest = addReview(d, 'I1', { recommended_stage: 'full_validation', reviewed_at: '2026-10-05T11:00:00Z' });
+    const before = await verifyIndependentReceipts(d, { root });
+    assert.equal(rankDossier(d, { receiptVerification: before }).held.length, 1);
+    const migrated = migrateDossier(d);
+    const after = await verifyIndependentReceipts(migrated, { root });
+    assert.equal(rankDossier(migrated, { receiptVerification: after }).ranked.length, 0);
+    assert.equal(rankDossier(migrated, { receiptVerification: after }).held.length, 1);
+    assert.deepEqual(migrated.reviews, [d.reviews[0], latest]);
+    assert.deepEqual(migrated.history.map(item => item.original_review), [first, blocker]);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('contract migration retains a genuinely newer current review after an older legacy review', () => {
+  const d = fixture(); d.reviews[0].decision_contract_version = 1;
+  const latest = addReview(d, 'I1', { reviewed_at: '2026-10-05T10:00:00Z' });
+  const migrated = migrateDossier(d);
+  assert.deepEqual(migrated.reviews, [latest]);
+  assert.equal(rankDossier(migrated).ranked.length, 1);
+  assert.deepEqual(migrated.history[0].original_review, d.reviews[0]);
+});
+
+test('unsupported future contracts are preserved and cannot be migrated into an older meaning', () => {
+  const d = fixture(); d.decision_contract_version = DECISION_CONTRACT_VERSION + 1;
+  d.reviews[0].decision_contract_version = DECISION_CONTRACT_VERSION + 1; refresh(d);
+  const original = structuredClone(d);
+  assert.equal(validateDossier(d).valid, true);
+  assert.equal(rankDossier(d).held.length, 1);
+  assert.throws(() => migrateDossier(d), /unsupported future decision contract/);
+  assert.deepEqual(d, original);
+  d.decision_contract_version = DECISION_CONTRACT_VERSION;
+  assert.throws(() => migrateDossier(d), /unsupported future decision contract/);
 });
 
 test('independent labeling needs distinct context identifiers and a review artifact', () => {

@@ -1,8 +1,8 @@
 # academic-scientific-skill
 
-**AI Research Mentor**：面向 AI / ML 科研的选题、文献查找、查新、可行性评估与验证反馈 skill。适用于 Codex，也可由其他支持 `SKILL.md` 的宿主按需读取。
+**AI Research Mentor**：面向 AI / ML 科研的选题、真实文献检索、全文核验、gap 分析、评估与研究文稿 skill。适用于 Codex，也可由其他支持 `SKILL.md` 的宿主按需读取。
 
-当前版本 **0.2.0**。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本 **0.3.0**。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 从具体研究问题出发，将已有证据、推断和待验证假设分开，帮助决定下一步值得投入什么。它不会承诺新颖性、实验成功或论文录用。
 
@@ -10,6 +10,9 @@
 
 - 探索方向：从已知结果、局限、矛盾和失败模式形成少量可检验候选，允许零个合格选题。
 - 文献查找：记录实际检索、筛选理由、文献身份、版本、阅读范围和证据定位，区分基础工作、最近更新和技术上最接近的工作。
+- 实际来源工具：Crossref 查询、DOI/arXiv 身份核验，以及有预算边界的 HTML/PDF 获取；取得内容后再由宿主实读与核验。
+- 研究缺口：对照已知条件、缺失知识、最强替代解释和已有绕行方案，用真实反向检索及判别测试检查 gap。
+- 科研产出：轻量决策/gap 卡、近邻比较、开题、研究提案、综述及带来源草稿；论文结果以真实材料为依据。
 - 选题评估：逐候选查新，检查强基线、前置条件、资源、指标与反证方法，给出 GO / HOLD / KILL 及依据。
 - 类型适配：支持经验、理论、测量、数据集和复现研究，不强制固定候选数量或两周训练计划。
 - 验证反馈：区分跑通、执行失败、支持、反驳、无结论和尚未运行；选题、约束或证据变化后重新评估。
@@ -40,11 +43,34 @@ Copy-Item -LiteralPath '.\skills\ai-research-mentor' -Destination $researchSkill
 
 也可以只请求找论文、评估一个想法或分析一次负结果，skill 会按任务加载相关细则。
 
-普通科研讨论不需要额外 Python 环境、模型 API key 或研究代理框架。联网搜索、PDF 阅读和文献库访问使用宿主实际提供的能力。分别记录检索来源、全文访问、引用扩展和代码访问能力，以及实际覆盖和失败；离线时明确语料边界，不冒充完成外部查新。
+普通科研讨论不需要额外 Python 环境、模型 API key 或研究代理框架。可使用本版 Node.js 来源工具，或宿主实际提供的搜索、PDF 和文献库能力。分别记录检索来源、全文访问、引用扩展和代码访问能力，以及实际覆盖和失败；离线时明确语料边界，不冒充完成外部查新。
+
+## 从实际来源到研究材料
+
+在仓库根目录可运行以下独立命令；它们按当前请求组合，不要求每次执行全部步骤：
+
+```text
+node skills/ai-research-mentor/scripts/research_sources.mjs search --query "grouped query attention" --rows 10 --pages 1
+node skills/ai-research-mentor/scripts/research_sources.mjs verify --doi 10.18653/v1/2023.emnlp-main.298 --expect-year 2023
+node skills/ai-research-mentor/scripts/research_sources.mjs fulltext --arxiv 2305.13245v1 --format pdf
+node skills/ai-research-mentor/scripts/research_outputs.mjs card examples/lightweight-example/notes.json
+node skills/ai-research-mentor/scripts/research_outputs.mjs draft examples/lightweight-example/notes.json --name example-question
+node skills/ai-research-mentor/scripts/research_outputs.mjs bibtex source-records.json
+```
+
+`search` 输出实际 `searches`/`papers`，`verify` 返回身份与可选元数据对照；宿主检查后再合并记录。Crossref 未覆盖的预印本及前后向引用由实际可用来源补充。`fulltext` 取得 HTML 块或 PDF 字节，分别标记 `needs_host_review` / `needs_host_extraction`，不自动记为 section/full_text 证据。
+
+透明代理的 fake-IP 环境可显式使用 `--trusted-provider-transport`，仅适用于内部构造的固定 Crossref/arXiv 请求，不能用于任意 `--url`。工具保持 TLS、超时、请求与字节预算；不更改系统网络设置。详见 [source-tools.md](skills/ai-research-mentor/references/source-tools.md)。
+
+`card` 整理已有笔记；`draft` 只创建初步项目结构，不制造论文、评审或 GO；`bibtex` 只导出提供的元数据，未知项提醒并省略，冲突需解决。这些命令默认只写标准输出，正文缓存需要显式 `--root` 和新 `--out`。轻量示例见 [examples/lightweight-example](examples/lightweight-example/README.md)，编辑辅助 Schema 在 [schemas](skills/ai-research-mentor/schemas)。
+
+三个产出命令也接受 `-` 从标准输入读取 JSON，例如 `node skills/ai-research-mentor/scripts/research_outputs.mjs card -`。BibTeX 根据实际 DOI/arXiv/OpenReview 身份关联归并同源条目；身份或版本冲突仍需先核对来源，不猜测合并。
+
+gap 方法见 [ideation.md](skills/ai-research-mentor/references/ideation.md)，全文实读见 [fulltext.md](skills/ai-research-mentor/references/fulltext.md)，开题、综述及论文草稿见 [research-outputs.md](skills/ai-research-mentor/references/research-outputs.md)。未执行的验证写为计划，不写成发现。
 
 ## 可选项目记录工具
 
-辅助程序使用 **Node.js 18+ 标准库**，无需 npm 安装。它只检查记录、版本和排序必要条件，不联网，也不判断论文真实性或科学正确性。
+审计程序使用 **Node.js 18+ 标准库**，无需 npm 安装。它只检查记录、版本、回执与排序必要条件，不联网，也不判断论文真实性或科学正确性；联网能力由独立来源工具提供。
 
 在仓库根目录运行：
 
@@ -57,9 +83,16 @@ node skills/ai-research-mentor/scripts/research_audit.mjs rank my-topic/dossier.
 
 先由研究者或宿主填写项目事实、实际来源、候选和评估。初始化文件不含论文或评审；v2 `fingerprint` 的 `review_basis_hash` 写入对应评审后，排序才会检查其是否仍然有效。项目记录保存在用户工作区。
 
-v2 将证据角色、对象和主张放在候选的 `evidence_links` 中，区分研究动机与核心假设的支持或反驳。KILL 需要当前评审和与理由相符的依据，单独的 duplicate、blocked 或 failed 标签不足以淘汰。HOLD 可以建议补信息测试；GO 再标明 pilot 或 full_validation，不能因测试便宜绕过科学依据。
+schema 2 将证据角色、对象和主张放在候选的 `evidence_links` 中。本版 decision_contract_version=2；资源 KILL 必须把确认约束关联到实际失败的必要依赖。完整验证需要最新同阶段独立 GO，且当次读取真实 JSON 回执核对字节哈希和全部评审字段：
 
-`validate` 返回结构错误与提醒；warnings 不使合法的初步构思无效，也不替代决策门控。旧 v1 记录仍可检查和计算旧指纹，但排序一律 HOLD，需显式迁移并重新评审：
+```text
+node skills/ai-research-mentor/scripts/research_audit.mjs verify-receipts my-topic/dossier.json --root my-topic
+node skills/ai-research-mentor/scripts/research_audit.mjs rank my-topic/dossier.json --receipt-root my-topic
+```
+
+没有已核验回执时，裸 `rank` 不批准 full_validation。回执核验不能证明评审者实际独立或科学结论正确。HOLD 可建议补信息；有界 pilot 也需基础科学门槛。
+
+`validate` 返回结构错误与提醒；warnings 不使合法的初步构思无效，也不替代决策门控。旧 schema 1 或旧决策契约可读取，但旧评审不授权当前决定，需显式迁移并重新评审：
 
 ```text
 node skills/ai-research-mentor/scripts/research_audit.mjs migrate old-project/dossier.json
@@ -79,7 +112,7 @@ node evaluation/package-skill.mjs
 node evaluation/check-package.mjs
 ```
 
-测试入口包含科研审计、Darwin 自优化验收及发布包测试；包检查比较完整文件集合和逐文件字节。CI 配置覆盖 Node.js 18 / 20 / 22 / 24，实际本地与 CI 执行结果分别记录。案例与验收范围见 [`evaluation/validation.md`](evaluation/validation.md)。
+测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；包检查比较完整文件集合和逐文件字节。CI 配置覆盖 Node.js 18 / 20 / 22 / 24，实际本地与 CI 执行结果分别记录。本版验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)，历史验收见 [`evaluation/validation.md`](evaluation/validation.md)。
 
 自动测试与原离线案例使用合成资料；[真实论文有限语料试用与评估协议](evaluation/real-world/README.md) 单独记录来源、实际答复和未测范围。真实科研评估应记录原始检索和输出、近邻发现、引用忠实性、过度断言、误淘汰和下一步建议质量；尚未完成的评估不作为性能证明。历史回测以当时可得信息判断决策，不把后来的实验失败等同于当时应该 KILL。
 
@@ -103,7 +136,7 @@ node skills/ai-research-mentor/scripts/evolution_guard.mjs checks-hash <本轮�
 node skills/ai-research-mentor/scripts/evolution_guard.mjs check <本轮目录>/run.json
 ```
 
-工具返回 KEEP / REJECT / HOLD，但不运行模型或自动写入文件；宿主在既有维护授权内执行测试和应用，应用前核对正式目录仍等于受评基线。科学记录合同、评测脚本、测试和优化规则默认不可由候选修改；v2 接口升级属于单独维护任务。普通优化不自动推送仓库或上传用户材料。
+工具返回 KEEP / REJECT / HOLD，但不运行模型或自动写入文件；宿主在既有维护授权内执行测试和应用，应用前核对正式目录仍等于受评基线。科学记录合同、评测脚本、测试和优化规则默认不可由候选修改；工具与决策契约升级属于单独维护任务。普通优化不自动推送仓库或上传用户材料。
 
 这一模式借鉴 [Darwin Skill](https://github.com/alchaincyf/darwin-skill) 的小步验证思路，独立实现版本与验收检查，无需安装 Darwin。当前 Darwin 的优化主体是宿主流程，通用自评分及其历史数据不作为本 skill 的效果证明。
 
@@ -120,13 +153,23 @@ skills/ai-research-mentor/
 │   ├── feedback.md
 │   ├── data-contract.md
 │   ├── retrieval-adapters.md
+│   ├── source-tools.md
+│   ├── fulltext.md
+│   ├── research-outputs.md
 │   ├── self-improvement.md
 │   └── design-basis.md
 ├── scripts/
 │   ├── research_audit.mjs
+│   ├── research_sources.mjs
+│   ├── research_outputs.mjs
 │   └── evolution_guard.mjs
+├── schemas/
+│   ├── notes.schema.json
+│   └── dossier.schema.json
 └── tests/
     ├── research_audit.test.mjs
+    ├── research_sources.test.mjs
+    ├── research_outputs.test.mjs
     └── evolution_guard.test.mjs
 ```
 

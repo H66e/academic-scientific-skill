@@ -8,7 +8,11 @@ const required = ['SKILL.md', 'agents/openai.yaml', 'scripts/research_audit.mjs'
   'references/evaluation.md', 'references/feedback.md', 'references/design-basis.md',
   'references/self-improvement.md', 'scripts/evolution_guard.mjs',
   'references/retrieval-adapters.md',
-  'tests/research_audit.test.mjs', 'tests/evolution_guard.test.mjs'];
+  'references/fulltext.md', 'references/research-outputs.md', 'references/source-tools.md',
+  'scripts/research_sources.mjs', 'scripts/research_outputs.mjs',
+  'schemas/notes.schema.json', 'schemas/dossier.schema.json',
+  'tests/research_audit.test.mjs', 'tests/evolution_guard.test.mjs',
+  'tests/research_sources.test.mjs', 'tests/research_outputs.test.mjs'];
 for (const file of required) {
   try { await fs.access(path.join(root, file)); } catch { errors.push(`Missing ${file}`); }
 }
@@ -47,6 +51,24 @@ for (const file of required.filter(file => file.endsWith('.md'))) {
       try { await fs.access(target); localLinks++; } catch { errors.push(`Broken reference in ${file}: ${destination}`); }
     }
   }
+}
+// Check local JSON pointers without pretending to implement all of JSON Schema.
+for (const file of required.filter(file => file.endsWith('.schema.json'))) {
+  try {
+    const schema = JSON.parse(await fs.readFile(path.join(root, file), 'utf8'));
+    const inspect = value => {
+      if (value === null || typeof value !== 'object') return;
+      if (typeof value.$ref === 'string') {
+        if (!value.$ref.startsWith('#/')) errors.push(`Unsupported external schema reference in ${file}`);
+        else {
+          const target = value.$ref.slice(2).split('/').reduce((current, part) => current?.[part.replaceAll('~1', '/').replaceAll('~0', '~')], schema);
+          if (target === undefined) errors.push(`Broken schema reference in ${file}: ${value.$ref}`);
+        }
+      }
+      for (const child of Object.values(value)) inspect(child);
+    };
+    inspect(schema);
+  } catch (error) { errors.push(`Cannot parse schema ${file}: ${error.message}`); }
 }
 process.stdout.write(`${JSON.stringify({ valid: errors.length === 0, errors, local_links_checked: localLinks,
   skill_lines: source.split(/\r?\n/).length, note: 'Local metadata/reference checks; does not prove research quality.' }, null, 2)}\n`);

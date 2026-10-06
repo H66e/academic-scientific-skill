@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ai-research-mentor:notes:1",
+  "title": "Lightweight research notes",
+  "description": "Source notes and recorded opinions, not an assessed dossier or independent receipt. Missing fields remain unverified.",
+  "type": "object",
+  "required": ["question"],
+  "properties": {
+    "question": { "$ref": "#/$defs/text" },
+    "type": { "enum": ["empirical", "theoretical", "measurement", "dataset", "reproduction"] },
+    "decision": { "enum": ["GO", "HOLD", "KILL"] },
+    "known": { "$ref": "#/$defs/note" },
+    "source_observations": { "$ref": "#/$defs/note" },
+    "gap": { "$ref": "#/$defs/note" },
+    "nearest_work": { "$ref": "#/$defs/note" },
+    "alternatives": { "$ref": "#/$defs/note" },
+    "search_findings": { "$ref": "#/$defs/note" },
+    "reverse_search": { "$ref": "#/$defs/note" },
+    "boundary": { "$ref": "#/$defs/note" },
+    "test": { "$ref": "#/$defs/note" },
+    "scientific_consequence": { "$ref": "#/$defs/note" },
+    "next_step": { "$ref": "#/$defs/note" },
+    "limitations": { "$ref": "#/$defs/note" },
+    "constraints": { "type": "object", "description": "Explicitly supplied facts with their original status and source. Never infer confirmed resources from free text." },
+    "assumptions": { "type": "array", "items": { "$ref": "#/$defs/text" } }
+  },
+  "$defs": {
+    "text": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "note": { "oneOf": [{ "$ref": "#/$defs/text" }, { "type": "array", "items": { "$ref": "#/$defs/text" } }] }
+  }
+}
