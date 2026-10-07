@@ -19,7 +19,7 @@ The Python ledger hash contract (`ledger-json-v1`) and `python-credibility-v2` j
 | `check-examples` | Passed | Three examples are explicitly synthetic and are not findings |
 | `git diff --check` | Passed | No whitespace errors |
 | Python 3.10 syntax and package-version consistency | Passed; 11 modules | `VERSION`, `pyproject.toml`, and `research_mentor.__version__` all report 0.3.0 |
-| Deterministic package check | Passed after the final rebuild; 38 files, 512066 bytes, SHA-256 `e2bc3826cc405e80e67488925d166c22928402e74b199d43b14345763b4c99b8` | ZIP file set and bytes are checked against the Skill source |
+| Deterministic package check | Passed after the final rebuild; 38 files, 512059 bytes, SHA-256 `c1e8c8aa7de7b10a29fbc03edc7c4f2fc5678877d352bdb16e5b9f852883dd85` | ZIP file set and bytes are checked against the Skill source |
 
 The final package was extracted to a temporary directory and its thin CLI `doctor` command completed successfully; the temporary project and extracted files were removed afterward.
 
