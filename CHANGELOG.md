@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Clarify source-of-truth and workspace version governance for the formal v0.3 source, installed copy, and unreleased v0.4 candidate.
+- Document that external retrieval is not private by default; use public or deliberately de-identified queries, keep private research materials local, and treat request logs and source artifacts as sensitive.
+- Record the v0.4 provenance-repair requirement: structural validation alone does not authenticate fabricated source/evidence records, so strict provenance receipts and locator anchors must be designed before promotion.
+
 ## 0.3.0
 
 - 修复独立 pilot 批准被用于完整验证，以及无关确认约束导致资源 KILL；完整验证使用最新独立阶段批准。
