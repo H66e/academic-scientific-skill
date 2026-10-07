@@ -4,6 +4,16 @@
 
 当前版本 **0.3.0**。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
+**本分支未发布改动：Python-first 证据核心。** 新持续项目可使用 Python 3.10+ 标准库工具自动创建来源回执、精确文本锚点与本地只追加账本，并将机器建议和人工决定分开。现有 Node 工具保留；旧审计函数尚未完整移植，PDF 文本提取、实验结果登记和科研效果评测尚未完成。说明与完整命令见 [Python 工作流](skills/ai-research-mentor/references/python-core.md)，实际检查和剩余范围见 [Python 核心验收记录](evaluation/validation-python-core.md)。
+
+```text
+python -B skills/ai-research-mentor/scripts/research_mentor.py --project ../research-private/example doctor
+python -B skills/ai-research-mentor/scripts/research_mentor.py --project ../research-private/example init --question "A concrete AI/ML research question"
+python -B evaluation/run-python-tests.py
+```
+
+外部检索默认阻止 private query；只有 public/deidentified 分类可发送。上述路径是本地研究数据，不能发布或同步到安装源码中。CLI/API 使用同一 `runtime/research_mentor` 包，`pip install -e .` 可选；无需为 Skill 安装 pip 包。
+
 正式源码、安装副本和未发布 v0.4 候选的边界见 [工作区与版本治理说明](docs/WORKSPACE_GOVERNANCE.md)。当前 Codex 加载的是最后同步的 v0.3.0；本工作树中的未发布改动不会自动进入安装副本，v0.4 candidate 仍处于开发和审查阶段。
 
 从具体研究问题出发，将已有证据、推断和待验证假设分开，帮助决定下一步值得投入什么；拿到实验结果之后，再判断这个结果实际支持了什么、哪些结论因此失效。它不会承诺新颖性、实验成功或论文录用。
@@ -156,19 +166,24 @@ skills/ai-research-mentor/
 │   ├── data-contract.md
 │   ├── retrieval-adapters.md
 │   ├── source-tools.md
+│   ├── python-core.md
 │   ├── fulltext.md
 │   ├── research-outputs.md
 │   ├── self-improvement.md
 │   └── design-basis.md
 ├── scripts/
+│   ├── research_mentor.py
 │   ├── research_audit.mjs
 │   ├── research_sources.mjs
 │   ├── research_outputs.mjs
 │   └── evolution_guard.mjs
+├── runtime/research_mentor/      # Python CLI/API 共用的证据与判断核心
 ├── schemas/
 │   ├── notes.schema.json
+│   ├── ledger-event.schema.json
 │   └── dossier.schema.json
 └── tests/
+    ├── python/test_core.py
     ├── research_audit.test.mjs
     ├── research_sources.test.mjs
     ├── research_outputs.test.mjs

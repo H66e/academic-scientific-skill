@@ -13,6 +13,8 @@ const required = ['SKILL.md', 'agents/openai.yaml', 'scripts/research_audit.mjs'
   'schemas/notes.schema.json', 'schemas/dossier.schema.json',
   'tests/research_audit.test.mjs', 'tests/evolution_guard.test.mjs',
   'tests/research_sources.test.mjs', 'tests/research_outputs.test.mjs'];
+required.push('scripts/research_mentor.py', 'runtime/research_mentor/core.py',
+  'runtime/research_mentor/judgment.py', 'references/python-core.md', 'schemas/ledger-event.schema.json');
 for (const file of required) {
   try { await fs.access(path.join(root, file)); } catch { errors.push(`Missing ${file}`); }
 }

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add a standard-library Python evidence runtime: append-only ledger, arXiv/Crossref acquisition receipts, exact text anchors, explicit reading statements, scoped strict machine recommendations and snapshot-bound human decisions.
+- Keep private/unknown queries local; require public or deliberately de-identified classification, TLS/public-address checks and bounded requests for external acquisition. Local project outputs cannot enter the skill source tree.
+- Add initial schema-2 dossier projection with no transferred reviews or approvals; retain all v0.3 Node commands as a tested compatibility path. Python ledger hashes are a separate versioned protocol, not Node fingerprint replacements.
+- Add Python API/CLI, reproducible source/IR/anchor verification, query recheck and reference linting, Windows/Linux Python CI, workflow tests and migration ADR. PDF bytes remain unextracted and scientific effectiveness remains unmeasured.
+- Require current load-bearing claim support for duplicate/refutation KILL; context-only claims cannot refute a candidate's core. Python judgment policy v2 invalidates previous weaker assessments while preserving history.
 - 把结果分类与失效重评提升为 `SKILL.md` 的一等入口：六种运行/科学状态从段末单句改为独立小节并前置定义，开场定位补上"出现结果之后"的一半；触发路由行改为点明状态归类。判定细节仍以 `feedback.md` 为准。
 - Clarify source-of-truth and workspace version governance for the formal v0.3 source, installed copy, and unreleased v0.4 candidate.
 - Document that external retrieval is not private by default; use public or deliberately de-identified queries, keep private research materials local, and treat request logs and source artifacts as sensitive.

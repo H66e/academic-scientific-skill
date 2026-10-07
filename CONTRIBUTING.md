@@ -5,12 +5,17 @@
 在仓库根目录运行：
 
 ```text
+python -B evaluation/run-python-tests.py
 node evaluation/run-tests.mjs
 node evaluation/check-skill.mjs skills/ai-research-mentor
 node evaluation/check-examples.mjs
 node evaluation/package-skill.mjs
 node evaluation/check-package.mjs
 ```
+
+Python 3.10+ 核心只使用标准库，源码位于 `skills/ai-research-mentor/runtime/research_mentor/`；CLI 与导入 API 共用该实现。`pip install -e .` 是可选开发安装，不是使用 Skill 的前提。Python 测试包含工具自动回执、账本完整性、文本锚点、默认隐私、过期决定，以及投影在 Node 中合法但不恢复 GO 的差分检查。完整旧审计工具尚未移植，不得声称跨语言指纹已经等价。
+
+Python 新字段的修改应更新 [python-core.md](skills/ai-research-mentor/references/python-core.md)、对应测试和 ADR。CI 的 Python 作业配置 Windows/Linux × 3.10/3.12/3.14；本地实际执行版本及范围见 [Python 核心验收记录](evaluation/validation-python-core.md)，配置存在不代表 CI 已通过。使用 `-B` 防止字节码混入工作树，打包也排除 `__pycache__` 和 `.pyc/.pyo`。
 
 测试入口发现 skill 与 evaluation 下的所有 `.test.mjs`，包含科研审计、来源协议、研究产出、自优化验收与发布包完整性。来源自动测试注入协议响应，不使用外网；真实联网试用单独保留请求、状态、字节哈希与未读范围，不把 fixture 当召回测试。ZIP 由固定文件顺序与固定时间戳生成，包含 skill 目录中的完整文件集合；更新 skill 资源后必须同步发布包。
 

@@ -11,3 +11,11 @@ node_modules/
 research-projects/
 my-topic/
 .evolution/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+research-private/
+**/ledger.jsonl
+**/artifacts/

@@ -54,6 +54,8 @@ export async function readSkillFiles(root = defaultSkill) {
     const entries = await fs.readdir(directory, { withFileTypes: true });
     entries.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
     for (const entry of entries) {
+      // Python bytecode is a generated host artifact, never release source.
+      if (entry.name === '__pycache__' || /\.py[co]$/.test(entry.name)) continue;
       if (entry.name.includes('\\')) throw new Error(`Unsupported source filename: ${entry.name}`);
       const target = path.join(directory, entry.name);
       const child = relative ? `${relative}/${entry.name}` : entry.name;
