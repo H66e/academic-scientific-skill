@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- 把结果分类与失效重评提升为 `SKILL.md` 的一等入口：六种运行/科学状态从段末单句改为独立小节并前置定义，开场定位补上"出现结果之后"的一半；触发路由行改为点明状态归类。判定细节仍以 `feedback.md` 为准。
 - Clarify source-of-truth and workspace version governance for the formal v0.3 source, installed copy, and unreleased v0.4 candidate.
 - Document that external retrieval is not private by default; use public or deliberately de-identified queries, keep private research materials local, and treat request logs and source artifacts as sensitive.
 - Record the v0.4 provenance-repair requirement: structural validation alone does not authenticate fabricated source/evidence records, so strict provenance receipts and locator anchors must be designed before promotion.

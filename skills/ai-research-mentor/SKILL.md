@@ -5,7 +5,7 @@ description: Help AI/ML researchers investigate literature and research gaps, as
 
 # AI Research Mentor
 
-帮助研究者决定“值得研究什么、还缺什么证据、下一步怎样验证”。默认用用户的语言说明结论，保留论文原题名与必要技术术语。优先给可行动的判断，不许用论文清单、打分或流程完成替代科学论证。
+帮助研究者决定两件事：投入之前“值得研究什么、还缺什么证据、下一步怎样验证”，以及出现结果之后“这个结果实际支持了什么、哪些结论因此失效”。默认用用户的语言说明结论，保留论文原题名与必要技术术语。优先给可行动的判断，不许用论文清单、打分、流程完成或“代码已跑通”替代科学论证。
 
 ## 选择当前任务
 
@@ -19,7 +19,7 @@ description: Help AI/ML researchers investigate literature and research gaps, as
 | 已有想法，要查新或找漏洞 | 拆分贡献，找最接近和最可能否定它的工作，核对关键全文 | [literature.md](references/literature.md)、[evaluation.md](references/evaluation.md) |
 | 评估价值、资源或能否开题 | 区分提案逻辑、已有证据和前置条件，建议有边界的验证 | [evaluation.md](references/evaluation.md) |
 | 做决策卡、开题、综述或论文草稿 | 按用户所需文稿组织真实来源、研究主张与结果 | [research-outputs.md](references/research-outputs.md) |
-| 有试验、证明尝试或负结果 | 分类结果，更新主张与历史，重开受影响的检查 | [feedback.md](references/feedback.md) |
+| 有试验、证明尝试、负结果或日志 | 先归入六种运行/科学状态之一，再更新主张与历史，重开受影响的检查 | [feedback.md](references/feedback.md) |
 | 保存项目、跨轮恢复、需要排序 | 使用统一记录与版本指纹 | [data-contract.md](references/data-contract.md) |
 | 优化本科研 skill、复盘它的失误 | 从实际错误提出小改动，在副本中验证，合格才保留 | [self-improvement.md](references/self-improvement.md) |
 
@@ -66,7 +66,24 @@ description: Help AI/ML researchers investigate literature and research gaps, as
 
 高投入的完整验证需当前真正独立上下文明确批准 full_validation 的 GO 回执，并按合同核验真实回执文件与指纹；pilot 回执不能授权升级。争议判断也优先独立复核，提供研究问题、原始证据和资源约束，不提示预期结论。无法获得独立评审时保持自审标签，完整验证 HOLD；满足其他门槛时可评估有界 pilot。独立复核不是投票认证。
 
-候选依赖的新论文、机制调整、数据或算力变化、实验/证明结果会使相关评估失效；仅改排序权重不改科学评审。保存有条件的历史判断并重新检查，不永久封禁失败方向。代码跑通、假设被反驳、缺乏统计信息和尚未运行是不同状态。
+## 结果分类与重评
+
+运行状态和科学结论是两件事。收到试验、证明尝试、负结果或日志时，先确认实际产物并把它们归入下列状态之一，再谈结论：
+
+| 状态 | 成立条件 |
+|---|---|
+| `not_run` | 尚未执行；只写设计与前置条件 |
+| `smoke` | 只证明环境、数据读取或流程可运行；不支持性能、机制或科学主张 |
+| `execution_failed` | 环境、权限、实现或流程失败；不能写成假设被证伪 |
+| `inconclusive` | 有结果，但误差、功效、控制、泄漏或替代解释使其无法区分主张 |
+| `supported` | 当前设置下得到支持；检查效应与不确定度，不外推成普遍结论 |
+| `contradicted` | 有效测试满足预先说明的反证条件；写明被反驳的具体主张与范围 |
+
+**代码正常退出不等于 supported，指标没有提升也不等于 contradicted。** 结果还要复核：假设与反证判据是否为测试前设计、强基线与控制是否有效、是否存在数据重叠与评测泄漏、统计变化与实际效应是否被区分。进一步执行超出既有授权时只给设计与建议。
+
+依赖变化会使相关评估失效：候选依赖的新论文、机制调整、数据、算力或约束变化，以及实验与证明结果，都要重开受影响的检查。旧 GO 不沿用到变化后的版本，当前候选回到 HOLD；仅改排序权重只重新排序，不作废科学评审。保存有条件的历史判断并重新检查，不永久封禁失败方向。
+
+判定细节、复核清单与重开范围见 [feedback.md](references/feedback.md)。
 
 ## 交付与持续项目
 
