@@ -124,7 +124,7 @@ node evaluation/package-skill.mjs
 node evaluation/check-package.mjs
 ```
 
-测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；包检查比较完整文件集合和逐文件字节。CI 配置覆盖 Node.js 18 / 20 / 22 / 24，实际本地与 CI 执行结果分别记录。本版验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)，历史验收见 [`evaluation/validation.md`](evaluation/validation.md)。
+测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；包检查比较完整文件集合和逐文件字节。CI 配置覆盖 Ubuntu 上的 Node.js 18 / 20 / 22 / 24，以及 Windows 上的当前 LTS；实际本地与 CI 执行结果分别记录。本版验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)，历史验收见 [`evaluation/validation.md`](evaluation/validation.md)。
 
 自动测试与原离线案例使用合成资料；[真实论文有限语料试用与评估协议](evaluation/real-world/README.md) 单独记录来源、实际答复和未测范围。真实科研评估应记录原始检索和输出、近邻发现、引用忠实性、过度断言、误淘汰和下一步建议质量；尚未完成的评估不作为性能证明。历史回测以当时可得信息判断决策，不把后来的实验失败等同于当时应该 KILL。
 
