@@ -4,7 +4,7 @@ This repository is the single source of truth for the project. The parent direct
 
 ## Version state
 
-The current released and installed version is **0.3.0**. The release baseline is the `main` branch at commit `7e3de66`. The formal working tree may contain unreleased governance or documentation changes; the Codex installation remains the last synchronized release until an explicit promotion and sync.
+The current released and installed version is **0.3.0**. The release baseline is the `main` branch. Individual commit hashes and the names of in-flight branches are deliberately **not** recorded anywhere in this repository's prose: `git log` and `git branch` are authoritative, while a hash or branch name written into a document goes stale on the next commit and is then read as current fact. The formal working tree may contain unreleased governance or documentation changes; the Codex installation remains the last synchronized release until an explicit promotion and sync.
 
 The directory `.skill-development/research-v040-20261006-153948/candidate` is an unreleased development snapshot. Its `VERSION` says `0.4.0`, but that label means “candidate target”, not “published release”. It must not be described as the current version, and its checks and benchmark template must not be presented as evidence of scientific effectiveness.
 
@@ -30,7 +30,7 @@ A candidate may be promoted only after all of the following are true:
 
 The current v0.4 candidate has structural provenance and human-decision experiments, but remains unpromoted: tool-generated acquisition provenance and scientific-effectiveness evaluation are incomplete. Its results are not the validation report for this formal branch's separate Python implementation. Do not copy candidate files back into the repository.
 
-The `feat/python-evidence-workflow` branch develops the Python runtime from the formal source tree. Its baseline is `5f8e0ac`, which preserves a concurrent result-interpretation prompt change; Python changes remain a separate, uncommitted concern. It retains the v0.3 Node compatibility path, adds a separate versioned local ledger, and does not change the released/installed version. Its source, tests, ADR and [validation report](../evaluation/validation-python-core.md) are maintained in this repository; private ledgers and raw source artifacts are kept outside it. New Python ledger hashes do not replace old Node review fingerprints.
+The Python runtime is developed from the formal source tree and lives on `main`; a per-concern branch (`feat/`, `fix/`, `docs/`, `ci/`, …) exists only while a change is in review and is deleted after the merge. It retains the v0.3 Node compatibility path, adds a separate versioned local ledger, and does not change the released/installed version. Its source, tests, ADRs and [validation report](../evaluation/validation-python-core.md) are maintained in this repository; private ledgers and raw source artifacts are kept outside it. New Python ledger hashes do not replace old Node review fingerprints. The ledger's content chain cannot detect its own tail being truncated, so an external anchor file records the expected head and count; see [ADR 0003](decisions/0003-ledger-tail-anchor.md) for what that does and does not cover.
 
 ## Version and compatibility rules
 
