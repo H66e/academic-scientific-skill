@@ -23,7 +23,7 @@ Python 新字段的修改应更新 [python-core.md](skills/ai-research-mentor/re
 
 `schemas/*.schema.json` 用于编辑辅助；动态引用、必要条件、当前契约与收据核验仍由审计工具负责。决策语义变化须同步 decision_contract_version，不以 schema_version 未变为由继续使用旧批准。
 
-更新 `VERSION` 与 `CHANGELOG.md`，列出实际验证和剩余限制。CI 配置检查 Node.js 18 / 20 / 22 / 24；配置存在不代表这些环境已经执行通过。
+更新 `VERSION` 与 `CHANGELOG.md`，列出实际验证和剩余限制。`VERSION` 是版本真源：`evaluation/tests/test_version_consistency.py` 核对 `pyproject.toml`、`research_mentor.__version__`、`README.md` 的当前版本行与 `CHANGELOG.md` 的对应小节，改漏任一处即失败。`schema_version` 与 `decision_contract_version` 计的是 dossier 契约修订，不是发行版本，不随 `VERSION` 变动；`docs/WORKSPACE_GOVERNANCE.md` 描述的是已发布安装副本，按设计可以落后于本工作树，同样不参与核对。CI 配置检查 Node.js 18 / 20 / 22 / 24；配置存在不代表这些环境已经执行通过。
 
 自优化候选只能修改 [self-improvement.md](skills/ai-research-mentor/references/self-improvement.md) 允许的范围。接口、测试和验收规则变更应作为单独维护任务，不由待验候选自行放宽规则。
 
