@@ -10,7 +10,11 @@
     "seq": {"type": "integer", "minimum": 1},
     "id": {"type": "string", "pattern": "^EV-[0-9]{6,}$"},
     "ts": {"type": "string", "format": "date-time"},
-    "type": {"type": "string", "minLength": 1},
+    "type": {"type": "string", "enum": [
+      "project.init", "search.result", "project.update", "paper.resolve", "source.fetch",
+      "evidence.anchor", "source.identity.confirm", "candidate.upsert", "claim.add",
+      "claim.link", "review.record", "decision.record", "decision.revoke", "reading.confirm"
+    ]},
     "actor": {"enum": ["tool", "user", "model"]},
     "trust": {"enum": ["T0", "T1", "T2", "TL"]},
     "data": {"type": "object", "additionalProperties": {"$ref": "#/$defs/value"}},

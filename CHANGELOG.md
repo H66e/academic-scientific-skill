@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- 闭合 Python 账本事件词表：`append` 与 `verify` 拒绝未注册类型，事件 schema 同步限定现有类型。仅含受支持类型的既有账本保持兼容；旧实现曾接受的未知类型记录现在会验证失败，不自动删除、改名或忽略。合法事件解释未变，`POLICY_VERSION` 保持 `python-credibility-v2`。
+- 在 [ADR 0004](docs/decisions/0004-result-lifecycle-semantics.md) 冻结语言无关的结果生命周期、评审依据、迁移与阅读补充/撤回语义。本步没有注册 `result.record`、`result.invalidate` 或 `reading.retract`，没有实现结果投影或切换阅读谓词；后续测试要求与当前实际测试分开记录。
 - 修复 Python 账本无法发现自身尾部被截断的问题：哈希链只能校验仍在账本里的事件，删掉最后若干行后剩余链条依然自洽，此前 `verify-ledger` 会返回 `valid: true`。现新增 `ledger.anchor.json` 从链外记录期望的事件数与头部哈希，`verify-ledger` 报告 `anchor` 为 `matched`/`mismatch`/`absent`，`mismatch` 为硬失败（`append` 拒绝继续写入）；新增 `anchor-ledger` 命令为既有项目补记锚点。锚点与账本同目录，只防意外、丢失与半写，不防刻意改写两者的使用者。设计与替代方案见 [ADR 0003](docs/decisions/0003-ledger-tail-anchor.md)。
 - 修正 `references/python-core.md` 中一处自相矛盾的表述：同一文件一边写 `--human-page-check` 等标志 "do not authenticate identity"，一边写 "a model cannot manufacture it"。后者读起来像在声称代码并不提供的保证，现改为与 Boundaries 节一致的措辞。同一节新增：独立评审（T3）在本 runtime 中不存在是**分工**而非待补缺口，并写明若将来要加，必须同时登记 `EVENT_ACTORS` 与 `schemas/ledger-event.schema.json`，且"独立"指上下文隔离而非身份隔离。
 - CI 的 `validate` 作业此前只在 Ubuntu 运行，Node 侧没有任何 Windows 覆盖（Python 作业已有 Windows）。现增加 `windows-latest` + Node 24 一个作业，不展开为平台 × 版本笛卡尔积：两个维度相互独立，四个 Windows 作业是重复覆盖。新增作业尚未执行，配置存在不代表已通过。

@@ -457,6 +457,10 @@ class ProjectionContractTests(unittest.TestCase):
     def test_schema_and_runtime_agree_on_known_event_roles(self):
         schema_path = REPO / "skills" / "ai-research-mentor" / "schemas" / "ledger-event.schema.json"
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        declared_types = schema["properties"]["type"]["enum"]
+        self.assertEqual(set(declared_types), set(EVENT_ACTORS))
+        self.assertEqual(len(declared_types), len(EVENT_ACTORS))
+        self.assertTrue({"result.record", "result.invalidate", "reading.retract"}.isdisjoint(EVENT_ACTORS))
         typed_roles = {}
         global_pairs = {("tool", "T0"), ("tool", "TL"), ("user", "T1"), ("model", "T2")}
         for rule in schema["allOf"]:

@@ -14,6 +14,8 @@ python -B evaluation/run-python-tests.py
 
 外部检索默认阻止 private query；只有 public/deidentified 分类可发送。上述路径是本地研究数据，不能发布或同步到安装源码中。CLI/API 使用同一 `runtime/research_mentor` 包，`pip install -e .` 可选；无需为 Skill 安装 pip 包。
 
+结果与阅读记录的后续生命周期已在 [ADR 0004](docs/decisions/0004-result-lifecycle-semantics.md) 冻结。本步只闭合现有 Python 事件词表：写入和验证均拒绝未注册类型，编辑辅助 schema 使用同一集合。`result.record`、`result.invalidate` 与 `reading.retract` 仍未注册；当前阅读谓词、判断策略和 Node 合同保持现状，不能把规范冻结当作功能已实现。
+
 正式源码、安装副本和未发布 v0.4 候选的边界见 [工作区与版本治理说明](docs/WORKSPACE_GOVERNANCE.md)。当前 Codex 加载的是最后同步的 v0.3.0；本工作树中的未发布改动不会自动进入安装副本，v0.4 candidate 仍处于开发和审查阶段。
 
 从具体研究问题出发，将已有证据、推断和待验证假设分开，帮助决定下一步值得投入什么；拿到实验结果之后，再判断这个结果实际支持了什么、哪些结论因此失效。它不会承诺新颖性、实验成功或论文录用。

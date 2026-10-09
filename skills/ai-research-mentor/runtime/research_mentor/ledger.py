@@ -190,6 +190,8 @@ class Ledger:
                 errors.append(f"event sequence mismatch at line {seq}")
             if not isinstance(event.get("data"), dict) or not isinstance(event.get("type"), str) or not event.get("type") or event.get("protocol") != PROTOCOL:
                 errors.append(f"event contract mismatch at line {seq}")
+            if isinstance(event.get("type"), str) and event["type"] not in EVENT_ACTORS:
+                errors.append(f"unregistered event type at line {seq}: {event['type']!r}")
             actor_valid = isinstance(event.get("actor"), str) and isinstance(event.get("trust"), str)
             if not actor_valid or (event.get("actor"), event.get("trust")) not in {("tool", "T0"), ("user", "T1"), ("model", "T2"), ("tool", "TL")}:
                 errors.append(f"actor/trust mismatch at line {seq}")
@@ -236,13 +238,15 @@ class Ledger:
             return {"protocol": ANCHOR_PROTOCOL, "event_count": len(events), "head": head}
 
     def append(self, event_type: str, data: dict[str, Any], *, actor: str = "tool", trust: str = "T0", expected_head: str | None = None) -> dict[str, Any]:
-        if not event_type or not isinstance(data, dict):
+        if not isinstance(event_type, str) or not event_type or not isinstance(data, dict):
             raise LedgerError("event type and object data are required")
+        if event_type not in EVENT_ACTORS:
+            raise LedgerError(f"unregistered event type: {event_type!r}")
         if not isinstance(actor, str) or not isinstance(trust, str) or actor not in {"tool", "model", "user"} or trust not in {"T0", "T1", "T2", "TL"}:
             raise LedgerError("invalid actor/trust classification")
         if (actor, trust) not in {("tool", "T0"), ("user", "T1"), ("model", "T2"), ("tool", "TL")}:
             raise LedgerError("actor and trust must agree")
-        if event_type in EVENT_ACTORS and (actor, trust) not in EVENT_ACTORS[event_type]:
+        if (actor, trust) not in EVENT_ACTORS[event_type]:
             raise LedgerError("event type requires its declared tool/model/user actor")
         with self._lock():
             verification = self.verify()

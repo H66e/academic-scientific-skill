@@ -44,3 +44,25 @@ These checks do not establish search recall, field-wide literature coverage, nov
 The result-classification section added to `SKILL.md` is a host interpretation workflow. Python does not yet register experiment plans or runs, import logs, classify outcomes, or automatically invalidate a candidate after a result. Existing result records retain separate `kind` and `outcome` axes (`smoke` is a kind).
 
 `quick_validate.py` was not run because the available cached Python did not include PyYAML; no dependency was installed solely for that check. The repository's own metadata, schema-pointer, workflow and package checks passed. No general JSON Schema validator was run.
+
+## 2026-10-09: Step 1 vocabulary closure and specification freeze
+
+This is a new validation entry; the earlier measurements, policy labels and package hashes above are preserved. [ADR 0004](../docs/decisions/0004-result-lifecycle-semantics.md) freezes future result/reading lifecycle requirements. Only the existing event vocabulary is closed in this implementation; result events, reading retraction, predicate changes and Node v3 remain unimplemented. Package version 0.3.0, Python policy `python-credibility-v2` and Node contract 2 remain unchanged.
+
+| Check | Actual result | Boundary |
+| --- | --- | --- |
+| Native Windows, CPython 3.14.5 | Baseline 65 passed; modified suite 68 passed, 0 failed | Three new tests cover unknown-type rejection, correctly hashed legacy events and malformed types; existing workflow tests still pass |
+| Native Windows, Node.js 24.18.0 | Baseline and modified suites: 188 tests, 187 passed, 1 skipped, 0 failed | Existing Windows file-symlink receipt test skips without symlink privilege; no new skips |
+| Differential supported-event check | 15 allowed type/role combinations retain identical ledger and anchor bytes; old and new verification pass | Synthetic deterministic events; not evidence of scientific judgment quality |
+| Differential legacy unknown-type check | Five formerly accepted types now fail verification despite matched anchors; rejection preserves history and anchor bytes | Includes unimplemented result/reading names; no silent cleanup or migration |
+| JSON Schema, installed `jsonschema` Draft 2020-12 validator | Schema self-validation passed; 168 declared type/actor/trust combinations match runtime roles; five unknown types rejected | Uses an already installed validation tool; no runtime dependency added; does not validate source truth |
+| Skill Creator `quick_validate.py` | Passed using installed PyYAML and UTF-8 mode | Metadata validation only; supersedes neither earlier environment facts nor scientific limitations |
+| Repository skill/example checks | Passed; 41 local links, 111 Skill lines, three synthetic examples | Synthetic examples are not research findings |
+| Independent code/contract review | No required correction found | Static review of production guards, regression mechanisms and current/future documentation boundaries |
+| Package/source comparison | Passed; 39 files, 528024 bytes; SHA-256 `986b35836bab3fbf1ab050599c4eb386629bab4dae562b5f679e836f0e89746a` | Rebuilt local archive matches packaged source bytes; no release or installation sync performed |
+
+Initial sandbox runs hit interpreter/temporary-directory and Windows directory-link restrictions. Native runs completed all required checks without changing the tests to suppress those failures. Private run logs and the bounded differential probe remain outside the repository; no papers, user ledgers, request logs or caches were added to release source.
+
+Compatibility is deliberately narrower: supported existing events retain their hashes and interpretation, while a legacy ledger containing unknown types is now rejected and needs explicit inspection/migration. Replacing old `claim.record`/`test` fixtures with supported types and asserting the intended hash, torn-line and lock errors prevents the new admission guard from making old negative tests pass for the wrong reason.
+
+Future lifecycle tests in ADR 0004 are frozen acceptance requirements, not checks executed by this step. No result API, effective-reading predicate or policy migration is claimed as implemented, and no topic-selection, gap-discovery or scientific-effectiveness improvement has been measured.

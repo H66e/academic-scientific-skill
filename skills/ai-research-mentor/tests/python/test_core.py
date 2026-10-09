@@ -11,7 +11,7 @@ sys.path.insert(0, str(RUNTIME))
 from research_mentor.anchors import AnchorError, normalize_text, quote_text
 from research_mentor.core import ResearchCore
 from research_mentor.judgment import Judgment
-from research_mentor.ledger import Ledger, LedgerError, canonical_json
+from research_mentor.ledger import Ledger, LedgerError, canonical_json, digest
 from research_mentor.privacy import PrivacyError, check_outbound
 from research_mentor.providers import ProviderError, crossref_papers, normalize_identifier
 from research_mentor.transport import Response, Transport, TransportError, checked_url, public_address
@@ -33,18 +33,29 @@ class PythonCoreTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def _replace_last_event_type(self, ledger, event_type):
+        """Simulate a legacy writer, retaining correct hashes and a matching anchor."""
+        events = ledger.read()
+        events[-1]["type"] = event_type
+        events[-1]["sha256"] = digest({key: value for key, value in events[-1].items() if key != "sha256"})
+        ledger.path.write_text("".join(canonical_json(event) + "\n" for event in events), encoding="utf-8")
+        anchor = json.loads(ledger.anchor_path.read_text(encoding="utf-8"))
+        anchor["head"] = events[-1]["sha256"]
+        ledger.anchor_path.write_text(canonical_json(anchor) + "\n", encoding="utf-8")
+        return ledger.path.read_bytes(), ledger.anchor_path.read_bytes()
+
     def test_append_chain_detects_modified_history(self):
         ledger = Ledger(self.project, clock=lambda: "2026-01-01T00:00:00Z")
         first = ledger.append("project.init", {"name": "中文"})
-        second = ledger.append("claim.record", {"text": "hypothesis"}, actor="model", trust="T2")
+        second = ledger.append("claim.add", {"text": "hypothesis"}, actor="model", trust="T2")
         self.assertEqual(first["id"], "EV-000001")
         self.assertEqual(second["prev"], first["sha256"])
         self.assertTrue(ledger.verify()["valid"])
         contents = ledger.path.read_text(encoding="utf-8").replace("hypothesis", "claimed result")
         ledger.path.write_text(contents, encoding="utf-8")
         self.assertFalse(ledger.verify()["valid"])
-        with self.assertRaises(LedgerError):
-            ledger.append("test", {})
+        with self.assertRaisesRegex(LedgerError, "event hash mismatch"):
+            ledger.append("project.init", {})
 
     def test_incomplete_final_line_and_lock_never_silently_discard(self):
         ledger = Ledger(self.project)
@@ -52,12 +63,59 @@ class PythonCoreTests(unittest.TestCase):
         with ledger.path.open("ab") as stream:
             stream.write(b'{"partial":')
         self.assertFalse(ledger.verify()["valid"])
-        with self.assertRaises(LedgerError):
-            ledger.append("test", {})
+        with self.assertRaisesRegex(LedgerError, "incomplete final line"):
+            ledger.append("project.init", {})
         self.assertTrue(ledger.path.read_bytes().endswith(b'{"partial":'))
         (self.project / "ledger.lock").write_text("active", encoding="utf-8")
-        with self.assertRaises(LedgerError):
-            ledger.append("test", {})
+        with self.assertRaisesRegex(LedgerError, "writer lock already exists"):
+            ledger.append("project.init", {})
+
+    def test_unregistered_types_cannot_append_or_change_existing_history(self):
+        ledger = Ledger(self.project)
+        ledger.append("project.init", {"name": "SYNTHETIC vocabulary fixture"})
+        before = ledger.path.read_bytes(), ledger.anchor_path.read_bytes()
+        for event_type in ["project.innit", "claim.record", "result.record", "result.invalidate", "reading.retract"]:
+            with self.subTest(event_type=event_type):
+                with self.assertRaisesRegex(LedgerError, "unregistered event type"):
+                    ledger.append(event_type, {})
+                self.assertEqual((ledger.path.read_bytes(), ledger.anchor_path.read_bytes()), before)
+                self.assertFalse((self.project / "ledger.lock").exists())
+        self.assertTrue(ledger.verify()["valid"])
+
+    def test_legacy_unknown_types_fail_even_with_valid_hashes_and_anchor(self):
+        ledger = Ledger(self.project)
+        ledger.append("project.init", {})
+        ledger.append("claim.add", {"text": "SYNTHETIC hypothesis"}, actor="model", trust="T2")
+        for event_type in ["project.innit", "result.record", "result.invalidate", "reading.retract"]:
+            with self.subTest(event_type=event_type):
+                before = self._replace_last_event_type(ledger, event_type)
+                report = ledger.verify()
+                self.assertFalse(report["valid"])
+                self.assertEqual(report["event_count"], 2)
+                self.assertEqual(report["anchor"], "matched")
+                self.assertEqual(report["errors"], [f"unregistered event type at line 2: {event_type!r}"])
+                with self.assertRaisesRegex(LedgerError, "refusing append.*unregistered event type"):
+                    ledger.append("project.init", {})
+                with self.assertRaisesRegex(LedgerError, "refusing to anchor.*unregistered event type"):
+                    ledger.anchor()
+                self.assertEqual((ledger.path.read_bytes(), ledger.anchor_path.read_bytes()), before)
+
+    def test_malformed_event_types_are_rejected_without_type_errors(self):
+        ledger = Ledger(self.project)
+        ledger.append("project.init", {})
+        for event_type in [None, "", True, 42, ["project.init"], {"type": "project.init"}]:
+            with self.subTest(event_type=event_type):
+                before = ledger.path.read_bytes(), ledger.anchor_path.read_bytes()
+                with self.assertRaisesRegex(LedgerError, "event type and object data are required"):
+                    ledger.append(event_type, {})
+                self.assertEqual((ledger.path.read_bytes(), ledger.anchor_path.read_bytes()), before)
+                before = self._replace_last_event_type(ledger, event_type)
+                report = ledger.verify()
+                self.assertFalse(report["valid"])
+                self.assertEqual(report["anchor"], "matched")
+                self.assertIn("event contract mismatch at line 1", report["errors"])
+                self.assertFalse(any("hash mismatch" in error for error in report["errors"]))
+                self.assertEqual((ledger.path.read_bytes(), ledger.anchor_path.read_bytes()), before)
 
     def test_tail_truncation_is_detected_by_the_anchor(self):
         # The chain alone cannot see its own tail removed: every surviving event
