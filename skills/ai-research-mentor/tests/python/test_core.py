@@ -59,6 +59,55 @@ class PythonCoreTests(unittest.TestCase):
         with self.assertRaises(LedgerError):
             ledger.append("test", {})
 
+    def test_tail_truncation_is_detected_by_the_anchor(self):
+        # The chain alone cannot see its own tail removed: every surviving event
+        # still points at its predecessor. Negative control for the anchor file.
+        ledger = Ledger(self.project)
+        for number in range(4):
+            ledger.append("project.init", {"name": f"SYNTHETIC fixture {number}"})
+        intact = ledger.verify()
+        self.assertTrue(intact["valid"])
+        self.assertEqual(intact["anchor"], "matched")
+        self.assertEqual(intact["event_count"], 4)
+        lines = ledger.path.read_bytes().splitlines(keepends=True)
+        ledger.path.write_bytes(b"".join(lines[:-1]))
+        truncated = ledger.verify()
+        self.assertFalse(truncated["valid"], "removing the final event must not verify clean")
+        self.assertEqual(truncated["anchor"], "mismatch")
+        self.assertEqual(truncated["event_count"], 3)
+        self.assertTrue(any("event count mismatch" in error for error in truncated["errors"]))
+
+    def test_a_ledger_without_an_anchor_is_readable_but_reports_absent(self):
+        # Projects created before anchoring must keep working; the state is
+        # reported so a caller can tell "checked and matched" from "not checked".
+        ledger = Ledger(self.project)
+        ledger.append("project.init", {"name": "SYNTHETIC unanchored fixture"})
+        ledger.anchor_path.unlink()
+        report = ledger.verify()
+        self.assertTrue(report["valid"])
+        self.assertEqual(report["anchor"], "absent")
+
+    def test_anchor_adopts_the_current_state_and_then_matches(self):
+        ledger = Ledger(self.project)
+        ledger.append("project.init", {"name": "SYNTHETIC adoption fixture"})
+        ledger.anchor_path.unlink()
+        self.assertEqual(ledger.verify()["anchor"], "absent")
+        recorded = ledger.anchor()
+        self.assertEqual(recorded["event_count"], 1)
+        self.assertEqual(ledger.verify()["anchor"], "matched")
+        ledger.append("project.init", {"name": "SYNTHETIC second fixture"})
+        self.assertEqual(ledger.verify()["anchor"], "matched")
+
+    def test_append_refuses_a_ledger_whose_anchor_mismatches(self):
+        ledger = Ledger(self.project)
+        for number in range(3):
+            ledger.append("project.init", {"name": f"SYNTHETIC fixture {number}"})
+        lines = ledger.path.read_bytes().splitlines(keepends=True)
+        ledger.path.write_bytes(b"".join(lines[:-1]))
+        with self.assertRaises(LedgerError):
+            ledger.append("project.init", {"name": "SYNTHETIC after truncation"})
+        self.assertEqual(ledger.verify()["event_count"], 2)
+
     def test_hash_contract_rejects_floats(self):
         with self.assertRaises(LedgerError):
             canonical_json({"value": 1.0})

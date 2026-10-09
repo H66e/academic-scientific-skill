@@ -2,6 +2,14 @@
 
 The chain detects accidental edits; it does not authenticate users or establish
 scientific truth.  Ledger files are local research material, never release source.
+
+A hash chain cannot see its own tail being cut off: every surviving event still
+points at its predecessor, so a shorter chain verifies clean.  The anchor file
+next to the ledger records the expected head and event count from outside the
+chain, which turns a silently truncated ledger into a reported mismatch.  The
+anchor shares the ledger's directory and threat model, so it does not defend
+against a deliberate owner who rewrites both; it defends against accident, loss
+and partial writes, which is what this module claims to detect.
 """
 from __future__ import annotations
 import contextlib
@@ -13,6 +21,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 PROTOCOL = "ledger-json-v1"
+ANCHOR_PROTOCOL = "ledger-anchor-v1"
 EVENT_ACTORS = {
     "project.init": {("tool", "T0")}, "search.result": {("tool", "T0")},
     "project.update": {("user", "T1")},
@@ -78,7 +87,33 @@ class Ledger:
         self.project = Path(project).expanduser().resolve()
         ensure_private_path(self.project)
         self.path = self.project / "ledger.jsonl"
+        self.anchor_path = self.project / "ledger.anchor.json"
         self.clock = clock
+
+    def _read_anchor(self) -> dict[str, Any] | None:
+        """Return the recorded anchor, or None when the project has none yet."""
+        if not self.anchor_path.exists():
+            return None
+        try:
+            anchor = json.loads(self.anchor_path.read_text(encoding="utf-8"))
+        except (ValueError, UnicodeError, OSError) as exc:
+            raise LedgerError(f"unreadable ledger anchor: {exc}") from exc
+        if (not isinstance(anchor, dict) or anchor.get("protocol") != ANCHOR_PROTOCOL
+                or type(anchor.get("event_count")) is not int
+                or not isinstance(anchor.get("head"), str)):
+            raise LedgerError("malformed ledger anchor")
+        return anchor
+
+    def _write_anchor(self, head: str, count: int) -> None:
+        # Replace, never append: a half-written anchor must not survive as a
+        # valid-looking shorter one.  os.replace is atomic within a directory.
+        temporary = self.anchor_path.with_name(self.anchor_path.name + ".tmp")
+        anchor = {"protocol": ANCHOR_PROTOCOL, "event_count": count, "head": head}
+        with temporary.open("w", encoding="utf-8", newline="\n") as stream:
+            stream.write(canonical_json(anchor) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, self.anchor_path)
 
     @contextlib.contextmanager
     def _lock(self):
@@ -120,11 +155,31 @@ class Ledger:
             events.append(event)
         return events
 
-    def verify(self) -> dict[str, Any]:
+    def _compare_anchor(self, events: list[dict[str, Any]], errors: list[str]) -> str:
+        try:
+            anchor = self._read_anchor()
+        except LedgerError as exc:
+            errors.append(str(exc))
+            return "mismatch"
+        if anchor is None:
+            # Projects created before anchoring, or whose anchor was deleted,
+            # are reported as unanchored rather than silently passed as anchored.
+            return "absent"
+        if anchor["event_count"] != len(events):
+            errors.append(f"anchor/ledger event count mismatch: anchor={anchor['event_count']} ledger={len(events)}; "
+                          "events were removed from the end of the ledger or the anchor is stale")
+            return "mismatch"
+        if anchor["head"] != (events[-1]["sha256"] if events else ""):
+            errors.append("anchor/ledger head mismatch: the last event does not match the recorded anchor")
+            return "mismatch"
+        return "matched"
+
+    def verify(self, *, check_anchor: bool = True) -> dict[str, Any]:
         try:
             events = self.read()
         except LedgerError as exc:
-            return {"valid": False, "errors": [str(exc)], "event_count": 0, "protocol": PROTOCOL}
+            return {"valid": False, "errors": [str(exc)], "event_count": 0,
+                    "protocol": PROTOCOL, "anchor": "unchecked"}
         previous = None
         errors = []
         for seq, event in enumerate(events, 1):
@@ -160,7 +215,25 @@ class Ledger:
             if event.get("sha256") != actual:
                 errors.append(f"event hash mismatch at line {seq}")
             previous = event.get("sha256")
-        return {"valid": not errors, "errors": errors, "event_count": len(events), "protocol": PROTOCOL}
+        anchor = self._compare_anchor(events, errors) if check_anchor else "unchecked"
+        return {"valid": not errors, "errors": errors, "event_count": len(events),
+                "protocol": PROTOCOL, "anchor": anchor}
+
+    def anchor(self) -> dict[str, Any]:
+        """Record the current head and count as the expected state.
+
+        This adopts the ledger as it stands.  Running it on an already truncated
+        ledger anchors the truncation, so it is only meaningful once a person has
+        decided the current contents are the ones they mean to keep.
+        """
+        with self._lock():
+            verification = self.verify(check_anchor=False)
+            if not verification["valid"]:
+                raise LedgerError("refusing to anchor an invalid ledger: " + "; ".join(verification["errors"]))
+            events = self.read()
+            head = events[-1]["sha256"] if events else ""
+            self._write_anchor(head, len(events))
+            return {"protocol": ANCHOR_PROTOCOL, "event_count": len(events), "head": head}
 
     def append(self, event_type: str, data: dict[str, Any], *, actor: str = "tool", trust: str = "T0", expected_head: str | None = None) -> dict[str, Any]:
         if not event_type or not isinstance(data, dict):
@@ -187,6 +260,7 @@ class Ledger:
                 stream.write(canonical_json(event) + "\n")
                 stream.flush()
                 os.fsync(stream.fileno())
+            self._write_anchor(event["sha256"], seq)
             return event
 
     def get(self, event_id: str) -> dict[str, Any]:

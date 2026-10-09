@@ -29,6 +29,7 @@ def parser() -> argparse.ArgumentParser:
     commands.add_parser("doctor")
     commands.add_parser("verify-ledger")
     commands.add_parser("verify-artifacts")
+    commands.add_parser("anchor-ledger", help="Record the current ledger head and count so later tail truncation is detectable")
     search = commands.add_parser("search")
     search.add_argument("query")
     search.add_argument("--provider", choices=["arxiv", "crossref"], default="arxiv")
@@ -140,7 +141,14 @@ def run(args) -> Envelope:
         return doctor(core)
     if args.command == "verify-ledger":
         data = core.ledger.verify()
-        return Envelope(data["valid"], "valid" if data["valid"] else "invalid", data, errors=data["errors"])
+        warnings = [] if data["anchor"] != "absent" else [
+            "No anchor file: the chain is intact but a deleted tail cannot be detected. Run anchor-ledger to record the current head."]
+        return Envelope(data["valid"], "valid" if data["valid"] else "invalid", data,
+                        errors=data["errors"], warnings=warnings)
+    if args.command == "anchor-ledger":
+        data = core.ledger.anchor()
+        return Envelope.success(data, status="anchored", warnings=[
+            "Anchoring adopts the ledger exactly as it stands. A truncated or edited ledger would be anchored as-is."])
     if args.command == "verify-artifacts":
         data = core.verify_artifacts()
         return Envelope(data["valid"], "valid" if data["valid"] else "invalid", data, errors=data["errors"])
