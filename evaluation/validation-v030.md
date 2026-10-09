@@ -18,7 +18,9 @@ node evaluation/check-package.mjs
 
 发布包由仓库构建器生成，23 个运行资源、358877 字节，SHA-256：`864e0dea0f834dc720c6f37b941a2b399d92cec92756cdb9fbcc4f8ae016220f`。检查器核对完整资源集合与逐文件字节。本机没有 Python，未运行 skill-creator 的 quick_validate.py；本地检查器不是官方验证器或通用 YAML/JSON Schema 实现。
 
-源码提交 `a9647a9` 在 Ubuntu 的 Node.js 18、20、22、24 四个 CI 作业均已实际完成并通过，见 [本版 GitHub Actions 记录](https://github.com/H66e/academic-scientific-skill-for-AI/actions/runs/37427631869)。作业执行完整回归、入口引用、合成示例和发布包字节核对；这与上述 Windows 本地结果分别记录，未复用 v0.2.0 的旧 CI 结果。
+源码提交 `a9647a9` 在 Ubuntu 的 Node.js 18、20、22、24 四个 CI 作业均已实际完成并通过，见 [本版 GitHub Actions 记录](https://github.com/H66e/academic-scientific-skill/actions/runs/37427631869)。作业执行完整回归、入口引用、合成示例和发布包字节核对；这与上述 Windows 本地结果分别记录，未复用 v0.2.0 的旧 CI 结果。
+
+**2026-10-09 补注：** GitHub 仓库已由 `academic-scientific-skill-for-AI` 更名为 `academic-scientific-skill`，上文 CI 链接的仓库名随之更新。运行 ID 与测量内容未变，本记录未重新执行。
 
 ## 本版关键回归
 

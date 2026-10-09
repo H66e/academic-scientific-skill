@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- 修正两处验收记录（`evaluation/validation.md`、`evaluation/validation-v030.md`）中指向旧仓库名的 CI 运行链接：GitHub 仓库已由 `academic-scientific-skill-for-AI` 更名为 `academic-scientific-skill`。运行 ID 与记录内容未变。
 - 增加仓库版本一致性检查 `evaluation/tests/test_version_consistency.py`：`VERSION` 为真源，核对 `pyproject.toml`、`research_mentor.__version__`、`README.md` 当前版本行与 `CHANGELOG.md` 小节。此前这四处靠人工核对，漏改一处无人发现。
 - 采用 MIT 许可证（版权 `H66e`）并在所有分发路径上传播：`README.md`/`CONTRIBUTING.md` 声明许可，`pyproject.toml` 声明 SPDX `MIT` 与 `license-files`，发布包包含 `ai-research-mentor/LICENSE` 并由 `check-package.mjs` 核验。理由与替代方案见 [ADR 0002](docs/decisions/0002-license-selection.md)。
 - Add a standard-library Python evidence runtime: append-only ledger, arXiv/Crossref acquisition receipts, exact text anchors, explicit reading statements, scoped strict machine recommendations and snapshot-bound human decisions.
