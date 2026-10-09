@@ -192,4 +192,4 @@ skills/ai-research-mentor/
 
 采用单入口、按需加载细则；文献工具与宿主解耦，不依赖其他 skill 的安装。设计参考了 ResearchStudio、Academic-Research-Agent-Skill、claude-scholar、ChineseResearchLaTeX、NoviScl/AI-Researcher、PaperQA、AstaBench 和 AutoSci 等项目，并保留各自的适用边界。对应来源与未采用的规则见 [`design-basis.md`](skills/ai-research-mentor/references/design-basis.md)。
 
-维护说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。仓库目前尚未选择 `LICENSE`，许可证类型由项目所有者确定。
+维护说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。本项目采用 [MIT 许可证](LICENSE)，版权归 `H66e`；选择理由见 [ADR 0002](docs/decisions/0002-license-selection.md)。

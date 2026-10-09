@@ -17,7 +17,7 @@ Python 3.10+ 核心只使用标准库，源码位于 `skills/ai-research-mentor/
 
 Python 新字段的修改应更新 [python-core.md](skills/ai-research-mentor/references/python-core.md)、对应测试和 ADR。CI 的 Python 作业配置 Windows/Linux × 3.10/3.12/3.14；本地实际执行版本及范围见 [Python 核心验收记录](evaluation/validation-python-core.md)，配置存在不代表 CI 已通过。使用 `-B` 防止字节码混入工作树，打包也排除 `__pycache__` 和 `.pyc/.pyo`。
 
-测试入口发现 skill 与 evaluation 下的所有 `.test.mjs`，包含科研审计、来源协议、研究产出、自优化验收与发布包完整性。来源自动测试注入协议响应，不使用外网；真实联网试用单独保留请求、状态、字节哈希与未读范围，不把 fixture 当召回测试。ZIP 由固定文件顺序与固定时间戳生成，包含 skill 目录中的完整文件集合；更新 skill 资源后必须同步发布包。
+测试入口发现 skill 与 evaluation 下的所有 `.test.mjs`，包含科研审计、来源协议、研究产出、自优化验收与发布包完整性。来源自动测试注入协议响应，不使用外网；真实联网试用单独保留请求、状态、字节哈希与未读范围，不把 fixture 当召回测试。ZIP 由固定文件顺序与固定时间戳生成，包含 skill 目录中的完整文件集合，以及仓库根 `LICENSE`（打包为 `ai-research-mentor/LICENSE`，由 `check-package.mjs` 一并核验）；更新 skill 资源或 `LICENSE` 后必须同步发布包。
 
 修改 schema、评审指纹、证据关联或决策门控时，同步更新 [data-contract.md](skills/ai-research-mentor/references/data-contract.md)、迁移行为和回归测试。保留旧记录与历史判断，不把旧评审包装成新合同下的有效评审。
 
@@ -27,4 +27,4 @@ Python 新字段的修改应更新 [python-core.md](skills/ai-research-mentor/re
 
 自优化候选只能修改 [self-improvement.md](skills/ai-research-mentor/references/self-improvement.md) 允许的范围。接口、测试和验收规则变更应作为单独维护任务，不由待验候选自行放宽规则。
 
-仓库目前尚未选择 `LICENSE`，许可证类型由项目所有者确定。
+本项目采用 [MIT 许可证](../LICENSE)，版权归 `H66e`，选择理由见 [ADR 0002](../docs/decisions/0002-license-selection.md)。版权署名与许可证类型由项目所有者决定；更改时必须同步 `README.md`、`pyproject.toml` 与发布包，而不是只改根目录的 `LICENSE`。

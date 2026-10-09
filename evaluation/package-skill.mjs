@@ -8,6 +8,7 @@ import { inflateRawSync } from 'node:zlib';
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const defaultSkill = path.join(repoRoot, 'skills', 'ai-research-mentor');
 export const defaultPackage = path.join(repoRoot, 'dist', 'ai-research-mentor.zip');
+export const defaultLicense = path.join(repoRoot, 'LICENSE');
 const packageRoot = 'ai-research-mentor';
 const maxBytes = 128 * 1024 * 1024;
 const crcTable = Array.from({ length: 256 }, (_, initial) => {
@@ -44,7 +45,7 @@ function safeName(input) {
   return name;
 }
 
-export async function readSkillFiles(root = defaultSkill) {
+export async function readSkillFiles(root = defaultSkill, { licensePath = null } = {}) {
   const absolute = path.resolve(root);
   await assertNoLinks(absolute);
   if (!(await fs.lstat(absolute)).isDirectory()) throw new Error('Skill source is not a directory');
@@ -75,12 +76,23 @@ export async function readSkillFiles(root = defaultSkill) {
   }
   await walk(absolute, '');
   if (!files.has(`${packageRoot}/SKILL.md`)) throw new Error('Skill source lacks SKILL.md');
-  if (files.size > 65534) throw new Error('ZIP64 archives are not supported');
-  return files;
+  let license = null;
+  if (licensePath) {
+    await assertNoLinks(licensePath);
+    const name = safeName(`${packageRoot}/LICENSE`);
+    if (files.has(name)) throw new Error(`Duplicate source package entry: ${name}`);
+    const bytes = await fs.readFile(licensePath);
+    total += bytes.length;
+    if (total > maxBytes) throw new Error('Skill source exceeds package size limit');
+    license = [name, bytes];
+  }
+  const entries = license ? [license, ...files] : [...files];
+  if (entries.length > 65534) throw new Error('ZIP64 archives are not supported');
+  return new Map(entries);
 }
 
-export async function buildPackage(root = defaultSkill) {
-  const files = await readSkillFiles(root);
+export async function buildPackage(root = defaultSkill, options = {}) {
+  const files = await readSkillFiles(root, options);
   const localParts = [];
   const centralParts = [];
   let offset = 0;
@@ -185,7 +197,7 @@ export function readPackage(bytes) {
 }
 
 export async function writeDefaultPackage() {
-  const built = await buildPackage();
+  const built = await buildPackage(defaultSkill, { licensePath: defaultLicense });
   await assertNoLinks(defaultPackage, { allowMissing: true });
   try {
     const existing = await fs.lstat(defaultPackage);

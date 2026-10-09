@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { buildPackage, readPackage, assertNoLinks, crc32 } from '../package-skill.mjs';
+import { buildPackage, readPackage, readSkillFiles, assertNoLinks, crc32 } from '../package-skill.mjs';
 import { verifyPackage } from '../check-package.mjs';
 
 async function fixture(t) {
@@ -91,6 +91,35 @@ test('linked source directories and linked source ancestors are rejected', async
   await fs.symlink(outside, linked, process.platform === 'win32' ? 'junction' : 'dir');
   await assert.rejects(buildPackage(skill), /Linked source entry/);
   await assert.rejects(assertNoLinks(path.join(linked, 'nonexistent.txt'), { allowMissing: true }), /Linked path/);
+});
+
+test('an explicit license joins the package first and survives verification', async t => {
+  const { root, skill } = await fixture(t);
+  const license = path.join(root, 'LICENSE');
+  await fs.writeFile(license, 'MIT License\n\nCopyright (c) 2026 Example\n');
+  const files = await readSkillFiles(skill, { licensePath: license });
+  assert.equal([...files.keys()][0], 'ai-research-mentor/LICENSE');
+  const { bytes } = await buildPackage(skill, { licensePath: license });
+  const result = await verifyPackage(skill, bytes, { licensePath: license });
+  assert.equal(result.valid, true);
+  assert.equal(result.files, 4);
+  assert.equal(readPackage(bytes).get('ai-research-mentor/LICENSE').toString(), 'MIT License\n\nCopyright (c) 2026 Example\n');
+});
+
+test('verification rejects a package that omits the required license', async t => {
+  const { root, skill } = await fixture(t);
+  const license = path.join(root, 'LICENSE');
+  await fs.writeFile(license, 'MIT License\n');
+  const { bytes } = await buildPackage(skill);
+  await assert.rejects(verifyPackage(skill, bytes, { licensePath: license }), /missing.*LICENSE/);
+});
+
+test('a skill directory that already contains LICENSE is rejected instead of overridden', async t => {
+  const { root, skill } = await fixture(t);
+  await fs.writeFile(path.join(skill, 'LICENSE'), 'in-tree\n');
+  const license = path.join(root, 'LICENSE');
+  await fs.writeFile(license, 'root\n');
+  await assert.rejects(buildPackage(skill, { licensePath: license }), /Duplicate source package entry/);
 });
 
 test('a regular source folder without SKILL.md cannot become a release package', async t => {

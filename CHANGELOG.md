@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- 采用 MIT 许可证（版权 `H66e`）并在所有分发路径上传播：`README.md`/`CONTRIBUTING.md` 声明许可，`pyproject.toml` 声明 SPDX `MIT` 与 `license-files`，发布包包含 `ai-research-mentor/LICENSE` 并由 `check-package.mjs` 核验。理由与替代方案见 [ADR 0002](docs/decisions/0002-license-selection.md)。
 - Add a standard-library Python evidence runtime: append-only ledger, arXiv/Crossref acquisition receipts, exact text anchors, explicit reading statements, scoped strict machine recommendations and snapshot-bound human decisions.
 - Keep private/unknown queries local; require public or deliberately de-identified classification, TLS/public-address checks and bounded requests for external acquisition. Local project outputs cannot enter the skill source tree.
 - Add initial schema-2 dossier projection with no transferred reviews or approvals; retain all v0.3 Node commands as a tested compatibility path. Python ledger hashes are a separate versioned protocol, not Node fingerprint replacements.
