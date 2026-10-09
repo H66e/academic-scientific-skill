@@ -21,7 +21,9 @@ The Python ledger hash contract (`ledger-json-v1`) and `python-credibility-v2` j
 | Python 3.10 syntax and package-version consistency | Passed; 11 modules | `VERSION`, `pyproject.toml`, and `research_mentor.__version__` all report 0.3.0 |
 | Deterministic package check | Passed after the final rebuild; 38 files, 512059 bytes, SHA-256 `c1e8c8aa7de7b10a29fbc03edc7c4f2fc5678877d352bdb16e5b9f852883dd85` | ZIP file set and bytes are checked against the Skill source |
 
-**2026-10-09 supersession:** the release archive was rebuilt to carry the repository `LICENSE` as `ai-research-mentor/LICENSE` (MIT, ADR 0002), so the hash above describes a superseded artifact. Current archive: 39 files, 513248 bytes, SHA-256 `511ba38337764d8f862196b1a852438f0767191db7a0394f6beb6431fe2dbf9e`, re-checked with `check-package.mjs`. The 2026-10-07 measurements in this record are preserved unmodified and were not re-run.
+**2026-10-09 supersession:** the release archive was rebuilt to carry the repository `LICENSE` as `ai-research-mentor/LICENSE` (MIT, ADR 0002), so the hash above describes a superseded artifact. Current archive: 39 files, 513248 bytes, SHA-256 `511ba38337764d8f862196b1a852438f0767191db7a0394f6beb6431fe2dbf9e`, re-checked with `check-package.mjs`.
+
+The Python suite now runs 61 tests rather than 59. `evaluation/tests/test_version_consistency.py` automates the package-version half of the `Python 3.10 syntax and package-version consistency` row above, which was a manual comparison of `VERSION`, `pyproject.toml` and `research_mentor.__version__` and would not have caught a later drift. The 2026-10-07 measurements in this record are preserved unmodified and were not re-run.
 
 The final package was extracted to a temporary directory and its thin CLI `doctor` command completed successfully; the temporary project and extracted files were removed afterward.
 
