@@ -74,7 +74,7 @@ class PythonCoreTests(unittest.TestCase):
         ledger = Ledger(self.project)
         ledger.append("project.init", {"name": "SYNTHETIC vocabulary fixture"})
         before = ledger.path.read_bytes(), ledger.anchor_path.read_bytes()
-        for event_type in ["project.innit", "claim.record", "result.reclassify", "result.uninvalidate", "reading.retract"]:
+        for event_type in ["project.innit", "claim.record", "result.reclassify", "result.uninvalidate", "reading.restore"]:
             with self.subTest(event_type=event_type):
                 with self.assertRaisesRegex(LedgerError, "unregistered event type"):
                     ledger.append(event_type, {})
@@ -86,7 +86,7 @@ class PythonCoreTests(unittest.TestCase):
         ledger = Ledger(self.project)
         ledger.append("project.init", {})
         ledger.append("claim.add", {"text": "SYNTHETIC hypothesis"}, actor="model", trust="T2")
-        for event_type in ["project.innit", "result.reclassify", "result.uninvalidate", "reading.retract"]:
+        for event_type in ["project.innit", "result.reclassify", "result.uninvalidate", "reading.restore"]:
             with self.subTest(event_type=event_type):
                 before = self._replace_last_event_type(ledger, event_type)
                 report = ledger.verify()
@@ -429,7 +429,9 @@ class PythonJudgmentKillTests(unittest.TestCase):
         self.duplicate_version(judgment, data)
         claim = judgment.add_claim("SYNTHETIC core duplication assertion", data["id"], kind="duplicate")
         judgment.link_claim(claim["id"], eid, target="nearest_work")
-        judgment.confirm_read(eid, "abstract", "SYNTHETIC reader corrected the reading scope to abstract only")
+        earlier = next(e for e in judgment.ledger.read() if e["type"] == "reading.confirm" and e["data"]["evidence_id"] == eid)
+        judgment.retract_read(earlier["id"], "SYNTHETIC earlier deep-read report was incorrect")
+        judgment.confirm_read(eid, "abstract", "SYNTHETIC only abstract reading actually occurred")
         result = self.assess_duplicate(judgment)
         self.assertEqual(result["machine_recommendation"], "HOLD")
         self.assertTrue(any("lacks explicit relevant-section reading" in gap for gap in result["missing"]))

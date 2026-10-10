@@ -1,6 +1,6 @@
 # ADR 0001: Python evidence core with explicit compatibility
 
-**2026-10-10 supersession:** the original policy and initial schema-2 export below describe the initial core. Result lifecycle now uses policy v3 and schema/decision contract 3; see [ADR 0004](0004-result-lifecycle-semantics.md) and [ADR 0005](0005-policy-bound-lifecycle-rollout.md). Historical design text is retained rather than rewritten as current behavior.
+**2026-10-10 supersession:** the original policy and initial schema-2 export below describe the initial core. Result lifecycle uses schema/decision contract 3; current policy v4 also incorporates effective reading and withdrawal. See [ADR 0004](0004-result-lifecycle-semantics.md) and [ADR 0005](0005-policy-bound-lifecycle-rollout.md). Historical design text is retained rather than rewritten as current behavior.
 
 ## Context
 

@@ -79,7 +79,12 @@ def parser() -> argparse.ArgumentParser:
     reading.add_argument("evidence_id")
     reading.add_argument("--scope", choices=["abstract", "section", "full_text"], required=True)
     reading.add_argument("--context", required=True)
+    reading.add_argument("--human", action="store_true", help="Record an actual person's reading statement without implying a visual check")
     reading.add_argument("--human-page-check", action="store_true")
+    retraction = commands.add_parser("retract-read", help="Explicitly withdraw a mistaken reading statement, retaining its history")
+    retraction.add_argument("target")
+    retraction.add_argument("--reason", required=True)
+    retraction.add_argument("--human", action="store_true", help="Use only on an actual person's instruction; does not authenticate identity")
     record = commands.add_parser("record-result", help="Record a declared result from JSON; does not run an experiment")
     record.add_argument("file")
     record.add_argument("--human-confirmed", action="store_true")
@@ -198,9 +203,13 @@ def run(args) -> Envelope:
         return Envelope.success(event["data"], status="recorded", ledger_events=[event["id"]])
     if args.command == "confirm-read":
         event = judgment.confirm_read(args.evidence_id, args.scope, args.context,
-            human=args.human_page_check, visual_checked=args.human_page_check)
+            human=args.human or args.human_page_check, visual_checked=args.human_page_check)
         return Envelope.success(event["data"], status="recorded", ledger_events=[event["id"]],
             warnings=["This records the reader's statement; it cannot prove reading or scientific understanding."])
+    if args.command == "retract-read":
+        event = judgment.retract_read(args.target, args.reason, human=args.human)
+        return Envelope.success(event["data"], status="retracted", ledger_events=[event["id"]], warnings=[
+            "Withdrawal preserves history and requires reassessment; qualification can decrease. Human flags record actual instructions, not authenticated identity."])
     if args.command in {"record-result", "reclassify-result", "invalidate-result"}:
         if args.command == "record-result":
             event = judgment.record_result(json.loads(read_input(args.file)), human=args.human_confirmed)

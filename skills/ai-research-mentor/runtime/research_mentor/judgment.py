@@ -11,12 +11,13 @@ from typing import Any
 
 from .ledger import Ledger, LedgerError, digest
 from .results import candidate_result_state, validate_result_history
+from .readings import effective_readings
 
 RESEARCH_TYPES = {"empirical", "theoretical", "measurement", "dataset", "reproduction"}
 TARGETS = {"problem", "hypothesis", "nearest_work", "prerequisite", "validation"}
 NOTICE = ("Structural acquisition and anchor checks do not prove source truth, "
           "literature completeness, faithful interpretation, novelty or human identity.")
-POLICY_VERSION = "python-credibility-v3"
+POLICY_VERSION = "python-credibility-v4"
 DUPLICATION_CLAIM_KINDS = {"mechanism_equivalence", "duplicate"}
 
 
@@ -36,6 +37,7 @@ class Judgment:
             raise LedgerError("invalid ledger: " + "; ".join(report["errors"]))
         events = self.ledger.read()
         validate_result_history(events)
+        effective_readings(events)
         return events
 
     def _candidate(self, candidate_id: str) -> dict:
@@ -50,7 +52,7 @@ class Judgment:
                    and (e["id"] == record_id or e["data"].get("id") == record_id)]
         if not matches:
             raise ValueError(f"unknown {event_type} ID: {record_id}")
-        if len(matches) > 1:
+        if event_type == "result.record" and len(matches) > 1:
             raise ValueError(f"ambiguous {event_type} ID: {record_id}")
         return matches[-1]
 
@@ -152,15 +154,34 @@ class Judgment:
 
     def confirm_read(self, evidence_id: str, scope: str, context: str, *,
                      human: bool = False, visual_checked: bool = False) -> dict:
-        self._record(evidence_id, "evidence.anchor")
-        if scope not in {"abstract", "section", "full_text"}:
+        events = self._events()
+        anchor = self._record(evidence_id, "evidence.anchor")
+        if not isinstance(scope, str) or scope not in {"abstract", "section", "full_text"}:
             raise ValueError("scope must describe actual reading")
+        if type(human) is not bool or type(visual_checked) is not bool:
+            raise ValueError("human and visual_checked must be boolean")
         if visual_checked and not human:
             raise ValueError("visual confirmation requires an actual human page check")
-        return self.ledger.append("reading.confirm", {"evidence_id": evidence_id,
+        return self.ledger.append("reading.confirm", {"evidence_id": anchor["data"].get("id", anchor["id"]),
             "scope": scope, "context": _text(context, "reader context"),
             "visual_checked": visual_checked}, actor="user" if human else "model",
-            trust="T1" if human else "T2")
+            trust="T1" if human else "T2", expected_head=events[-1]["sha256"] if events else "")
+
+    def retract_read(self, target: str, reason: str, *, human: bool = False) -> dict:
+        if type(human) is not bool:
+            raise ValueError("human must be boolean")
+        events = self._events()
+        target = _text(target, "reading target")
+        confirmation = next((e for e in events if e["id"] == target and e["type"] == "reading.confirm"), None)
+        if confirmation is None:
+            raise ValueError("reading retraction target must be an existing reading.confirm")
+        if not any(e["id"] == target for e in effective_readings(events)):
+            raise ValueError("reading confirmation is already retracted")
+        if not human and (confirmation["actor"], confirmation["trust"]) != ("model", "T2"):
+            raise ValueError("model cannot retract a user/T1 reading confirmation")
+        return self.ledger.append("reading.retract", {"target": target, "reason": _text(reason, "reading retraction reason")},
+            actor="user" if human else "model", trust="T1" if human else "T2",
+            expected_head=events[-1]["sha256"] if events else "")
 
     def record_result(self, data: dict, *, human: bool = False) -> dict:
         """Append a declared classification; validation does not prove execution."""
@@ -305,11 +326,10 @@ class Judgment:
                 missing.append(f"Load-bearing claim {claim['id']} only has contextual/non-decisive links")
         for evidence_id in evidence_ids:
             anchor = self._record(evidence_id, "evidence.anchor")
-            reads = [e for e in events if e["type"] == "reading.confirm"
-                     and e["data"].get("evidence_id") == evidence_id]
+            reads = effective_readings(events, evidence_id)
             if anchor["trust"] != "T0" or anchor["data"].get("match") != "exact":
                 missing.append(f"Evidence {evidence_id} is not an exact tool anchor")
-            if not reads or reads[-1]["data"]["scope"] not in {"section", "full_text"}:
+            if not any(e["data"]["scope"] in {"section", "full_text"} for e in reads):
                 missing.append(f"Evidence {evidence_id} lacks explicit relevant-section reading")
             if anchor["data"].get("lossy") and not any(e["actor"] == "user" and e["trust"] == "T1"
                     and e["data"].get("visual_checked") for e in reads):
@@ -365,8 +385,7 @@ class Judgment:
                 if not duplicate_basis:
                     missing.append("Duplicate KILL lacks a current load-bearing equivalence/duplicate claim supported by decisive nearest-work anchors")
                 if duplicate_basis and artifacts.get("valid") and all(n["evidence_ids"] and all(
-                    any(e["type"] == "reading.confirm" and e["data"].get("evidence_id") == eid
-                        and e["data"].get("scope") in {"section", "full_text"} for e in events)
+                    any(e["data"]["scope"] in {"section", "full_text"} for e in effective_readings(events, eid))
                     for eid in n["evidence_ids"]) for n in decisive) and not any(
                     "different/unresolved paper" in m or m.startswith("Evidence ") for m in missing):
                     decision = "KILL"

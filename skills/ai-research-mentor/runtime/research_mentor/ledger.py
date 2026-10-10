@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .results import validate_result_payload
+from .readings import validate_retraction_payload
 
 PROTOCOL = "ledger-json-v1"
 ANCHOR_PROTOCOL = "ledger-anchor-v1"
@@ -33,6 +34,7 @@ EVENT_ACTORS = {
     "claim.link": {("model", "T2")}, "review.record": {("model", "T2")},
     "decision.record": {("user", "T1")}, "decision.revoke": {("user", "T1")},
     "reading.confirm": {("model", "T2"), ("user", "T1")},
+    "reading.retract": {("model", "T2"), ("user", "T1")},
     "result.record": {("model", "T2"), ("user", "T1")},
     "result.invalidate": {("user", "T1")},
 }
@@ -206,6 +208,11 @@ class Ledger:
                     validate_result_payload(event["type"], event.get("data"))
                 except ValueError as exc:
                     errors.append(f"invalid result payload at line {seq}: {exc}")
+            if event.get("type") == "reading.retract":
+                try:
+                    validate_retraction_payload(event["type"], event.get("data"))
+                except ValueError as exc:
+                    errors.append(f"invalid reading retraction payload at line {seq}: {exc}")
             try:
                 timestamp = event.get("ts")
                 if not isinstance(timestamp, str):
@@ -259,6 +266,7 @@ class Ledger:
             raise LedgerError("event type requires its declared tool/model/user actor")
         try:
             validate_result_payload(event_type, data)
+            validate_retraction_payload(event_type, data)
         except ValueError as exc:
             raise LedgerError(str(exc)) from exc
         with self._lock():

@@ -44,9 +44,9 @@ description: Help AI/ML researchers investigate literature and research gaps, as
 
 ## 工具与工作量
 
-新建持续查新或下一步决策项目时，优先使用 [Python 证据工作流](references/python-core.md)。`search/resolve/fetch/quote` 自动记录实际来源和锚点，模型引用返回的 ID；`confirm-read` 只记录实际阅读声明。先用 public/deidentified 查询，未发表想法、私有全文、代码、路径和凭据保持本地。ledger、来源与输出保存在正式仓库外。
+新建持续查新或下一步决策项目时，优先使用 [Python 证据工作流](references/python-core.md)。`search/resolve/fetch/quote` 自动记录实际来源和锚点，模型引用返回的 ID；`confirm-read` 累计实际阅读声明，误报用 `retract-read` 显式撤回，保留历史。补充不降低阅读资格，但仍使旧评审过期。先用 public/deidentified 查询，未发表想法、私有全文、代码、路径和凭据保持本地。ledger、来源与输出保存在正式仓库外。
 
-Python `assess` 是严格机器建议，人工决定另行记录并绑定当前快照；没有真实人的指令不能使用 `--human-confirmed` 或 `--human-page-check`。`coverage/next` 解释有限覆盖缺口，当前 `assess.missing` 才是决策阻塞清单；partial、解析失败和关键未读保持 HOLD。简单请求不强制建账本，旧项目继续用现有 Node 合同；没有 Python 时沿用宿主实际工具，不冒称执行了 Python。
+Python `assess` 是严格机器建议，人工决定另行记录并绑定当前快照；没有真实人的指令不能使用 `--human`、`--human-confirmed` 或 `--human-page-check`。`coverage/next` 解释有限覆盖缺口，当前 `assess.missing` 才是决策阻塞清单；partial、解析失败和关键未读保持 HOLD。简单请求不强制建账本，旧项目继续用现有 Node 合同；没有 Python 时沿用宿主实际工具，不冒称执行了 Python。
 
 先检查宿主实际可用的搜索、论文元数据、全文读取和本地文献工具；用发现到的接口，不硬编码不存在的 MCP 名称。不依赖指定付费数据库、账号或外部 skill。
 

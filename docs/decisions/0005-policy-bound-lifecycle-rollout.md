@@ -6,7 +6,7 @@
 
 ## Decision
 
-Implement result lifecycle and reading withdrawal as separately reviewed concerns. Result gates use Python `python-credibility-v3` and Node schema/decision contract 3. The reading predicate switch must change the Python policy again in the same change; it does not change Node's decision contract. Each new event ships with its payload checks, authorization rules, consumers and tests. `ledger-json-v1` remains unchanged.
+Implement result lifecycle and reading withdrawal as separately reviewed concerns. Result gates initially use Python `python-credibility-v3` and Node schema/decision contract 3. The subsequent reading predicate switch uses current policy `python-credibility-v4` in the same change; Node's decision contract remains 3. Each new event ships with its payload checks, authorization rules, consumers and tests. `ledger-json-v1` remains unchanged.
 
 `POLICY_VERSION` participates in the snapshot digest. A returned `policy_version` label alone cannot invalidate anything. Preserve stored events and snapshots; old machine recommendations become historical, old human decisions become pending, and old reviews reject new decisions. Reassessment creates a new policy-bound review; a new human instruction is required to record a new decision.
 

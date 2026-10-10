@@ -14,7 +14,7 @@ python -B evaluation/run-python-tests.py
 
 外部检索默认阻止 private query；只有 public/deidentified 分类可发送。上述路径是本地研究数据，不能发布或同步到安装源码中。CLI/API 使用同一 `runtime/research_mentor` 包，`pip install -e .` 可选；无需为 Skill 安装 pip 包。
 
-结果与阅读生命周期以 [ADR 0004](docs/decisions/0004-result-lifecycle-semantics.md) 为共同规范。Python 的 `record-result/reclassify-result/invalidate-result/results` 保存真实声明、显式纠正与运行失效；Node v3 和 Python 投影保留完整结果历史。解除结果阻塞仍须重评，不能恢复旧 GO。各阶段实施状态与策略迁移见 [ADR 0005](docs/decisions/0005-policy-bound-lifecycle-rollout.md)。
+结果与阅读生命周期以 [ADR 0004](docs/decisions/0004-result-lifecycle-semantics.md) 为共同规范。Python 的 `record-result/reclassify-result/invalidate-result/results` 保存真实声明、显式纠正与运行失效；Node v3 和 Python 投影保留完整结果历史。`confirm-read` 累计资格，`retract-read` 显式撤回误报；两者都使旧评审过期。解除阻塞仍须重评，不能恢复旧 GO。各阶段实施状态与策略迁移见 [ADR 0005](docs/decisions/0005-policy-bound-lifecycle-rollout.md)。
 
 正式源码、安装副本和未发布 v0.4 候选的边界见 [工作区与版本治理说明](docs/WORKSPACE_GOVERNANCE.md)。当前 Codex 加载的是最后同步的 v0.3.0；本工作树中的未发布改动不会自动进入安装副本，v0.4 candidate 仍处于开发和审查阶段。
 
@@ -30,7 +30,7 @@ python -B evaluation/run-python-tests.py
 - 选题评估：逐候选查新，检查强基线、前置条件、资源、指标与反证方法，给出 GO / HOLD / KILL 及依据。
 - 类型适配：支持经验、理论、测量、数据集和复现研究，不强制固定候选数量或两周训练计划。
 - 验证反馈：区分跑通、执行失败、支持、反驳、无结论和尚未运行；选题、约束或证据变化后重新评估。
-- 持续记录：按候选的实际依赖计算评审指纹，单独记录排序权重；保存有适用条件和重访条件的历史判断。
+- 持续记录：Node 按候选实际依赖计算评审指纹，Python 使用全项目科学输入的保守快照；单独记录排序权重，保存有适用条件和重访条件的历史判断。
 - 受控自优化：从实际流程失误提出小改动，在独立副本与冻结用例上验证，明确改善且科研原则不退化才保留。
 
 ## 安装与使用

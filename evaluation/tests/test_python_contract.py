@@ -461,7 +461,8 @@ class ProjectionContractTests(unittest.TestCase):
         self.assertEqual(set(declared_types), set(EVENT_ACTORS))
         self.assertEqual(len(declared_types), len(EVENT_ACTORS))
         self.assertTrue({"result.record", "result.invalidate"} <= EVENT_ACTORS.keys())
-        self.assertNotIn("reading.retract", EVENT_ACTORS)
+        self.assertIn("reading.retract", EVENT_ACTORS)
+        self.assertNotIn("reading.restore", EVENT_ACTORS)
         typed_roles = {}
         global_pairs = {("tool", "T0"), ("tool", "TL"), ("user", "T1"), ("model", "T2")}
         for rule in schema["allOf"]:

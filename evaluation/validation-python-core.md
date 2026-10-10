@@ -84,3 +84,26 @@ Native local verification used CPython 3.14.5 and Node 24.18.0 on Windows:
 Independent review caught and verified fixes for malformed locators/provenance/time fields, ambiguous Python target aliases, cross-lifecycle ID collisions, and migration that could activate previously ignored legacy invalidations. Legacy `EV-*` pilot IDs remain legal. Nonempty or malformed ignored withdrawals now require explicit investigation rather than automatic activation or silent deletion. Unresolvable explanatory claims warn and degrade without changing blockers.
 
 Old finalized reviews and bound human decisions become stale when only the policy digest input changes; ledger and anchor bytes and event counts remain unchanged. Pure policy changes preserve the scientific missing list. Reclassification or invalidation can clear eligibility blockers but always changes review inputs; fresh human instructions are still needed after reassessment. No research effectiveness or truthful scientific interpretation was measured.
+
+## 2026-10-10 effective reading and final lifecycle validation
+
+This entry supersedes the result-stage statement that reading withdrawal remained future work. Current Python policy is `python-credibility-v4`; Node schema/decision contract stays 3 and the ledger encoding stays `ledger-json-v1`. Supplementary reading is cumulative, explicit withdrawal is irreversible, and deep/visual/duplicate-KILL consumers use one effective set. Current guides and dated ADR supersessions distinguish implemented behavior from earlier Step 1 history.
+
+Native local checks on CPython 3.14.5 / Node 24.18.0 / Windows:
+
+| Check | Result | Boundary |
+| --- | --- | --- |
+| Final Python suite | 116 passed, 0 failed | Includes 12 reading runtime tests, 12 independent reading acceptance tests, 3 reading CLI tests and the existing result/compatibility suites; Node conformance was required to run |
+| Final Node suite | 199 tests; 198 passed, 1 skipped, 0 failed | Existing file-symlink host limitation; reading-only change does not change Node contract |
+| Shared result conformance | 41 fixed cases and production paths still pass | Declared facts/eligibility/KILL agreement, not numerical hash equivalence |
+| Full editor Schema checks | All 3 schemas self-valid; 204 actor/trust combinations and 3 examples pass | Local installed jsonschema used only for supplementary checks; no runtime dependency added |
+| Skill / examples / generic validator | Passed; 44 internal links, 111 entrypoint lines, GO/GO/HOLD synthetic examples | No real-topic quality claim |
+| Final archive / source bytes | Passed; 43 files, 619145 bytes; SHA-256 `7a686c70b47847df70ff983b583477c51217454378ee6f68cf7a534f8885dd1a` | Unreleased local archive; installed copy untouched |
+
+An actual prior committed v3 implementation and the new v4 implementation were compared on identical private synthetic ledger/anchor bytes. Deep reading followed by a supplementary abstract observation changed the machine assessment from HOLD to GO; the old human decision stayed stale/pending, and recording a new decision required explicit reassessment and instruction. Independent migration tests also covered two prior GO candidates whose reviews and decisions globally expired on policy change without any ledger rewrite. Isolated policy changes preserved scientific missing reasons and source integrity.
+
+Negative controls covered missing/wrong-type/retired/unauthorized withdrawal targets, extra payload fields, correctly hashed invalid scientific transitions, six reading-order permutations across three anchor aliases, and backdated timestamps. Retraction does not invent replacement reading. The prior narrow-reading correction fixture now uses explicit withdrawal plus a separate actual abstract observation; its HOLD expectation is retained. Identical repeated exact anchors remain usable; the result-specific ambiguous-alias guard does not reject legitimate repeat acquisitions.
+
+Independent core review found no remaining required correction. Low-level ledger verification validates structure and chain; Judgment consumers additionally validate scientific references and transitions, and its write APIs enforce existing effective targets. All source/runtime changes, tests and private evidence retain these boundaries. PDF extraction, automatic experiment-log interpretation, fine-grained review dependencies and measured scientific usefulness remain outside this completed lifecycle scope.
+
+Independent forward use loaded the current Skill with only an offline synthetic request and raw project artifacts, without test expectations. It appended exactly a reading withdrawal, user run invalidation and new HOLD assessment (15 to 18 events), preserving the original prefix, abstract observation and both prior result classifications. It did not invent replacement reading or a new human research decision. Chain/anchor and four acquisition receipts remained valid. The final answer correctly distinguished completed reassessment from pending human decision, identified missing result-log artifacts, and recommended actual relevant-section reading rather than adding a label. No critical workflow defect was observed; private outputs remain outside source. This bounded simulation does not measure real literature coverage, gap finding or research value.

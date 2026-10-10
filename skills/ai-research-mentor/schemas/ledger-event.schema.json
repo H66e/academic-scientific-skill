@@ -14,7 +14,7 @@
       "project.init", "search.result", "project.update", "paper.resolve", "source.fetch",
       "evidence.anchor", "source.identity.confirm", "candidate.upsert", "claim.add",
       "claim.link", "review.record", "decision.record", "decision.revoke", "reading.confirm",
-      "result.record", "result.invalidate"
+      "result.record", "result.invalidate", "reading.retract"
     ]},
     "actor": {"enum": ["tool", "user", "model"]},
     "trust": {"enum": ["T0", "T1", "T2", "TL"]},
@@ -33,11 +33,16 @@
     {"if": {"properties": {"type": {"enum": ["project.update", "source.identity.confirm", "decision.record", "decision.revoke"]}}}, "then": {"properties": {"actor": {"const": "user"}, "trust": {"const": "T1"}}}},
     {"if": {"properties": {"type": {"enum": ["candidate.upsert", "claim.add", "claim.link", "review.record"]}}}, "then": {"properties": {"actor": {"const": "model"}, "trust": {"const": "T2"}}}},
     {"if": {"properties": {"type": {"const": "reading.confirm"}}}, "then": {"properties": {"actor": {"enum": ["model", "user"]}, "trust": {"enum": ["T1", "T2"]}}}},
+    {"if": {"properties": {"type": {"const": "reading.retract"}}}, "then": {"properties": {"actor": {"enum": ["model", "user"]}, "trust": {"enum": ["T1", "T2"]}, "data": {"$ref": "#/$defs/readingRetraction"}}}},
     {"if": {"properties": {"type": {"const": "result.record"}}}, "then": {"properties": {"actor": {"enum": ["model", "user"]}, "trust": {"enum": ["T1", "T2"]}, "data": {"$ref": "#/$defs/resultRecord"}}}},
     {"if": {"properties": {"type": {"const": "result.invalidate"}}}, "then": {"properties": {"actor": {"const": "user"}, "trust": {"const": "T1"}, "data": {"$ref": "#/$defs/resultInvalidation"}}}}
   ],
   "$defs": {
     "nonempty": {"type": "string", "pattern": "\\S"},
+    "readingRetraction": {
+      "type": "object", "additionalProperties": false, "required": ["target", "reason"],
+      "properties": {"target": {"$ref": "#/$defs/nonempty"}, "reason": {"$ref": "#/$defs/nonempty"}}
+    },
     "resultRecord": {
       "type": "object", "additionalProperties": false,
       "required": ["id", "run_id", "candidate_id", "candidate_version", "kind", "outcome", "artifacts", "summary", "limitations", "affected_claims"],

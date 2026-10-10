@@ -54,11 +54,9 @@ node <skill>/scripts/research_audit.mjs migrate <旧项目>/dossier.json
 
 示例是初始化结构，不含真实检索、论文或评审。项目未知信息留空或明确列为假设，不能捏造默认算力、研究目标或用户承诺。`research_type` 枚举：`empirical`、`theoretical`、`measurement`、`dataset`、`reproduction`。混合项目选择当前核心贡献类型，并在说明中注明其他部分。
 
-所有对象 ID 在对应集合内唯一；所有引用必须存在。时间使用带时区的 ISO 8601 字符串。project.assumptions 是非空字符串数组，在文字中说明未确认前提；constraints 是对象，可逐项保留来源、状态与单位。用于资源约束 KILL 的条目必须明确为 `{"status":"confirmed","value":"实际约束事实","source":"实际用户陈述或日志定位"}`，value 可保留非空文字、有限数字、布尔值或包含这些事实的结构；0 与 false 可以是实际事实，空对象、空数组或只有 null/空文字的结构不能支持约束 KILL。不能从旧字符串、设备惯例或模型估计推断 confirmed。除顶层 schema_version、idea.version 和 paper.year 外，计量信息可在说明中保留单位、区间和估计依据。
+所有对象 ID 在对应集合内唯一；身份、作用域与状态转换引用必须存在。`affected_claims` 的解释性引用可显式降级，见对应章节；分类和失效 ID 在这两个集合之间也不得冲突。时间使用带时区的 ISO 8601 字符串。project.assumptions 是非空字符串数组，在文字中说明未确认前提；constraints 是对象，可逐项保留来源、状态与单位。用于资源约束 KILL 的条目必须明确为 `{"status":"confirmed","value":"实际约束事实","source":"实际用户陈述或日志定位"}`，value 可保留非空文字、有限数字、布尔值或包含这些事实的结构；0 与 false 可以是实际事实，空对象、空数组或只有 null/空文字的结构不能支持约束 KILL。不能从旧字符串、设备惯例或模型估计推断 confirmed。除顶层 schema_version、idea.version 和 paper.year 外，计量信息可在说明中保留单位、区间和估计依据。
 
 `decision_contract_version` 与 `schema_version` 分开：当前源码使用 schema 3 与 decision contract 3；发行版号仍以仓库 VERSION 为准。v1/v2 可读取校验，但其评审不支持当前 GO/KILL，须显式迁移并重新评审。未知未来契约同样 HOLD，不能自动降级迁移。
-
-身份、作用域与状态转换的引用必须解析；仅 `affected_claims` 的解释性引用允许无法解析并显式降级，不改变结果门。
 
 `project.notes` 可选，存在时必须为对象，不能以字符串、数组、null 或数字代替；保存来源明确的轻量原始笔记，例如已知结论、待解释现象、gap 草稿和替代解释。它属于科学上下文并进入评审指纹；笔记中的意见不是评审，更不自动生成 GO。成熟科学主张仍需落实到候选与 evidence。
 
