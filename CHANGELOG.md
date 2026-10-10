@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- 仓库清理修复 CONTRIBUTING.md 的许可证与 ADR 相对路径，避免从仓库根文档错误跳到父目录。
+
 - 实现阅读补充与显式撤回：confirm-read 累计资格，独立 reading.retract 仅退役指名声明；T2 不可撤回 T1，完全误报无需虚构替代阅读。深读、视觉检查与 duplicate-KILL 共用有效集。所有补充/撤回仍使评审过期；解释规则与策略升级至 python-credibility-v4 同次落地，旧账本不重写，Node 合同仍为 3。
 
 - 实现显式结果生命周期：Python 登记、同 run 重新分类、用户整次 run 失效与有效结果查询；因果引用计算有效头，反证与歧义统一用于 HOLD/KILL，解除阻塞仍需重评。策略升至 python-credibility-v3；历史账本不改写。

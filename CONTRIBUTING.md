@@ -27,4 +27,4 @@ Python 新字段的修改应更新 [python-core.md](skills/ai-research-mentor/re
 
 自优化候选只能修改 [self-improvement.md](skills/ai-research-mentor/references/self-improvement.md) 允许的范围。接口、测试和验收规则变更应作为单独维护任务，不由待验候选自行放宽规则。
 
-本项目采用 [MIT 许可证](../LICENSE)，版权归 `H66e`，选择理由见 [ADR 0002](../docs/decisions/0002-license-selection.md)。版权署名与许可证类型由项目所有者决定；更改时必须同步 `README.md`、`pyproject.toml` 与发布包，而不是只改根目录的 `LICENSE`。
+本项目采用 [MIT 许可证](LICENSE)，版权归 `H66e`，选择理由见 [ADR 0002](docs/decisions/0002-license-selection.md)。版权署名与许可证类型由项目所有者决定；更改时必须同步 `README.md`、`pyproject.toml` 与发布包，而不是只改根目录的 `LICENSE`。
