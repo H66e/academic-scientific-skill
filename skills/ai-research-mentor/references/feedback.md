@@ -15,7 +15,7 @@
 区分用户报告、可核验产物和模型解释。记录实际文件或持久链接、配置、数据版本及来源。
 缺少日志或结果时可以分析用户描述，但说明未核验；不能宣称自己执行过实验或补写数值。
 未运行时用 `outcome=not_run`，允许 artifacts 为空。已运行或声称科学结果时应有可定位产物。
-记录候选身份与实际版本、run_id、kind、outcome、artifacts、summary、limitations、affected_claims。Python 使用 candidate_id/candidate_version，Node 使用 idea_id/idea_version；同一次运行的纠正保留 run_id。
+记录候选身份与实际版本、run_id、kind、outcome、artifacts、summary、limitations、affected_claims。ledger 使用 candidate_id/candidate_version，dossier 使用 idea_id/idea_version；同一次运行的纠正保留 run_id。
 旧版本运行结果保持旧版本归属；若用于新候选，说明适用条件，不改写成新版本已运行。
 
 ## 运行状态与科学结果分开
@@ -53,8 +53,8 @@ smoke 通过可以记录 supported，但 summary 必须限定为流程通过，�
 
 ## 反馈后重新评估
 
-Python 用 record-result 登记真实声明、reclassify-result 追加显式纠正、按真实人的指示 invalidate-result 撤回运行资格；操作见 [python-core.md](python-core.md)。Node 在 pilots 保存完整分类历史，result_invalidations 保存用户撤回；会改变当前判断的来源证据进入 evidence 或当前候选分析。
-Node 补充或纠正当前候选依赖的 papers、searches、evidence、screening、project.constraints、当前 idea、关联 pilots 或 result_invalidations 后，旧 review_basis_hash 失效。引用搜索的结果论文也属于依赖，不能因未成为近邻就忽略变化；无关候选的独立来源不触发该 Node 指纹。Python 快照则刻意覆盖整个项目的科学事件，无关候选的新科学记录也可能要求重评。仅修改 Node config.ranking_weights 改变 ranking_config_hash，可重新排序而不使科学评审失效。
+Python 用 record-result 登记真实声明、reclassify-result 追加显式纠正、按真实人的指示 invalidate-result 撤回运行资格；操作见 [python-core.md](python-core.md)。dossier 在 pilots 保存完整分类历史，result_invalidations 保存用户撤回；会改变当前判断的来源证据进入 evidence 或当前候选分析。
+dossier 补充或纠正当前候选依赖的 papers、searches、evidence、screening、project.constraints、当前 idea、关联 pilots 或 result_invalidations 后，旧 review_basis_hash 失效。引用搜索的结果论文也属于依赖，不能因未成为近邻就忽略变化；无关候选的独立来源不触发该 dossier 指纹。ledger 快照则刻意覆盖整个项目的科学事件，无关候选的新科学记录也可能要求重评。仅修改 dossier config.ranking_weights 改变 ranking_config_hash，可重新排序而不使科学评审失效。
 不得沿用旧 GO 排名。过期评估保持历史记录，当前候选进入 HOLD，重开相关检查后再给新决策。
 问题、机制、假设或验证设计实质改变时递增 idea.version；只新增结果也会改变指纹，无需伪造方法变化。
 
@@ -79,7 +79,7 @@ history 保留版本、理由、证据关联、`applies_when` 与 `revisit_when`
 适用条件包括数据版本、方法机制、资源限制、近邻证据和测试范围；条件变化时重新核验。
 重访触发可以是出现新数据、资源可得、近邻判断纠正、干预有效性修复或主张范围改变。
 相似候选出现时先读取历史理由及条件，再比较；不凭标题相似或模型判断的语义接近自动淘汰。
-Node 的 history 归档集合不进入版本指纹；用于当前 GO/HOLD/KILL 的旧依据须提升到 evidence、pilot 或当前候选字段。pilots 的完整分类历史与 result_invalidations 仍进入 Node 当前依据；Python 科学账本历史仍进入保守快照，不能将这条归档规则误用于账本排除。
+dossier 的 history 归档集合不进入版本指纹；用于当前 GO/HOLD/KILL 的旧依据须提升到 evidence、pilot 或当前候选字段。pilots 的完整分类历史与 result_invalidations 仍进入 dossier 当前依据；Python 科学账本历史仍进入保守快照，不能将这条归档规则误用于账本排除。
 
 反馈结尾说明当前决策、已核验结论、仍未知项、最小下一步与停止条件。没有值得继续的候选也是有效结果。
 

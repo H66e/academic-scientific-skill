@@ -1,10 +1,21 @@
 # academic-scientific-skill
 
-**AI Research Mentor**：面向 AI / ML 科研的选题、真实文献检索、全文核验、gap 分析、评估与研究文稿 skill。适用于 Codex，也可由其他支持 `SKILL.md` 的宿主按需读取。
+**AI Research Mentor**：重点帮助 AI / ML 科研的方向探索、brainstorm、选题评估与 gap 查找。文献检索、全文核验和研究材料整理服务于这些判断。适用于 Codex，也可由其他支持 `SKILL.md` 的宿主按需读取。
 
 当前版本 **0.3.0**。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
-**未发布源码改动：Python-first 证据核心与显式结果生命周期。** 新持续项目可使用 Python 3.10+ 标准库工具创建来源回执、精确文本锚点与本地只追加账本，并将机器建议和人工决定分开。现有 Node 工具保留并提供 v3 结果合同与旧记录迁移；旧审计函数尚未完整移植，PDF 文本提取、自动日志导入和科研效果评测尚未完成。说明与完整命令见 [Python 工作流](skills/ai-research-mentor/references/python-core.md)，实际检查和剩余范围见 [Python 核心验收记录](evaluation/validation-python-core.md)。
+**源码包含未发布的 Python 改动，发行版与安装副本仍为 0.3.0。** Python 3.10+ 标准库核心已实现来源回执、精确文本锚点、本地只追加账本、结果与阅读生命周期，以及绑定当前评审的人工决定。推送源码不等于发布或同步安装。
+
+| 范围 | 当前状态 |
+| --- | --- |
+| 新项目的 Python 证据与判断主流程 | 已实现；记录机器建议与实际人工决定，不自动执行实验 |
+| 旧 dossier 审计、迁移、独立评审回执与排序 | 原生 Python 已实现；Node 保留为兼容路径 |
+| 决策卡、初步项目、BibTeX 与自优化验收 | 原生 Python 已实现；Node 保留为兼容路径 |
+| Python ledger 与 dossier 的数据关系 | 可以投影导出，不是无损双向迁移，不转移旧批准 |
+| PDF 正文提取、自动实验日志解析 | 尚未实现；宿主取得正文并实际阅读后再记录 |
+| 真实选题、brainstorm 和 gap 质量 | 尚无效果证明；自动测试检查合同与回归，不证明科研价值 |
+
+完整命令与边界见 [Python 工作流](skills/ai-research-mentor/references/python-core.md)，实际执行结果见 [Python 验收记录](evaluation/validation-python-core.md)。
 
 ```text
 python -B skills/ai-research-mentor/scripts/research_mentor.py --project ../research-private/example doctor
@@ -30,7 +41,7 @@ python -B evaluation/run-python-tests.py
 - 选题评估：逐候选查新，检查强基线、前置条件、资源、指标与反证方法，给出 GO / HOLD / KILL 及依据。
 - 类型适配：支持经验、理论、测量、数据集和复现研究，不强制固定候选数量或两周训练计划。
 - 验证反馈：区分跑通、执行失败、支持、反驳、无结论和尚未运行；选题、约束或证据变化后重新评估。
-- 持续记录：Node 按候选实际依赖计算评审指纹，Python 使用全项目科学输入的保守快照；单独记录排序权重，保存有适用条件和重访条件的历史判断。
+- 持续记录：dossier 按候选实际依赖计算评审指纹，ledger 使用全项目科学输入的保守快照；两种流程都可使用 Python。单独记录排序权重，保存有适用条件和重访条件的历史判断。
 - 受控自优化：从实际流程失误提出小改动，在独立副本与冻结用例上验证，明确改善且科研原则不退化才保留。
 
 ## 安装与使用
@@ -57,19 +68,19 @@ Copy-Item -LiteralPath '.\skills\ai-research-mentor' -Destination $researchSkill
 
 也可以只请求找论文、评估一个想法或分析一次负结果，skill 会按任务加载相关细则。
 
-普通科研讨论不需要额外 Python 环境、模型 API key 或研究代理框架。可使用本版 Node.js 来源工具，或宿主实际提供的搜索、PDF 和文献库能力。分别记录检索来源、全文访问、引用扩展和代码访问能力，以及实际覆盖和失败；离线时明确语料边界，不冒充完成外部查新。
+普通科研讨论不强制启用脚本、模型 API key 或研究代理框架。需要可复现工具时使用 Python 3.10+ 标准库来源工具，或宿主实际提供的搜索、PDF 和文献库能力。分别记录检索来源、全文访问、引用扩展和代码访问能力，以及实际覆盖和失败；离线时明确语料边界，不冒充完成外部查新。
 
 ## 从实际来源到研究材料
 
 在仓库根目录可运行以下独立命令；它们按当前请求组合，不要求每次执行全部步骤：
 
 ```text
-node skills/ai-research-mentor/scripts/research_sources.mjs search --query "grouped query attention" --rows 10 --pages 1
-node skills/ai-research-mentor/scripts/research_sources.mjs verify --doi 10.18653/v1/2023.emnlp-main.298 --expect-year 2023
-node skills/ai-research-mentor/scripts/research_sources.mjs fulltext --arxiv 2305.13245v1 --format pdf
-node skills/ai-research-mentor/scripts/research_outputs.mjs card examples/lightweight-example/notes.json
-node skills/ai-research-mentor/scripts/research_outputs.mjs draft examples/lightweight-example/notes.json --name example-question
-node skills/ai-research-mentor/scripts/research_outputs.mjs bibtex source-records.json
+python -B skills/ai-research-mentor/scripts/research_sources.py search --sensitivity public --query "grouped query attention" --rows 10 --pages 1
+python -B skills/ai-research-mentor/scripts/research_sources.py verify --doi 10.18653/v1/2023.emnlp-main.298 --expect-year 2023
+python -B skills/ai-research-mentor/scripts/research_sources.py fulltext --arxiv 2305.13245v1 --format pdf
+python -B skills/ai-research-mentor/scripts/research_outputs.py card examples/lightweight-example/notes.json
+python -B skills/ai-research-mentor/scripts/research_outputs.py draft examples/lightweight-example/notes.json --name example-question
+python -B skills/ai-research-mentor/scripts/research_outputs.py bibtex source-records.json
 ```
 
 `search` 输出实际 `searches`/`papers`，`verify` 返回身份与可选元数据对照；宿主检查后再合并记录。Crossref 未覆盖的预印本及前后向引用由实际可用来源补充。`fulltext` 取得 HTML 块或 PDF 字节，分别标记 `needs_host_review` / `needs_host_extraction`，不自动记为 section/full_text 证据。
@@ -78,45 +89,55 @@ node skills/ai-research-mentor/scripts/research_outputs.mjs bibtex source-record
 
 `card` 整理已有笔记；`draft` 只创建初步项目结构，不制造论文、评审或 GO；`bibtex` 只导出提供的元数据，未知项提醒并省略，冲突需解决。这些命令默认只写标准输出，正文缓存需要显式 `--root` 和新 `--out`。轻量示例见 [examples/lightweight-example](examples/lightweight-example/README.md)，编辑辅助 Schema 在 [schemas](skills/ai-research-mentor/schemas)。
 
-三个产出命令也接受 `-` 从标准输入读取 JSON，例如 `node skills/ai-research-mentor/scripts/research_outputs.mjs card -`。BibTeX 根据实际 DOI/arXiv/OpenReview 身份关联归并同源条目；身份或版本冲突仍需先核对来源，不猜测合并。
+三个产出命令也接受 `-` 从标准输入读取 JSON，例如 `python -B skills/ai-research-mentor/scripts/research_outputs.py card -`。BibTeX 根据实际 DOI/arXiv/OpenReview 身份关联归并同源条目；身份或版本冲突仍需先核对来源，不猜测合并。
 
 gap 方法见 [ideation.md](skills/ai-research-mentor/references/ideation.md)，全文实读见 [fulltext.md](skills/ai-research-mentor/references/fulltext.md)，开题、综述及论文草稿见 [research-outputs.md](skills/ai-research-mentor/references/research-outputs.md)。未执行的验证写为计划，不写成发现。
 
 ## 可选项目记录工具
 
-审计程序使用 **Node.js 18+ 标准库**，无需 npm 安装。它只检查记录、版本、回执与排序必要条件，不联网，也不判断论文真实性或科学正确性；联网能力由独立来源工具提供。
+审计程序优先使用 **Python 3.10+ 标准库**，无需 pip 安装；旧 Node.js 18+ 入口保留并持续进行兼容测试。它只检查记录、版本、回执与排序必要条件，不联网，也不判断论文真实性或科学正确性；联网能力由独立来源工具提供。
 
 在仓库根目录运行：
 
 ```text
-node skills/ai-research-mentor/scripts/research_audit.mjs init --root . --name my-topic
-node skills/ai-research-mentor/scripts/research_audit.mjs validate my-topic/dossier.json
-node skills/ai-research-mentor/scripts/research_audit.mjs fingerprint my-topic/dossier.json IDEA-ID
-node skills/ai-research-mentor/scripts/research_audit.mjs rank my-topic/dossier.json
+python -B skills/ai-research-mentor/scripts/research_audit.py init --root ../research-private --name my-topic
+python -B skills/ai-research-mentor/scripts/research_audit.py validate ../research-private/my-topic/dossier.json
+python -B skills/ai-research-mentor/scripts/research_audit.py fingerprint ../research-private/my-topic/dossier.json IDEA-ID
+python -B skills/ai-research-mentor/scripts/research_audit.py rank ../research-private/my-topic/dossier.json
 ```
 
-先由研究者或宿主填写项目事实、实际来源、候选和评估。初始化文件不含论文或评审；当前 `fingerprint` 的 `review_basis_hash` 写入对应评审后，排序才会检查其是否仍然有效。项目记录保存在用户工作区。
+先在仓库外准备已有的私有工作目录（上例为 `../research-private`），再由研究者或宿主填写项目事实、实际来源、候选和评估。初始化文件不含论文或评审；当前 `fingerprint` 的 `review_basis_hash` 写入对应评审后，排序才会检查其是否仍然有效。
 
 当前 schema_version=3、decision_contract_version=3 保留候选 evidence_links，并显式标识运行、因果分类纠正与失效。v1/v2 可以验证读取，但须迁移重评。资源 KILL 必须把确认约束关联到实际失败的必要依赖。完整验证需要最新同阶段独立 GO，且当次读取真实 JSON 回执核对字节哈希和全部评审字段：
 
 ```text
-node skills/ai-research-mentor/scripts/research_audit.mjs verify-receipts my-topic/dossier.json --root my-topic
-node skills/ai-research-mentor/scripts/research_audit.mjs rank my-topic/dossier.json --receipt-root my-topic
+python -B skills/ai-research-mentor/scripts/research_audit.py verify-receipts ../research-private/my-topic/dossier.json --root ../research-private/my-topic
+python -B skills/ai-research-mentor/scripts/research_audit.py rank ../research-private/my-topic/dossier.json --receipt-root ../research-private/my-topic
 ```
 
-没有已核验回执时，裸 `rank` 不批准 full_validation。回执核验不能证明评审者实际独立或科学结论正确。HOLD 可建议补信息；有界 pilot 也需基础科学门槛。
+原生 Python 与旧 Node 审计使用相同的 dossier 指纹和回执门槛；没有已核验回执时，裸 `rank` 不批准 full_validation。回执核验不能证明评审者实际独立或科学结论正确。HOLD 可建议补信息；有界 pilot 也需基础科学门槛。
 
 `validate` 返回结构错误与提醒；warnings 不使合法的初步构思无效，也不替代决策门控。旧 schema 1 或旧决策契约可读取，但旧评审不授权当前决定，需显式迁移并重新评审：
 
 ```text
-node skills/ai-research-mentor/scripts/research_audit.mjs migrate old-project/dossier.json
+python -B skills/ai-research-mentor/scripts/research_audit.py migrate old-project/dossier.json
 ```
 
 迁移输出到标准输出，不覆盖输入；检查后用 UTF-8 另存新文件。旧 reviews 完整归档到 history 并要求重评，旧 pilots 物化 run_id、保留原结果和产物；迁移不会编造分类替代、失效、新证据角色或新评审指纹。
 
-字段说明见 [`data-contract.md`](skills/ai-research-mentor/references/data-contract.md)，评分锚点与门控见 [`evaluation.md`](skills/ai-research-mentor/references/evaluation.md)。无 Node 时仍可依这些规范手动完成任务。
+字段说明见 [`data-contract.md`](skills/ai-research-mentor/references/data-contract.md)，评分锚点与门控见 [`evaluation.md`](skills/ai-research-mentor/references/evaluation.md)。无 Python 时可使用旧 Node 兼容入口或依合同手动核验，明确自动检查未运行。
 
 ## 验证
+
+```text
+python -B evaluation/run-python-tests.py
+python -B evaluation/skill_tools.py check-skill
+python -B evaluation/skill_tools.py check-examples
+python -B evaluation/skill_tools.py package
+python -B evaluation/skill_tools.py check-package
+```
+
+以上测试与维护命令可以在只有 Python 的环境执行。安装了 Node 时，Python 测试另外运行差分检查；开发验收设置 `RESEARCH_MENTOR_REQUIRE_NODE_CONFORMANCE=1`，避免缺少兼容工具时静默跳过。旧 Node 回归与维护入口继续保留：
 
 ```text
 node evaluation/run-tests.mjs
@@ -126,7 +147,7 @@ node evaluation/package-skill.mjs
 node evaluation/check-package.mjs
 ```
 
-测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；包检查比较完整文件集合和逐文件字节。CI 配置覆盖 Ubuntu 上的 Node.js 18 / 20 / 22 / 24，以及 Windows 上的当前 LTS；实际本地与 CI 执行结果分别记录。本版验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)，历史验收见 [`evaluation/validation.md`](evaluation/validation.md)。
+测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；Python 与 Node 构建相同的确定性 ZIP，包检查比较完整文件集合和逐文件字节。CI 配置覆盖 Windows/Linux 的 Python 3.10 / 3.12 / 3.14，以及旧 Node 兼容矩阵；配置存在不代表 CI 已通过。未发布迁移验收见 [`evaluation/validation-python-core.md`](evaluation/validation-python-core.md)，发行版验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)。
 
 自动测试与原离线案例使用合成资料；[真实论文有限语料试用与评估协议](evaluation/real-world/README.md) 单独记录来源、实际答复和未测范围。真实科研评估应记录原始检索和输出、近邻发现、引用忠实性、过度断言、误淘汰和下一步建议质量；尚未完成的评估不作为性能证明。历史回测以当时可得信息判断决策，不把后来的实验失败等同于当时应该 KILL。
 
@@ -145,9 +166,9 @@ node evaluation/check-package.mjs
 按 [`self-improvement.md`](skills/ai-research-mentor/references/self-improvement.md) 保存本轮独立目录、两版内容、冻结用例、输出和评估回执。只读工具核验文件、检查日志和评估版本：
 
 ```text
-node skills/ai-research-mentor/scripts/evolution_guard.mjs snapshot <维护目录>
-node skills/ai-research-mentor/scripts/evolution_guard.mjs checks-hash <本轮目录>/run.json
-node skills/ai-research-mentor/scripts/evolution_guard.mjs check <本轮目录>/run.json
+python -B skills/ai-research-mentor/scripts/evolution_guard.py snapshot <维护目录>
+python -B skills/ai-research-mentor/scripts/evolution_guard.py checks-hash <本轮目录>/run.json
+python -B skills/ai-research-mentor/scripts/evolution_guard.py check <本轮目录>/run.json
 ```
 
 工具返回 KEEP / REJECT / HOLD，但不运行模型或自动写入文件；宿主在既有维护授权内执行测试和应用，应用前核对正式目录仍等于受评基线。科学记录合同、评测脚本、测试和优化规则默认不可由候选修改；工具与决策契约升级属于单独维护任务。普通优化不自动推送仓库或上传用户材料。
@@ -175,11 +196,15 @@ skills/ai-research-mentor/
 │   └── design-basis.md
 ├── scripts/
 │   ├── research_mentor.py
+│   ├── research_audit.py
+│   ├── research_sources.py
+│   ├── research_outputs.py
+│   ├── evolution_guard.py
 │   ├── research_audit.mjs
 │   ├── research_sources.mjs
 │   ├── research_outputs.mjs
 │   └── evolution_guard.mjs
-├── runtime/research_mentor/      # Python CLI/API 共用的证据与判断核心
+├── runtime/research_mentor/      # Python CLI/API 共用的证据、审计、产出与维护实现
 ├── schemas/
 │   ├── notes.schema.json
 │   ├── ledger-event.schema.json

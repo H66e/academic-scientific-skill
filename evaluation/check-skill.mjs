@@ -15,6 +15,9 @@ const required = ['SKILL.md', 'agents/openai.yaml', 'scripts/research_audit.mjs'
   'tests/research_sources.test.mjs', 'tests/research_outputs.test.mjs'];
 required.push('scripts/research_mentor.py', 'runtime/research_mentor/core.py',
   'runtime/research_mentor/judgment.py', 'references/python-core.md', 'schemas/ledger-event.schema.json');
+for (const name of ['research_audit', 'research_sources', 'research_outputs', 'evolution_guard']) required.push(`scripts/${name}.py`);
+for (const name of ['audit', 'sources', 'outputs', 'evolution', 'tool_cli']) required.push(`runtime/research_mentor/${name}.py`);
+for (const name of ['audit', 'sources', 'outputs', 'evolution']) required.push(`tests/python/test_${name}.py`);
 for (const file of required) {
   try { await fs.access(path.join(root, file)); } catch { errors.push(`Missing ${file}`); }
 }

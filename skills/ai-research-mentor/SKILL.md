@@ -20,7 +20,7 @@ description: Help AI/ML researchers investigate literature and research gaps, as
 | 评估价值、资源或能否开题 | 区分提案逻辑、已有证据和前置条件，建议有边界的验证 | [evaluation.md](references/evaluation.md) |
 | 做决策卡、开题、综述或论文草稿 | 按用户所需文稿组织真实来源、研究主张与结果 | [research-outputs.md](references/research-outputs.md) |
 | 有试验、证明尝试、负结果或日志 | 先归入六种运行/科学状态之一，再更新主张与历史，重开受影响的检查 | [feedback.md](references/feedback.md) |
-| 保存项目、跨轮恢复、需要排序 | 新项目用 Python 账本；已有 dossier 保留 Node 合同与排序 | [python-core.md](references/python-core.md)、[data-contract.md](references/data-contract.md) |
+| 保存项目、跨轮恢复、需要排序 | 新项目用 Python 账本；已有 dossier 用原生 Python 审计、迁移与排序 | [python-core.md](references/python-core.md)、[data-contract.md](references/data-contract.md) |
 | 优化本科研 skill、复盘它的失误 | 从实际错误提出小改动，在副本中验证，合格才保留 | [self-improvement.md](references/self-improvement.md) |
 
 用户同时需要多项时串联相关任务；文献检索不强制生成选题，文字方案评估不冒充完成查新，题目评估不默认开始训练。所谓“完整流程”是按信息需要往返，不是固定八阶段。
@@ -46,7 +46,7 @@ description: Help AI/ML researchers investigate literature and research gaps, as
 
 新建持续查新或下一步决策项目时，优先使用 [Python 证据工作流](references/python-core.md)。`search/resolve/fetch/quote` 自动记录实际来源和锚点，模型引用返回的 ID；`confirm-read` 累计实际阅读声明，误报用 `retract-read` 显式撤回，保留历史。补充不降低阅读资格，但仍使旧评审过期。先用 public/deidentified 查询，未发表想法、私有全文、代码、路径和凭据保持本地。ledger、来源与输出保存在正式仓库外。
 
-Python `assess` 是严格机器建议，人工决定另行记录并绑定当前快照；没有真实人的指令不能使用 `--human`、`--human-confirmed` 或 `--human-page-check`。`coverage/next` 解释有限覆盖缺口，当前 `assess.missing` 才是决策阻塞清单；partial、解析失败和关键未读保持 HOLD。简单请求不强制建账本，旧项目继续用现有 Node 合同；没有 Python 时沿用宿主实际工具，不冒称执行了 Python。
+Python `assess` 是严格机器建议，人工决定另行记录并绑定当前快照；没有真实人的指令不能使用 `--human`、`--human-confirmed` 或 `--human-page-check`。`coverage/next` 解释有限覆盖缺口，当前 `assess.missing` 才是决策阻塞清单；partial、解析失败和关键未读保持 HOLD。简单请求不强制建账本，旧项目使用 dossier 合同的原生 Python 审计；没有 Python 时沿用宿主实际工具，不冒称执行了 Python。
 
 先检查宿主实际可用的搜索、论文元数据、全文读取和本地文献工具；用发现到的接口，不硬编码不存在的 MCP 名称。不依赖指定付费数据库、账号或外部 skill。
 
@@ -97,7 +97,7 @@ Python `assess` 是严格机器建议，人工决定另行记录并绑定当前�
 
 简单请求直接回复；需要保留判断但尚未持续维护时，用 research-outputs.md 的 Markdown 决策卡或 gap 卡。跨轮恢复、机器排序或跟踪证据变化时再按 data-contract.md 升级 dossier.json，不要求所有请求填写全套记录。不要将空文件、schema 检查通过或模型一致意见当作证据充分。
 
-如使用辅助脚本，先 validate；旧接口评审保持 HOLD，按合同补依据并复评。fingerprint 绑定当前候选依赖；full_validation 用 rank 的 receipt-root 对真实回执核验。scripts/research_audit.mjs 核验记录、版本和排序必要条件，不评定论文真实性、检索完备性或科学新颖性。无 Node.js 时依合同手动核验，不因此停止用户的研究任务。
+如使用辅助脚本，先 validate；旧接口评审保持 HOLD，按合同补依据并复评。fingerprint 绑定当前候选依赖；full_validation 用 rank 的 receipt-root 对真实回执核验。scripts/research_audit.py 核验记录、版本和排序必要条件，不评定论文真实性、检索完备性或科学新颖性。没有 Python 时用旧 Node 兼容入口或依合同手动核验，不因此停止用户的研究任务。
 
 维护或改造本 skill 时可读 [design-basis.md](references/design-basis.md)。Python 和 Node 回归分别运行，不把开发测试数据混入真实研究证据。每次决定前比较最强反方依据；用户的信心或反复要求不能代替新证据，也不能让模型给自己的意见标为人工批准。
 
@@ -107,4 +107,4 @@ Python `assess` 是严格机器建议，人工决定另行记录并绑定当前�
 
 用户要求优化本 skill 时，按 self-improvement.md 启动有限轮次的维护：冻结工作区基线和测试，在独立副本修改一项行为假设，比较两版真实输出与迁移用例；通过固定回归、保护原则和独立审查才应用。相同授权范围不重复问确认；测试不足或无明确改善保留待验证副本，结束本轮。
 
-scripts/evolution_guard.mjs 核对候选、基线、测试和评审指纹，以及 KEEP/REJECT/HOLD 必要条件。它不运行模型、不执行来源命令、不修改正式 skill、不提交或发布。宿主依据已有授权应用通过验证的改动，应用前确认当前文件仍与受评基线一致。
+scripts/evolution_guard.py 核对候选、基线、测试和评审指纹，以及 KEEP/REJECT/HOLD 必要条件。它不运行模型、不执行来源命令、不修改正式 skill、不提交或发布。宿主依据已有授权应用通过验证的改动，应用前确认当前文件仍与受评基线一致。

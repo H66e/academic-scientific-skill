@@ -6,6 +6,10 @@
 
 ```text
 python -B evaluation/run-python-tests.py
+python -B evaluation/skill_tools.py check-skill
+python -B evaluation/skill_tools.py check-examples
+python -B evaluation/skill_tools.py package
+python -B evaluation/skill_tools.py check-package
 node evaluation/run-tests.mjs
 node evaluation/check-skill.mjs skills/ai-research-mentor
 node evaluation/check-examples.mjs
@@ -13,7 +17,9 @@ node evaluation/package-skill.mjs
 node evaluation/check-package.mjs
 ```
 
-Python 3.10+ 核心只使用标准库，源码位于 `skills/ai-research-mentor/runtime/research_mentor/`；CLI 与导入 API 共用该实现。`pip install -e .` 是可选开发安装，不是使用 Skill 的前提。Python 测试包含工具自动回执、账本完整性、文本锚点、默认隐私、过期决定，以及投影在 Node 中合法但不恢复 GO 的差分检查。完整旧审计工具尚未移植，不得声称跨语言指纹已经等价。
+Python 3.10+ 工具链只使用标准库，源码位于 `skills/ai-research-mentor/runtime/research_mentor/`；CLI 与导入 API 共用该实现。`pip install -e .` 是可选开发安装，不是使用 Skill 的前提。Python 测试包含工具自动回执、账本完整性、文本锚点、默认隐私、过期决定，以及投影在 Node 中合法但不恢复 GO 的差分检查。旧 dossier 审计、来源工具、产出和自优化验收已有原生 Python 路径。dossier 指纹与 Node 合同进行差分验证；Python ledger 的哈希仍是独立协议，不能混用。
+
+Python 维护入口 `evaluation/skill_tools.py` 不依赖 Node；新运行时不通过子进程调用旧实现。Node 保留为可用兼容接口与实际差分工具，普通 Python-only 环境可跳过这些额外差分测试；开发验收与 CI 设置 `RESEARCH_MENTOR_REQUIRE_NODE_CONFORMANCE=1` 时必须找到 Node，否则失败。无需为科研运行安装 Node。Python 来源工具默认拒绝 private 查询；公共 fixture 和实际公开查询均须明确分类。
 
 Python 新字段的修改应更新 [python-core.md](skills/ai-research-mentor/references/python-core.md)、对应测试和 ADR。CI 的 Python 作业配置 Windows/Linux × 3.10/3.12/3.14；本地实际执行版本及范围见 [Python 核心验收记录](evaluation/validation-python-core.md)，配置存在不代表 CI 已通过。使用 `-B` 防止字节码混入工作树，打包也排除 `__pycache__` 和 `.pyc/.pyo`。
 

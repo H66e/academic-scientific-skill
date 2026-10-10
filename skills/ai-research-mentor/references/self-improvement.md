@@ -33,13 +33,13 @@
 
 ## 可选验收工具
 
-Node.js 18+ 标准库工具，无额外包，只读文件与 JSON，不执行 shell、Git、网络或模型：
+Python 3.10+ 标准库工具，无额外包；旧 Node 入口保留兼容，只读文件与 JSON，不执行 shell、Git、网络或模型：
 
 ```text
-node <skill>/scripts/evolution_guard.mjs snapshot <skill-directory>
-node <skill>/scripts/evolution_guard.mjs hash <artifact-file>
-node <skill>/scripts/evolution_guard.mjs checks-hash <run-directory>/run.json
-node <skill>/scripts/evolution_guard.mjs check <run-directory>/run.json
+python -B <skill>/scripts/evolution_guard.py snapshot <skill-directory>
+python -B <skill>/scripts/evolution_guard.py hash <artifact-file>
+python -B <skill>/scripts/evolution_guard.py checks-hash <run-directory>/run.json
+python -B <skill>/scripts/evolution_guard.py check <run-directory>/run.json
 ```
 
 snapshot 返回完整文件集合与总体 hash；hash 返回单文件 SHA-256。先生成基线与候选指纹，再让评估者产生回执。不能在提交候选后用变化中的 HEAD 当作旧版。

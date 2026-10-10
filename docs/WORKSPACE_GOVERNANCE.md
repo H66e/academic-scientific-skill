@@ -39,6 +39,8 @@ The Python runtime is developed from the formal source tree and lives on `main`;
 - v0.4 work must preserve the v0.3 JSON contracts and Node.js tools by default. Any incompatible schema or artifact change requires an explicit migration and compatibility note.
 - Python-first is a migration strategy for new research-core capabilities. It is not permission to remove working Node.js behavior before an equivalent path and tests exist.
 
+The formal Python source now also implements the existing dossier, source, output and evolution utilities natively; it does not dispatch to Node. Node tools remain actively exercised as compatibility entrypoints and differential oracles. Shared dossier fingerprints preserve their original contract, while ledger hashes and approvals remain a different protocol. Migration of the toolchain does not imply release promotion, installed synchronization, lossless ledger/dossier conversion or measured scientific effectiveness; see [ADR 0006](decisions/0006-native-python-toolchain.md).
+
 ## Responsibility boundary
 
 The software records sources, evidence, uncertainty, and bounded recommendations. A person remains responsible for the final research decision. `GO`, `HOLD`, and `KILL` are scoped decisions under the recorded evidence and constraints; they are not claims that a project will succeed or that a research direction has scientific value in all settings.

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import http.client
 import ipaddress
+import math
 import queue
 import re
 import socket
@@ -69,10 +70,10 @@ class _PinnedHTTPS(http.client.HTTPSConnection):
         self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
 
 class Transport:
-    def __init__(self, *, timeout: int = 15, max_bytes: int = 2 * 1024 * 1024,
+    def __init__(self, *, timeout: float = 15, max_bytes: int = 2 * 1024 * 1024,
                  byte_budget: int = 10 * 1024 * 1024, request_budget: int = 8,
                  trusted_provider_transport: bool = False):
-        if not 1 <= timeout <= 60 or not 1 <= max_bytes <= 20 * 1024 * 1024 or \
+        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not math.isfinite(timeout) or not 0 < timeout <= 60 or not 1 <= max_bytes <= 20 * 1024 * 1024 or \
            not max_bytes <= byte_budget <= 100 * 1024 * 1024 or not 1 <= request_budget <= 20:
             raise TransportError("invalid timeout/byte/request budget")
         self.timeout, self.max_bytes = timeout, max_bytes
@@ -80,7 +81,8 @@ class Transport:
         self.trusted_provider_transport = trusted_provider_transport
         self.requests, self.bytes_received = [], 0
 
-    def get(self, url: str, *, allowed_hosts: set[str], trusted_provider: bool = False) -> Response:
+    def get(self, url: str, *, allowed_hosts: set[str], trusted_provider: bool = False,
+            trusted_resource: str | None = None) -> Response:
         # Socket timeouts bound a single receive, not the complete HTTP parse:
         # slow headers/chunk framing can keep buffered reads alive indefinitely.
         # The observation worker cannot publish a response after this deadline.
@@ -94,6 +96,7 @@ class Transport:
         def observe():
             try:
                 result = self._get(url, allowed_hosts=allowed_hosts, trusted_provider=trusted_provider,
+                                   trusted_resource=trusted_resource,
                                    deadline=deadline, active=active, cancelled=cancelled)
                 completed.put((True, result))
             except Exception as exc:
@@ -134,13 +137,22 @@ class Transport:
         return result
 
     def _get(self, url: str, *, allowed_hosts: set[str], trusted_provider: bool,
+             trusted_resource: str | None = None,
              deadline: float, active: dict, cancelled: threading.Event) -> Response:
         parsed = checked_url(url)
+        resource = None
+        if trusted_resource is not None:
+            resource = checked_url(trusted_resource)
+            if not trusted_provider or resource.hostname != "arxiv.org" or resource.query or not re.fullmatch(
+                    r"/(?:html|pdf)/(?:\d{4}\.\d{4,5}|[a-z][a-z.\-]+/\d{7})(?:v[1-9]\d*)?", resource.path) or parsed != resource:
+                raise TransportError("trusted resource must be the exact internally constructed arXiv resource")
         for _ in range(4):
             remaining_time = deadline - time.monotonic()
             if cancelled.is_set() or remaining_time <= 0:
                 raise TransportError("request timeout")
             host = parsed.hostname.lower()
+            if resource is not None and parsed != resource:
+                raise TransportError("redirect changes the explicitly requested arXiv resource")
             if host not in allowed_hosts:
                 raise TransportError("redirect outside explicitly permitted source host")
             if len(self.requests) >= self.request_budget:
@@ -150,7 +162,7 @@ class Transport:
             proxy_mode = self.trusted_provider_transport and trusted_provider
             fixed_provider = (host == "export.arxiv.org" and parsed.path == "/api/query") or \
                 (host == "api.crossref.org" and (parsed.path == "/works" or re.match(r"^/works/10\.\d{4,9}%2[fF].+", parsed.path))) or \
-                (host == "arxiv.org" and re.match(r"^/html/(?:\d{4}\.\d{4,5}|[a-z][a-z.\-]+/\d{7})(?:v[1-9]\d*)?$", parsed.path))
+                (host == "arxiv.org" and re.match(r"^/html/(?:\d{4}\.\d{4,5}|[a-z][a-z.\-]+/\d{7})(?:v[1-9]\d*)?$", parsed.path)) or resource is not None
             if proxy_mode and not fixed_provider:
                 raise TransportError("trusted-provider transport requires a fixed official API/resource path")
             if self.trusted_provider_transport and not trusted_provider:

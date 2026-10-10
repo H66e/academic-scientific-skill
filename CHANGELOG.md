@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Complete native standard-library Python ports for dossier validation, v1/v2 migration, candidate fingerprints/ranking, actual independent receipts, Crossref/DOI/arXiv source utilities, note cards/drafts/BibTeX and read-only evolution checks. CLI adapters and APIs share implementations; no runtime command launches Node. Retain and exercise Node entrypoints as compatibility oracles.
+- Preserve existing dossier contract 3 and ECMAScript-compatible fingerprints; keep ledger-json-v1 and snapshot-bound human decisions separate. Copying a receipt report never grants authorization, legacy migration does not revive approvals, and PDF acquisition does not imply extraction or reading.
+- Add native repository checks and deterministic ZIP packaging, Python-only CLI regression cases and independent cross-language contract cases. Source-tool private queries are blocked before network access; fixed arXiv resource transport preserves the requested version and format across redirects.
+- Refresh README, skill routing and usage references around direction exploration, brainstorm, topic assessment and gap discovery, with explicit unreleased/install boundaries. Design and limitations: [ADR 0006](docs/decisions/0006-native-python-toolchain.md). Scientific effectiveness, PDF extraction, experiment-log interpretation and lossless ledger/dossier conversion remain unimplemented or unmeasured; no release or installation sync is implied.
+
 - 仓库清理修复 CONTRIBUTING.md 的许可证与 ADR 相对路径，避免从仓库根文档错误跳到父目录。
 
 - 实现阅读补充与显式撤回：confirm-read 累计资格，独立 reading.retract 仅退役指名声明；T2 不可撤回 T1，完全误报无需虚构替代阅读。深读、视觉检查与 duplicate-KILL 共用有效集。所有补充/撤回仍使评审过期；解释规则与策略升级至 python-credibility-v4 同次落地，旧账本不重写，Node 合同仍为 3。

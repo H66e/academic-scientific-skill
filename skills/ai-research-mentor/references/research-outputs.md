@@ -12,7 +12,7 @@
 
 ## 轻量输出工具
 
-Node.js 可用时，`scripts/research_outputs.mjs` 提供纯整理工具；宿主先填真实材料，工具不生成科学论证或自动查新。例如一份最小 notes.json：
+Python 3.10+ 可用时，`scripts/research_outputs.py` 提供标准库纯整理工具；旧 Node 入口保留兼容；宿主先填真实材料，工具不生成科学论证或自动查新。例如一份最小 notes.json：
 
 ```json
 {
@@ -35,10 +35,10 @@ question 必需；type 和其他说明按任务选用，说明字段用真实文
 需要拆清 gap 核验链时，按需增加 `source_observations`（所读版本、定位与实际观察）、`reverse_search`（实际调用、命中、未读和未执行部分）、`boundary`（检索后仍成立的条件）及 `scientific_consequence`（支持、反驳或缩窄后会改变什么认识）。这些字段都是笔记，不是自动核验的来源或结果。已有 `gap`、`search_findings` 和 `test` 足以表达时，无需重复填写；未执行时直接写未执行。
 
 ```text
-node scripts/research_outputs.mjs card notes.json
-node scripts/research_outputs.mjs draft notes.json --name project-name
-node scripts/research_outputs.mjs bibtex dossier-or-source-records.json
-node scripts/research_outputs.mjs draft - --name project-name
+python -B scripts/research_outputs.py card notes.json
+python -B scripts/research_outputs.py draft notes.json --name project-name
+python -B scripts/research_outputs.py bibtex dossier-or-source-records.json
+python -B scripts/research_outputs.py draft - --name project-name
 ```
 
 输入是至多 8 MiB 的 UTF-8 JSON 文件；`-` 从标准输入读取，支持常见 UTF-8 BOM。card 输出简短 Markdown；draft 只生成初步 dossier 的项目问题、类型和显式事实，不伪造 papers、searches、ideas 或 reviews。即使笔记记录了 GO，draft 仍没有获得 GO 的候选。输出到标准输出，用户或宿主在授权目录检查后保存；不覆盖已有研究记录。

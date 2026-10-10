@@ -24,10 +24,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Python core and Node projection compatibility
+      - name: Native Python toolchain and Node contract compatibility
         env:
           RESEARCH_MENTOR_REQUIRE_NODE_CONFORMANCE: '1'
         run: python -B evaluation/run-python-tests.py
+      - name: Native skill and synthetic-example checks
+        run: |
+          python -B evaluation/skill_tools.py check-skill
+          python -B evaluation/skill_tools.py check-examples
+      - name: Native release package verification
+        run: python -B evaluation/skill_tools.py check-package
   validate:
     runs-on: ${{ matrix.os }}
     strategy:
