@@ -6,6 +6,8 @@ The existing [Node contract](../../skills/ai-research-mentor/references/data-con
 
 This ADR is the single language-neutral specification for that future work. It freezes semantics, not scientific-effectiveness claims. The current Node contract and Python judgment behavior remain authoritative until their corresponding implementation and migration steps ship.
 
+**2026-10-10 implementation note:** the Step 1 boundaries below are historical. The subsequent result implementation registers validated `result.record` and `result.invalidate`, adds effective-state gates, Node v3 migration and result-preserving projection. Rollout and policy boundaries are recorded in [ADR 0005](0005-policy-bound-lifecycle-rollout.md); the frozen normative clauses remain unchanged.
+
 ## Decision
 
 ### Implementation boundary

@@ -24,8 +24,8 @@ node <skill>/scripts/research_audit.mjs migrate <旧项目>/dossier.json
 
 ```json
 {
-  "schema_version": 2,
-  "decision_contract_version": 2,
+  "schema_version": 3,
+  "decision_contract_version": 3,
   "project": {
     "id": "my-topic",
     "question": "",
@@ -47,6 +47,7 @@ node <skill>/scripts/research_audit.mjs migrate <旧项目>/dossier.json
   "ideas": [],
   "reviews": [],
   "pilots": [],
+  "result_invalidations": [],
   "history": []
 }
 ```
@@ -55,7 +56,9 @@ node <skill>/scripts/research_audit.mjs migrate <旧项目>/dossier.json
 
 所有对象 ID 在对应集合内唯一；所有引用必须存在。时间使用带时区的 ISO 8601 字符串。project.assumptions 是非空字符串数组，在文字中说明未确认前提；constraints 是对象，可逐项保留来源、状态与单位。用于资源约束 KILL 的条目必须明确为 `{"status":"confirmed","value":"实际约束事实","source":"实际用户陈述或日志定位"}`，value 可保留非空文字、有限数字、布尔值或包含这些事实的结构；0 与 false 可以是实际事实，空对象、空数组或只有 null/空文字的结构不能支持约束 KILL。不能从旧字符串、设备惯例或模型估计推断 confirmed。除顶层 schema_version、idea.version 和 paper.year 外，计量信息可在说明中保留单位、区间和估计依据。
 
-`decision_contract_version` 与 `schema_version` 分开：本版数据结构仍为 schema 2，行动门控采用 decision contract 2。新项目和新评审均明确记录 2。缺失版本或版本 1 的旧 v2 记录可读取校验，但其评审不支持当前 GO/KILL；未知未来契约同样 HOLD，不能自动降级迁移。
+`decision_contract_version` 与 `schema_version` 分开：当前源码使用 schema 3 与 decision contract 3；发行版号仍以仓库 VERSION 为准。v1/v2 可读取校验，但其评审不支持当前 GO/KILL，须显式迁移并重新评审。未知未来契约同样 HOLD，不能自动降级迁移。
+
+身份、作用域与状态转换的引用必须解析；仅 `affected_claims` 的解释性引用允许无法解析并显式降级，不改变结果门。
 
 `project.notes` 可选，存在时必须为对象，不能以字符串、数组、null 或数字代替；保存来源明确的轻量原始笔记，例如已知结论、待解释现象、gap 草稿和替代解释。它属于科学上下文并进入评审指纹；笔记中的意见不是评审，更不自动生成 GO。成熟科学主张仍需落实到候选与 evidence。
 
@@ -129,7 +132,7 @@ node <skill>/scripts/research_audit.mjs migrate <旧项目>/dossier.json
 
 ## reviews：基于具体输入的评估
 
-候选内容冻结后，运行 fingerprint，再写评估记录。新 v2 评估必需：`decision_contract_version`（2）、`id`、`idea_id`、`idea_version`、`review_basis_hash`、`reviewed_at`、`kind`、`decision`、`decision_scope`、`recommended_stage`、`decision_basis`、`reason`、`scores`、`score_reasons`、`penalties`、`limitations`。缺失契约版本的旧评审仅为历史可读，不因填上 2 或改写旧 hash 自动完成重新评审。
+候选内容冻结后，运行 fingerprint，再写评估记录。新评估必需：`decision_contract_version`（3）、`id`、`idea_id`、`idea_version`、`review_basis_hash`、`reviewed_at`、`kind`、`decision`、`decision_scope`、`recommended_stage`、`decision_basis`、`reason`、`scores`、`score_reasons`、`penalties`、`limitations`。旧评审仅为历史可读，不因填上 3 或改写旧 hash 自动完成重新评审。
 
 - `kind`：`self` 或 `independent`；independent 还需 `author_context`、`evaluator_context` 和可追溯评审 `artifact`。两个上下文标识必须不同；只有确实由独立上下文读取原始证据、产生回执才写 independent。记录检查不能证明模型真独立。
 - `decision`：`GO`、`HOLD`、`KILL`。GO 只授权推荐的、有预算边界的下一步，不授权无限实验、投稿、写入外部服务。
@@ -155,7 +158,7 @@ node <skill>/scripts/research_audit.mjs migrate <旧项目>/dossier.json
 
 ### 评审与排序的两个指纹
 
-v2 `review_basis_hash` 是规范排序后的实质输入的 SHA-256，包含顶层 decision_contract_version；项目 question、research_type、constraints、assumptions 与原始 notes 等科学上下文；当前 idea；它引用的 searches 及其返回论文；引用 evidence 及其论文身份、版本；关联 pilots；`idea_ids` 关联到它的 screening。缺失契约版本的旧记录保留旧 hash 算法供读取，但不能据此执行本版行动判断。引用闭包完整进入指纹，包括搜索实际返回中未成为近邻的论文，避免漏掉会改变筛选或查新范围的依赖。
+v3 `review_basis_hash` 是规范排序后的实质输入的 SHA-256，包含顶层 decision_contract_version；项目 question、research_type、constraints、assumptions 与原始 notes 等科学上下文；当前 idea；它引用的 searches 及其返回论文；引用 evidence 及其论文身份、版本；关联 pilots 的完整分类历史与 result_invalidations；`idea_ids` 关联到它的 screening。不能只哈希尚有效的结果头。旧记录保留对应旧 hash 算法供读取，但不能据此执行本版行动判断。引用闭包完整进入指纹，包括搜索实际返回中未成为近邻的论文，避免漏掉会改变筛选或查新范围的依赖。
 
 无关候选的独立论文、检索、证据或筛选不影响当前指纹。项目与候选的 created_at/updated_at/formatting、论文的 accessed_at/created_at/updated_at/formatting、筛选的 screened_at 不影响科学评审。实际检索 searched_at 连同范围和返回列表仍参与指纹；来源版本、观察、筛选理由、条件和其他实质字段也参与。reviews/history 不进入指纹。新增语义字段须同步校验、指纹与测试，不能当成元数据静默忽略。
 
@@ -165,7 +168,7 @@ v2 `review_basis_hash` 是规范排序后的实质输入的 SHA-256，包含顶�
 
 ## pilots：验证反馈
 
-必需：`id`、`idea_id`、`idea_version`、`kind`、`outcome`、`artifacts`、`summary`、`limitations`。
+v3 必需：`id`、`run_id`、`idea_id`、`idea_version`、`kind`、`outcome`、`artifacts`、`summary`、`limitations`、`affected_claims`。run_id 标识同一次尝试，重新分类保留此身份；真正的新尝试使用新 run_id。
 
 - `kind`：`smoke` 或 `scientific`。
 - `outcome`：`supported`、`contradicted`、`inconclusive`、`execution_failed`、`not_run`。
@@ -173,6 +176,16 @@ v2 `review_basis_hash` 是规范排序后的实质输入的 SHA-256，包含顶�
 - smoke 只核验环境与流程；不能提升科学主张。execution_failed 不能写成假设被证伪。supported 仍局限于当前设置；不能自动得到论文结论或下一阶段 GO。
 
 可以补运行配置、数据版本、种子、日志定位、指标不确定度。新结果使旧评估过期，回到候选分析和相关检查。不能让辅助脚本把支持、反对或无结论自动转换成接受/拒绝科研主张。
+
+重新分类追加一条记录，`supersedes` 指向同 run、候选、版本的既有分类，且 `reason` 非空。缺失目标、跨 run/版本、自引用和环均为合同错误。不得按时间、数组位置或身份级别选择赢家；有效结果头是未被任何合法分类 supersede 的记录。链条后端再次被 supersede 不会复活祖先。多个合法头为 ambiguous，warning 并 HOLD，即使所有头均 supported。
+
+`affected_claims` 为 `[{"claim_id":"实际主张 ID","reason":"关联说明"}]`；可用可选 `ideas[].claims` 保存实际主张 ID。此字段只解释影响，不缩小结果门控作用域。形状错误无效；格式正确但无法解析的主张标为 `affected_claims_degraded` 并 warning，改变引用不改变 blocker。
+
+## result_invalidations：显式撤回运行资格
+
+v3 顶层必含此数组。每项含 `id`、`run_id`、`idea_id`、`idea_version`、`result_id`、`reason`、`recorded_at`、`actor="user"`、`trust="T1"`。result_id 必须解析到相同 run/候选/版本的分类；非空理由与带时区时间必需。仅记录实际人的撤回指示，声明不认证身份。
+
+失效作用于整次 run，保留分类与失效记录；同 run 后续分类不能重新激活。重新执行须建立真实的新 run。重新分类纠正解释，失效撤回测试资格，两者都改变评审依据、使旧 review 过期；解除 blocker 不恢复旧 GO。Node dossier 是可变快照，只校验所提供的引用，不证明历史从未被删除。Python 操作与阅读语义见 [python-core.md](python-core.md)。
 
 ## history：有条件的科研记忆
 
@@ -186,7 +199,7 @@ GO 的机器可检查必要条件：当前 GO 评估与 advance 依据；三个�
 
 证据可以来自已有方法失败、测量失效或反例，不统一要求全局 polarity=supports。但 decision_relevant=true、relation=contradicts 且 target 为 hypothesis、prerequisite 或 validation 的 link 表示候选核心条件尚受反对，GO 必须 HOLD。不存在可自标 resolved 的开关；解除反对需实质修正对应主张或前提，保留旧证据与条件，按新候选版本重新评审。针对 problem 或 nearest_work 的矛盾可以构成研究动机，仍需宿主核对推理。
 
-当前版本若仍有 kind=scientific、outcome=contradicted 的 pilot，GO 也必须 HOLD，不能仅补一条新 GO 评审抹除科学反证。该门控不自动 KILL；淘汰仍需当前且类型相符的显式 KILL 依据。旧版本 contradicted 产物保留历史与适用条件，不永久阻止实质修订后的新框架；宿主仍负责核验结果有效性与被反驳的具体主张。
+当前版本若存在未失效 run 的有效头为 kind=scientific、outcome=contradicted，或任一未失效 run 有多个有效头，GO 必须 HOLD。另一 run 的 supported 不能抵销反证；新 GO 标签不能覆盖它。该门控不自动 KILL。scientific_refutation 的 pilot 依据也必须是未失效、单头 run 的当前有效反证，有产物且由当前评审明确引用；被 supersede 或失效的反证不能继续 KILL。旧版本产物保留历史与适用条件，不永久阻止实质修订后的新框架。
 
 full_validation 另需同版本、同 review_basis_hash、同契约的真实 independent GO full_validation 回执，且受限本地文件已在本轮实际核验；当前最后一评审可以是 self，但独立阶段批准也取最新 independent 记录（同时间按记录顺序），不回退到较早独立 GO 绕过后来的 HOLD/KILL/过期记录。不能使用过期、独立 HOLD、独立 pilot 或未核验的回执补门槛。缺独立评审时 full_validation 进入 HOLD，可提出有界 pilot 供另行当前评审；不能把缺关键科学依据的候选自动降级为 GO pilot。
 
@@ -195,7 +208,7 @@ KILL 必须是当前有效 KILL 评审，并且 decision_basis 满足对应类�
 | type | scope 与必要依据 |
 | --- | --- |
 | duplicate | scientific_framing；当前 novelty=duplicate，每个 decisive 近邻均有被 basis 引用的 section/full_text 证据，说明等价的贡献与适用条件 |
-| scientific_refutation | scientific_framing；basis 引用深读、decision_relevant、relation=contradicts、target=hypothesis 的候选 link；或同版本 kind=scientific、outcome=contradicted 且有 artifacts 的 pilot |
+| scientific_refutation | scientific_framing；basis 引用深读、decision_relevant、relation=contradicts、target=hypothesis 的候选 link；或同版本、未失效且无歧义 run 的有效 scientific/contradicted 分类，有 artifacts 并由 basis 引用 |
 | constraints | current_constraints；存在由 dependency_names 引用的 mandatory failed 依赖，其 dependency.constraint_keys 与 basis.constraint_keys 至少有一项对应，且指向有实际 value 与 source 的 confirmed 用户约束；说明该约束怎样阻塞此必要依赖。blocked 标签或无关联的 confirmed 事实不足以淘汰 |
 
 无当前评审、仅 duplicate/blocked 标签、仅 failed 依赖、执行故障、摘要相似、未知资源或不相符 KILL 依据均 HOLD，不自动淘汰。constraints 只终止当前约束下的框架或投入，不能作为科学反驳。缺资料、空检索、abstract-only、unknown 前置条件、pilot_only、过期评估和缺分数也进入 HOLD。输出 `ranked`、`held`、`killed` 三个数组及原因；零候选是正常结果。
@@ -206,10 +219,12 @@ KILL 必须是当前有效 KILL 评审，并且 decision_basis 满足对应类�
 
 `validate` 区分 `errors` 与 `warnings`。缺字段、非法枚举、悬空引用或非法 hash 是 errors；当前评审还校验 decision_basis 与当前候选、版本、依赖和约束键的关联。模糊全文 locator、筛选与近邻的可解释冲突、低置信度 GO 等可产生 warnings。warnings 不使 JSON 无效，也不替代门控；合法的初步构思可以没有论文或成熟验证，rank 仍应 HOLD。当前关联检查仍不证明所引观察确实支持决策，科学真实性和推理由宿主核验。
 
-v1 继续支持 validate 与旧语义 fingerprint，rank 一律 HOLD，提示迁移和重新评审。v1 的全局 basis_hash 不能充当 v2 的候选依赖指纹。
+v1/v2 继续支持 validate 与对应旧语义 fingerprint，rank 一律 HOLD，提示迁移和重新评审。旧 hash 不能充当 v3 的有效评审依据。
 
-`migrate` 验证 v1 后输出完整复制的新记录：schema_version=2；缺失 screening 或 evidence_links 时设空数组；旧 reviews 原样归档到 history 的 `schema_v1_review_archived` 条目，保留 original_review 与 requires_reassessment=true；当前 reviews 清空。它不替用户编造证据角色、候选主张、约束确认或新的 review_basis_hash。
+`migrate` 先验证旧记录，再完整复制并设置 schema_version=3 与 decision_contract_version=3；缺失 screening 或 evidence_links 时设空数组。每个旧 pilot 显式物化 run_id=pilot.id，affected_claims 缺失时设 []，result_invalidations 缺失时设 []，不猜测多个旧 pilot 是否同一次运行。保留旧结果、artifacts 和反证作用，不制造 supersedes 或失效。旧 reviews 原样归档到 history，保留 original_review 与 requires_reassessment=true；重新验证 v3。它不替用户编造证据角色、候选主张、约束确认或新的 review_basis_hash。
 
-v2 的缺失或旧 decision_contract_version 也可显式 migrate：设置顶层契约 2，将旧评审原样归档到 history 的 `decision_contract_review_archived`，标记 requires_reassessment，不给旧评审补上新版本或新 hash。在已经使用契约 2 的记录中保留仍可使用的契约 2 评审；若候选的最新评审仍是旧契约，其更早评审也原样归档，防止移除最新记录后恢复旧批准。若只有最新 independent 评审是旧契约，其更早独立评审也归档，避免恢复被阻挡的 full_validation 权限；较新的当前 self 评审仍保留，但 full_validation 需新的独立阶段批准。未知未来顶层契约或评审契约拒绝迁移，要求使用兼容工具并保留原文件。已有契约 2 且无旧契约阻挡的记录重复迁移不改写其当前评审。
+缺失或旧 decision_contract_version 须显式迁移并归档旧评审，不给旧评审补版本或 hash。当前 v3 混合旧评审时也不得因删除最新旧评审而恢复更早批准，包括独立阶段批准；旧回执不能通过改字段成为 v3 回执。未知未来顶层或评审契约拒绝迁移。已经使用当前合同且无旧契约阻挡的记录重复迁移不改写当前评审。
 
-迁移后先检查输出另存为新文件，补充真实候选 evidence_links、筛选上下文与资源依据，再获取 v2 fingerprint、完成契约 2 的新 review。空 links 与未重评的迁移记录仍 HOLD；原文件和旧评审理由保持可追溯。契约版本与哈希用于兼容与输入一致性，不防止恶意作者伪造一整套新记录。
+旧 v1/v2 中此前未解释的非空或畸形 result_invalidations 会明确拒绝自动迁移，要求检查并显式处理原材料；不能升级后突然激活这些撤回，也不能静默删除。缺省或空数组才初始化为新的空数组。
+
+迁移后先检查输出另存为新文件，补充真实候选 evidence_links、筛选上下文与资源依据，再获取 v3 fingerprint、完成契约 3 的新 review。空 links 与未重评的迁移记录仍 HOLD；原文件和旧评审理由保持可追溯。契约版本与哈希用于兼容与输入一致性，不防止恶意作者伪造一整套新记录。

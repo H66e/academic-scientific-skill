@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "project": {
     "id": "synthetic-theoretical",
     "question": "SYNTHETIC: under which invented assumption does a proposed bound hold?",
@@ -140,7 +140,7 @@
       "id": "R1",
       "idea_id": "I1",
       "idea_version": 1,
-      "review_basis_hash": "8f5cba03c46244d1172f1f72498705d92efe9584ae81e201491349446a5a9716",
+      "review_basis_hash": "8bc9ac919d390bdba094d9f971481c202782eadefba241900cdfc2faee019e92",
       "reviewed_at": "2026-10-05T08:00:00Z",
       "kind": "self",
       "decision": "GO",
@@ -172,10 +172,11 @@
         "SYNTHETIC EXAMPLE — NOT A REAL SCIENTIFIC CLAIM",
         "No real paper, retrieval, validation, or expert review"
       ],
-      "decision_contract_version": 2
+      "decision_contract_version": 3
     }
   ],
   "pilots": [],
   "history": [],
-  "decision_contract_version": 2
+  "decision_contract_version": 3,
+  "result_invalidations": []
 }

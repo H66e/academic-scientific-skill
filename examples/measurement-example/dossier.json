@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "project": {
     "id": "synthetic-measurement",
     "question": "SYNTHETIC: does an invented proxy measure its claimed target?",
@@ -140,7 +140,7 @@
       "id": "R1",
       "idea_id": "I1",
       "idea_version": 1,
-      "review_basis_hash": "53a7a67cfe5d09e85c22a486df989820ac352fe27f9747b6733dde622393a91a",
+      "review_basis_hash": "f18da68ecfb5702ec43aff3152401976866dfaf3fcc959c0e73cff5a1fdbd020",
       "reviewed_at": "2026-10-05T08:00:00Z",
       "kind": "self",
       "decision": "HOLD",
@@ -172,10 +172,11 @@
         "SYNTHETIC EXAMPLE — NOT A REAL SCIENTIFIC CLAIM",
         "No real paper, retrieval, validation, or expert review"
       ],
-      "decision_contract_version": 2
+      "decision_contract_version": 3
     }
   ],
   "pilots": [],
   "history": [],
-  "decision_contract_version": 2
+  "decision_contract_version": 3,
+  "result_invalidations": []
 }

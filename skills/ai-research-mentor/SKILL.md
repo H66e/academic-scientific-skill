@@ -89,7 +89,7 @@ Python `assess` 是严格机器建议，人工决定另行记录并绑定当前�
 
 判定细节、复核清单与重开范围见 [feedback.md](references/feedback.md)。
 
-这六项是对用户解释结果的归类；已有记录仍区分 `kind` 与 `outcome`，`smoke` 是 kind。Python 尚无实验登记与日志导入，需明确更新受影响的候选/项目记录再重评，不能声称结果已自动写入账本。
+这六项是对用户解释结果的归类；记录区分 `kind` 与 `outcome`，`smoke` 是 kind。Python 用 `record-result` 显式登记声明，`reclassify-result` 追加同 run 纠正；仅按真实人的指示用 `invalidate-result` 撤回整次 run 资格。多个有效分类头保持 HOLD。解除结果阻塞仍须重评，不能沿用旧 GO；日志不自动导入，登记不证明产物或解释真实。字段与操作见 python-core.md、data-contract.md。
 
 ## 交付与持续项目
 

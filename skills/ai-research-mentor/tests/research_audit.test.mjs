@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import {
   createInitialDossier, validateDossier, canonicalStringify,
   fingerprintIdea, rankingConfigHash, rankDossier, migrateDossier, initProject,
-  DECISION_CONTRACT_VERSION, createReviewReceipt, verifyIndependentReceipts,
+  DECISION_CONTRACT_VERSION, createReviewReceipt, verifyIndependentReceipts, effectiveResultState,
 } from '../scripts/research_audit.mjs';
 
 const when = '2026-10-05T08:00:00Z';
@@ -104,7 +104,7 @@ function addUnrelated(d) {
     evidence_links: [{ ...i.evidence_links[0], evidence_id: 'E2' }],
     nearest_work: [{ ...i.nearest_work[0], paper_id: 'P2', evidence_ids: ['E2'] }] });
   d.ideas.push(i);
-  d.pilots.push({ id: 'X2', idea_id: 'I2', idea_version: 1, kind: 'scientific', outcome: 'inconclusive',
+  d.pilots.push({ id: 'X2', run_id: 'X2', affected_claims: [], idea_id: 'I2', idea_version: 1, kind: 'scientific', outcome: 'inconclusive',
     artifacts: ['synthetic-i2.csv'], summary: 'An unrelated synthetic result', limitations: [] });
   d.screening.push({ id: 'SC2', search_id: 'S2', paper_id: 'P2', idea_ids: ['I2'],
     stage: 'full_text', decision: 'include', reason: 'Synthetic relevance to I2', screened_at: when });
@@ -125,9 +125,200 @@ function v1Fixture() {
   return d;
 }
 
+function result(d, id, options = {}) {
+  const record = { id, run_id: id, idea_id: 'I1', idea_version: 1, kind: 'scientific', outcome: 'contradicted',
+    artifacts: ['synthetic-observation.csv'], summary: 'SYNTHETIC lifecycle fixture, no actual experiment',
+    limitations: ['No scientific evidence'], affected_claims: [], actor: 'model', trust: 'T2', ...options };
+  d.pilots.push(record);
+  return record;
+}
+
+function invalidate(d, record, options = {}) {
+  const entry = { id: `INV-${d.result_invalidations.length + 1}`, run_id: record.run_id,
+    idea_id: record.idea_id, idea_version: record.idea_version, result_id: record.id,
+    reason: 'Synthetic control invalidity, not refutation', recorded_at: when, actor: 'user', trust: 'T1', ...options };
+  d.result_invalidations.push(entry);
+  return entry;
+}
+
+test('causal same-run correction removes a blocker but independent support does not', () => {
+  const d = fixture(); result(d, 'A'); result(d, 'B', { outcome: 'supported' });
+  assert.equal(effectiveResultState(d, 'I1').contradiction_blocker, true);
+  refresh(d);
+  assert.equal(rankDossier(d).held.length, 1);
+  const priorHash = d.reviews[0].review_basis_hash;
+  result(d, 'A2', { run_id: 'A', supersedes: 'A', reason: 'Explicit changed classification', outcome: 'inconclusive' });
+  assert.equal(effectiveResultState(d, 'I1').requires_hold, false);
+  assert.notEqual(fingerprintIdea(d, 'I1'), priorHash);
+  assert.match(rankDossier(d).held[0].reasons.join(' '), /stale/);
+  refresh(d);
+  assert.equal(rankDossier(d).ranked.length, 1);
+});
+
+test('multiple supported terminal heads warn and HOLD without contract invalidity', () => {
+  const d = fixture(); result(d, 'A', { outcome: 'supported' });
+  result(d, 'B', { run_id: 'A', outcome: 'supported' });
+  assert.equal(validateDossier(d).valid, true);
+  assert.match(validateDossier(d).warnings.join(' '), /ambiguous run A/);
+  const state = effectiveResultState(d, 'I1');
+  assert.equal(state.contradiction_blocker, false);
+  assert.equal(state.ambiguity_blocker, true);
+  refresh(d);
+  assert.match(rankDossier(d).held[0].reasons.join(' '), /multiple effective/);
+});
+
+test('replacement ancestry never revives and effective state ignores record order and timestamps', () => {
+  const d = fixture(); result(d, 'A', { recorded_at: '2026-10-07T00:00:00Z' });
+  result(d, 'B', { run_id: 'A', supersedes: 'A', reason: 'First correction', outcome: 'supported', recorded_at: when });
+  result(d, 'C', { run_id: 'A', supersedes: 'B', reason: 'Second correction', outcome: 'inconclusive' });
+  const state = effectiveResultState(d, 'I1'), hash = fingerprintIdea(d, 'I1');
+  assert.deepEqual(state.runs[0].head_ids, ['C']);
+  assert.equal(state.requires_hold, false);
+  for (const order of [[2, 0, 1], [1, 2, 0], [0, 2, 1]]) {
+    const copy = structuredClone(d); copy.pilots = order.map(index => d.pilots[index]);
+    assert.deepEqual(effectiveResultState(copy, 'I1'), state);
+    assert.equal(fingerprintIdea(copy, 'I1'), hash);
+  }
+});
+
+test('whole-run user invalidation survives later classification and always stales reviews', () => {
+  const d = fixture(), first = result(d, 'A'); refresh(d);
+  const hash = fingerprintIdea(d, 'I1');
+  invalidate(d, first);
+  assert.notEqual(fingerprintIdea(d, 'I1'), hash);
+  assert.equal(effectiveResultState(d, 'I1').requires_hold, false);
+  assert.match(rankDossier(d).held[0].reasons.join(' '), /stale/);
+  result(d, 'B', { run_id: 'A', supersedes: 'A', reason: 'New interpretation of retired run' });
+  assert.equal(effectiveResultState(d, 'I1').runs[0].eligible, false);
+  assert.deepEqual(effectiveResultState(d, 'I1').scientific_refutation_ids, []);
+  refresh(d); assert.equal(rankDossier(d).ranked.length, 1);
+  result(d, 'NEW-ATTEMPT'); refresh(d);
+  assert.equal(rankDossier(d).held.length, 1);
+});
+
+test('scientific KILL and GO share effective result state and reject retired or ambiguous basis', () => {
+  for (const scenario of ['superseded', 'invalidated', 'ambiguous']) {
+    const d = fixture(), first = result(d, 'A');
+    if (scenario === 'superseded') result(d, 'B', { run_id: 'A', supersedes: 'A', reason: 'Changed interpretation', outcome: 'supported' });
+    if (scenario === 'invalidated') invalidate(d, first);
+    if (scenario === 'ambiguous') result(d, 'B', { run_id: 'A', outcome: 'supported' });
+    decide(d, 'KILL', 'scientific_refutation', { pilot_ids: ['A'] });
+    assert.equal(rankDossier(d).killed.length, 0, scenario);
+    assert.equal(rankDossier(d).held.length, 1, scenario);
+  }
+  const d = fixture(); result(d, 'A');
+  decide(d, 'KILL', 'scientific_refutation', { pilot_ids: ['A'] });
+  assert.equal(rankDossier(d).killed.length, 1);
+});
+
+test('transition references, cycles, provenance and run identity are contract-invalid', () => {
+  for (const modify of [
+    d => result(d, 'B', { run_id: 'A', supersedes: 'missing', reason: 'Correction' }),
+    d => result(d, 'B', { run_id: 'B', supersedes: 'A', reason: 'Cross-run' }),
+    d => result(d, 'B', { run_id: 'A', supersedes: 'B', reason: 'Self-reference' }),
+    d => { d.pilots[0].supersedes = 'B'; d.pilots[0].reason = 'Cycle'; result(d, 'B', { run_id: 'A', supersedes: 'A', reason: 'Cycle' }); },
+    d => result(d, 'B', { run_id: 'A', idea_version: 2 }),
+    d => { const other = structuredClone(d.ideas[0]); other.id = 'I2'; d.ideas.push(other); result(d, 'B', { run_id: 'A', idea_id: 'I2', supersedes: 'A', reason: 'Cross-candidate' }); },
+    d => result(d, 'B', { run_id: 'A', supersedes: 'A', reason: ' ' }),
+    d => invalidate(d, d.pilots[0], { actor: 'model', trust: 'T2' }),
+    d => invalidate(d, d.pilots[0], { result_id: 'missing' }),
+    d => invalidate(d, d.pilots[0], { run_id: 'wrong-run' }),
+    d => invalidate(d, d.pilots[0], { id: 'A' }),
+    d => result(d, 'B', { actor: 'model', trust: 'T1' }),
+  ]) {
+    const d = fixture(); result(d, 'A'); modify(d);
+    assert.equal(validateDossier(d).valid, false);
+    assert.throws(() => effectiveResultState(d, 'I1'), /Invalid dossier/);
+  }
+});
+
+test('explanatory claim references can degrade visibly without weakening the result gate', () => {
+  const d = fixture();
+  d.ideas[0].claims = [{ id: 'H1', candidate_version: 1 }, { id: 'H2', candidate_version: 1 }];
+  const observed = result(d, 'A');
+  for (const claim_id of ['H1', 'H2', 'H3']) {
+    observed.affected_claims = [{ claim_id, reason: 'Declared explanation only' }];
+    const checked = validateDossier(d), state = effectiveResultState(d, 'I1');
+    assert.equal(checked.valid, true);
+    assert.equal(state.contradiction_blocker, true);
+    assert.equal(state.affected_claims_degraded, claim_id === 'H3');
+    refresh(d); assert.equal(rankDossier(d).held.length, 1);
+  }
+  for (const affected_claims of ['H1', [null], [{ claim_id: 'H1' }], [{ claim_id: 'H1', reason: ' ' }], [{ claim_id: 'H1', reason: 'Extra key', extra: true }]]) {
+    observed.affected_claims = affected_claims;
+    assert.equal(validateDossier(d).valid, false);
+  }
+});
+
+test('v2 migration materializes independent run IDs, preserves observations and archives reviews', () => {
+  const d = fixture(); result(d, 'A'); result(d, 'B', { outcome: 'supported' });
+  d.schema_version = 2; d.decision_contract_version = 2; delete d.result_invalidations;
+  for (const pilot of d.pilots) { delete pilot.run_id; delete pilot.affected_claims; }
+  for (const review of d.reviews) review.decision_contract_version = 2;
+  refresh(d);
+  const before = structuredClone(d), migrated = migrateDossier(d);
+  assert.deepEqual(d, before);
+  assert.equal(validateDossier(d).valid, true); assert.equal(rankDossier(d).ranked.length, 0);
+  assert.equal(migrated.schema_version, 3); assert.deepEqual(migrated.result_invalidations, []);
+  assert.deepEqual(migrated.pilots, before.pilots.map(pilot => ({ ...pilot, run_id: pilot.id, affected_claims: [] })));
+  assert.deepEqual(migrated.history[0].original_review, before.reviews[0]);
+  assert.deepEqual(migrated.reviews, []);
+  assert.equal(effectiveResultState(migrated, 'I1').contradiction_blocker, true);
+  addReview(migrated, 'I1');
+  assert.equal(rankDossier(migrated).held.length, 1);
+});
+
+test('migration rejects ignored legacy withdrawals instead of silently activating or deleting them', () => {
+  for (const legacyVersion of [1, 2]) {
+    for (const withdrawals of [
+      [{ id: 'INV', run_id: 'A', idea_id: 'I1', idea_version: 1, result_id: 'A', reason: 'Previously ignored extra data',
+        recorded_at: when, actor: 'user', trust: 'T1' }],
+      'Previously ignored extra field', null,
+    ]) {
+      const d = legacyVersion === 1 ? v1Fixture() : fixture();
+      result(d, 'A'); delete d.pilots[0].run_id; delete d.pilots[0].affected_claims;
+      d.schema_version = legacyVersion;
+      if (legacyVersion === 2) d.decision_contract_version = 2;
+      d.result_invalidations = withdrawals;
+      const original = structuredClone(d);
+      assert.equal(validateDossier(d).valid, true);
+      assert.throws(() => migrateDossier(d), /uninterpreted result_invalidations/);
+      assert.deepEqual(d, original);
+    }
+  }
+});
+
+test('classification history and invalidations enter only their candidate review closure', () => {
+  const d = fixture(); addUnrelated(d); refresh(d);
+  const unchanged = fingerprintIdea(d, 'I1');
+  invalidate(d, d.pilots[0]);
+  assert.equal(fingerprintIdea(d, 'I1'), unchanged);
+  const first = result(d, 'A');
+  result(d, 'B', { run_id: 'A', supersedes: 'A', reason: 'Corrected classification', outcome: 'supported' });
+  refresh(d);
+  const before = fingerprintIdea(d, 'I1');
+  first.summary += ' Additional historical scientific context';
+  assert.notEqual(fingerprintIdea(d, 'I1'), before);
+  refresh(d); invalidate(d, first);
+  assert.match(rankDossier(d).held[0].reasons.join(' '), /stale/);
+});
+
+test('v3 lifecycle fields are mandatory without blocking readable v2 inputs', () => {
+  const d = fixture(); result(d, 'A'); delete d.pilots[0].run_id;
+  assert.equal(validateDossier(d).valid, false);
+  d.schema_version = 2; delete d.result_invalidations; d.decision_contract_version = 2;
+  d.ideas[0].claims = 'An arbitrary old extra field';
+  assert.equal(validateDossier(d).valid, true);
+  assert.throws(() => effectiveResultState(d, 'I1'), /schema v3 migration/);
+  const malformed = fixture(); malformed.result_invalidations = [null, { id: 'bad' }];
+  assert.doesNotThrow(() => validateDossier(malformed));
+  assert.equal(validateDossier(malformed).valid, false);
+});
+
 test('empty initialization is valid and yields zero survivors', () => {
   const d = createInitialDossier('empty-test');
-  assert.equal(d.schema_version, 2);
+  assert.equal(d.schema_version, 3);
+  assert.deepEqual(d.result_invalidations, []);
   assert.deepEqual(d.screening, []);
   assert.equal(validateDossier(d).valid, true);
   const r = rankDossier(d);
@@ -269,7 +460,7 @@ test('actual evidence version is retained and version corrections invalidate rev
 
 test('new pilot evidence requires reassessment and is not automatically promoted', () => {
   const d = fixture();
-  d.pilots.push({ id: 'X1', idea_id: 'I1', idea_version: 1, kind: 'scientific', outcome: 'supported',
+  d.pilots.push({ id: 'X1', run_id: 'X1', affected_claims: [], idea_id: 'I1', idea_version: 1, kind: 'scientific', outcome: 'supported',
     artifacts: ['synthetic-results.csv'], summary: 'Fictional result', limitations: ['Synthetic only'] });
   assert.equal(validateDossier(d).valid, true);
   assert.equal(rankDossier(d).held.length, 1);
@@ -277,7 +468,7 @@ test('new pilot evidence requires reassessment and is not automatically promoted
 
 test('failed execution is retained separately from a contradicted hypothesis', () => {
   const d = fixture();
-  d.pilots.push({ id: 'X1', idea_id: 'I1', idea_version: 1, kind: 'smoke', outcome: 'execution_failed',
+  d.pilots.push({ id: 'X1', run_id: 'X1', affected_claims: [], idea_id: 'I1', idea_version: 1, kind: 'smoke', outcome: 'execution_failed',
     artifacts: ['synthetic-error.log'], summary: 'Synthetic import error', limitations: [] });
   assert.equal(validateDossier(d).valid, true);
   assert.equal(d.pilots[0].outcome, 'execution_failed');
@@ -286,14 +477,14 @@ test('failed execution is retained separately from a contradicted hypothesis', (
 
 test('not-run is valid without fabricated artifacts', () => {
   const d = fixture();
-  d.pilots.push({ id: 'X1', idea_id: 'I1', idea_version: 1, kind: 'scientific', outcome: 'not_run',
+  d.pilots.push({ id: 'X1', run_id: 'X1', affected_claims: [], idea_id: 'I1', idea_version: 1, kind: 'scientific', outcome: 'not_run',
     artifacts: [], summary: 'No execution took place', limitations: [] });
   assert.equal(validateDossier(d).valid, true);
 });
 
 test('old pilot versions can remain in history', () => {
   const d = fixture(); d.ideas[0].version = 2;
-  d.pilots.push({ id: 'X1', idea_id: 'I1', idea_version: 1, kind: 'smoke', outcome: 'supported',
+  d.pilots.push({ id: 'X1', run_id: 'X1', affected_claims: [], idea_id: 'I1', idea_version: 1, kind: 'smoke', outcome: 'supported',
     artifacts: ['synthetic-smoke.log'], summary: 'Old fixture environment check', limitations: [] });
   refresh(d);
   assert.equal(validateDossier(d).valid, true);
@@ -537,7 +728,7 @@ test('a scientific contradiction can KILL this framing while smoke or failed exe
     ['scientific', 'inconclusive', 'HOLD'],
   ]) {
     const d = fixture();
-    d.pilots.push({ id: 'X1', idea_id: 'I1', idea_version: 1, kind, outcome,
+    d.pilots.push({ id: 'X1', run_id: 'X1', affected_claims: [], idea_id: 'I1', idea_version: 1, kind, outcome,
       artifacts: ['synthetic-result.log'], summary: 'Synthetic attempted falsification', limitations: ['No scientific experiment performed'] });
     decide(d, 'KILL', 'scientific_refutation', { pilot_ids: ['X1'] });
     const output = rankDossier(d);
@@ -548,7 +739,7 @@ test('a scientific contradiction can KILL this framing while smoke or failed exe
 
 test('a refreshed GO review cannot erase a current-version scientific pilot contradiction', () => {
   const d = fixture();
-  d.pilots.push({ id: 'X1', idea_id: 'I1', idea_version: 1, kind: 'scientific', outcome: 'contradicted',
+  d.pilots.push({ id: 'X1', run_id: 'X1', affected_claims: [], idea_id: 'I1', idea_version: 1, kind: 'scientific', outcome: 'contradicted',
     artifacts: ['synthetic-refutation.csv'], summary: 'Synthetic current hypothesis failed its stated test',
     limitations: ['A software fixture, not scientific evidence'] });
   refresh(d);
@@ -562,7 +753,7 @@ test('a refreshed GO review cannot erase a current-version scientific pilot cont
 
 test('an old scientific contradiction does not permanently ban a freshly reviewed revised framing', () => {
   const d = fixture();
-  d.pilots.push({ id: 'X1', idea_id: 'I1', idea_version: 1, kind: 'scientific', outcome: 'contradicted',
+  d.pilots.push({ id: 'X1', run_id: 'X1', affected_claims: [], idea_id: 'I1', idea_version: 1, kind: 'scientific', outcome: 'contradicted',
     artifacts: ['synthetic-old-refutation.csv'], summary: 'Synthetic historical framing was contradicted',
     limitations: ['Historical fixture, not a test of the revised question'] });
   d.ideas[0].version = 2;
@@ -579,7 +770,7 @@ test('an old scientific contradiction does not permanently ban a freshly reviewe
 
 test('a contradictory old-version pilot cannot be cited as a current refutation', () => {
   const d = fixture(); d.ideas[0].version = 2;
-  d.pilots.push({ id: 'X1', idea_id: 'I1', idea_version: 1, kind: 'scientific', outcome: 'contradicted',
+  d.pilots.push({ id: 'X1', run_id: 'X1', affected_claims: [], idea_id: 'I1', idea_version: 1, kind: 'scientific', outcome: 'contradicted',
     artifacts: ['synthetic-old.csv'], summary: 'A different historical framing', limitations: [] });
   d.reviews[0].idea_version = 2;
   d.reviews[0].review_basis_hash = fingerprintIdea(d, 'I1');
@@ -968,7 +1159,7 @@ test('source notes must be an object and their type errors aggregate with other 
 });
 
 test('legacy v2 decisions remain readable but cannot become current through relabelling a review', () => {
-  const d = fixture(); delete d.decision_contract_version; delete d.reviews[0].decision_contract_version; refresh(d);
+  const d = fixture(); d.schema_version = 2; delete d.result_invalidations; delete d.decision_contract_version; delete d.reviews[0].decision_contract_version; refresh(d);
   const legacyHash = d.reviews[0].review_basis_hash;
   assert.equal(validateDossier(d).valid, true);
   for (const decision of ['GO', 'HOLD', 'KILL']) {
@@ -983,10 +1174,10 @@ test('legacy v2 decisions remain readable but cannot become current through rela
 });
 
 test('contract migration archives legacy v2 reviews unchanged without making replacement approvals', () => {
-  const d = fixture(); d.decision_contract_version = 1; d.reviews[0].decision_contract_version = 1; refresh(d);
+  const d = fixture(); d.schema_version = 2; delete d.result_invalidations; d.decision_contract_version = 1; d.reviews[0].decision_contract_version = 1; refresh(d);
   const original = structuredClone(d); const migrated = migrateDossier(d);
   assert.deepEqual(d, original);
-  assert.equal(migrated.schema_version, 2);
+  assert.equal(migrated.schema_version, 3);
   assert.equal(migrated.decision_contract_version, DECISION_CONTRACT_VERSION);
   assert.deepEqual(migrated.reviews, []);
   assert.deepEqual(migrated.history.at(-1).original_review, original.reviews[0]);
@@ -1077,7 +1268,7 @@ test('migration archives full v1 reviews without fabricating reassessment or mut
   const d = v1Fixture(); const before = JSON.stringify(d); const oldReview = structuredClone(d.reviews[0]);
   const migrated = migrateDossier(d);
   assert.equal(JSON.stringify(d), before);
-  assert.equal(migrated.schema_version, 2);
+  assert.equal(migrated.schema_version, 3);
   assert.equal(validateDossier(migrated).valid, true);
   assert.deepEqual(migrated.reviews, []);
   assert.deepEqual(migrated.ideas[0].evidence_links, []);
@@ -1088,7 +1279,7 @@ test('migration archives full v1 reviews without fabricating reassessment or mut
   assert.equal(rankDossier(migrated).ranked.length, 0);
 });
 
-test('migrating a v2 dossier preserves its current records without rewriting hashes', () => {
+test('migrating a current v3 dossier preserves its records without rewriting hashes', () => {
   const d = fixture(); const before = structuredClone(d);
   assert.deepEqual(migrateDossier(d), before);
   assert.deepEqual(d, before);
@@ -1170,7 +1361,7 @@ test('CLI migration emits a valid reassessment dossier without overwriting the v
     const result = spawnSync(process.execPath, [script, 'migrate', file], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
     const output = JSON.parse(result.stdout);
-    assert.equal(output.schema_version, 2);
+    assert.equal(output.schema_version, 3);
     assert.equal(validateDossier(output).valid, true);
     assert.deepEqual(output.reviews, []);
     assert.equal(await readFile(file, 'utf8'), content);

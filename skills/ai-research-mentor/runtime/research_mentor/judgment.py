@@ -2,7 +2,7 @@
 
 No function authenticates a person, establishes novelty, or executes research.
 New evidence invalidates the conservative project snapshot used by decisions.
-The v2 export deliberately has no machine-generated legacy GO reviews.
+The v3 export preserves results, but transfers no machine or human approvals.
 """
 from __future__ import annotations
 
@@ -10,12 +10,13 @@ from copy import deepcopy
 from typing import Any
 
 from .ledger import Ledger, LedgerError, digest
+from .results import candidate_result_state, validate_result_history
 
 RESEARCH_TYPES = {"empirical", "theoretical", "measurement", "dataset", "reproduction"}
 TARGETS = {"problem", "hypothesis", "nearest_work", "prerequisite", "validation"}
 NOTICE = ("Structural acquisition and anchor checks do not prove source truth, "
           "literature completeness, faithful interpretation, novelty or human identity.")
-POLICY_VERSION = "python-credibility-v2"
+POLICY_VERSION = "python-credibility-v3"
 DUPLICATION_CLAIM_KINDS = {"mechanism_equivalence", "duplicate"}
 
 
@@ -33,7 +34,9 @@ class Judgment:
         report = self.ledger.verify()
         if not report["valid"]:
             raise LedgerError("invalid ledger: " + "; ".join(report["errors"]))
-        return self.ledger.read()
+        events = self.ledger.read()
+        validate_result_history(events)
+        return events
 
     def _candidate(self, candidate_id: str) -> dict:
         matches = [e for e in self._events() if e["type"] == "candidate.upsert"
@@ -47,6 +50,8 @@ class Judgment:
                    and (e["id"] == record_id or e["data"].get("id") == record_id)]
         if not matches:
             raise ValueError(f"unknown {event_type} ID: {record_id}")
+        if len(matches) > 1:
+            raise ValueError(f"ambiguous {event_type} ID: {record_id}")
         return matches[-1]
 
     def snapshot(self, candidate_id: str) -> str:
@@ -157,6 +162,66 @@ class Judgment:
             "visual_checked": visual_checked}, actor="user" if human else "model",
             trust="T1" if human else "T2")
 
+    def record_result(self, data: dict, *, human: bool = False) -> dict:
+        """Append a declared classification; validation does not prove execution."""
+        if not isinstance(data, dict):
+            raise ValueError("result must be an object")
+        if type(human) is not bool:
+            raise ValueError("human must be boolean")
+        events = self._events()
+        payload = deepcopy(data)
+        payload.setdefault("id", f"R-{len(events) + 1:06d}")
+        actor, trust = ("user", "T1") if human else ("model", "T2")
+        proposed = {"type": "result.record", "id": f"EV-{len(events) + 1:06d}",
+                    "ts": self.ledger.clock(), "actor": actor, "trust": trust, "data": payload}
+        # A causal append must point at existing history; an unordered external
+        # snapshot is instead checked over all of its declared relationships.
+        if "supersedes" in payload and not any(e["type"] == "result.record"
+                and e["data"]["id"] == payload["supersedes"] for e in events):
+            raise ValueError("supersedes target is missing from existing history")
+        validate_result_history([*events, proposed])
+        return self.ledger.append("result.record", payload, actor=actor, trust=trust,
+            expected_head=events[-1]["sha256"] if events else "")
+
+    def reclassify_result(self, target: str, outcome: str, *, reason: str,
+                          human: bool = False, artifacts: list[str] | None = None,
+                          summary: str | None = None, limitations: list[str] | None = None,
+                          affected_claims: list[dict] | None = None, kind: str | None = None) -> dict:
+        previous = self._record(target, "result.record")
+        data = deepcopy(previous["data"])
+        data.pop("id")
+        data.update({"supersedes": previous["data"]["id"], "outcome": outcome,
+                     "reason": _text(reason, "reclassification reason")})
+        for key, value in (("artifacts", artifacts), ("summary", summary),
+                           ("limitations", limitations), ("affected_claims", affected_claims), ("kind", kind)):
+            if value is not None:
+                data[key] = value
+        return self.record_result(data, human=human)
+
+    def invalidate_result(self, target: str, reason: str, *, human: bool = False) -> dict:
+        if human is not True:
+            raise ValueError("run invalidation requires an actual human instruction")
+        events = self._events()
+        previous = self._record(target, "result.record")["data"]
+        payload = {"id": f"RI-{len(events) + 1:06d}",
+                   **{k: previous[k] for k in ("run_id", "candidate_id", "candidate_version")},
+                   "result_id": previous["id"], "reason": _text(reason, "invalidation reason"),
+                   "recorded_at": self.ledger.clock()}
+        proposed = {"type": "result.invalidate", "id": f"EV-{len(events) + 1:06d}",
+                    "ts": payload["recorded_at"], "actor": "user", "trust": "T1", "data": payload}
+        validate_result_history([*events, proposed])
+        return self.ledger.append("result.invalidate", payload, actor="user", trust="T1",
+            expected_head=events[-1]["sha256"] if events else "")
+
+    def results(self, candidate_id: str, *, candidate_version: int | None = None) -> dict:
+        events = self._events()
+        candidate = self._candidate(candidate_id)
+        version = candidate["version"] if candidate_version is None else candidate_version
+        if type(version) is not int or not any(e["type"] == "candidate.upsert"
+                and e["data"].get("id") == candidate_id and e["data"].get("version") == version for e in events):
+            raise ValueError("unknown candidate version")
+        return candidate_result_state(events, candidate_id, version)
+
     def _links(self, candidate: dict, events: list[dict]) -> tuple[list[dict], list[dict]]:
         claims = [e for e in events if e["type"] == "claim.add"
                   and e["data"].get("candidate_id") == candidate["id"]
@@ -257,6 +322,11 @@ class Judgment:
                           and l["target"] in {"hypothesis", "prerequisite", "validation"}]
         if contradictions:
             missing.append("Decision-relevant evidence contradicts a core condition")
+        result_state = candidate_result_state(events, candidate_id, candidate["version"])
+        if result_state["contradiction_blocker"]:
+            missing.append("Effective scientific result contradicts this candidate version")
+        if result_state["ambiguity_blocker"]:
+            missing.append("Result run has ambiguous effective classifications")
         feasibility = candidate.get("feasibility", {})
         dependencies = feasibility.get("dependencies", [])
         if feasibility.get("status") != "ready" or any(d.get("mandatory") and d.get("status") != "met" for d in dependencies):
@@ -275,7 +345,9 @@ class Judgment:
         # Typed KILL is intentionally conservative; no label or failed network
         # call can by itself eliminate a scientific framing.
         if recommendation == "KILL":
-            if kill_type == "scientific_refutation" and contradictions and evidence_ids and artifacts.get("valid"):
+            if kill_type == "scientific_refutation" and result_state["scientific_refutation_basis"] and artifacts.get("valid") and scope == "scientific_framing":
+                decision = "KILL"
+            elif kill_type == "scientific_refutation" and contradictions and evidence_ids and artifacts.get("valid"):
                 evidence_failures = [m for m in missing if m.startswith("Evidence ") or "different/unresolved paper" in m]
                 if not evidence_failures and scope == "scientific_framing":
                     decision = "KILL"
@@ -315,6 +387,7 @@ class Judgment:
                   "machine_recommendation": decision, "requested_recommendation": recommendation,
                   "stage": stage, "scope": scope, "kill_type": kill_type, "reason": reason,
                   "missing": list(dict.fromkeys(missing)), "coverage": coverage,
+                  "result_state": result_state, "warnings": result_state["warnings"],
                   "artifact_verification": artifacts, "human_decision": None,
                   "approval_status": "pending_human", "notice": NOTICE}
         if self.snapshot(candidate_id) != input_snapshot:
@@ -388,15 +461,15 @@ class Judgment:
         events = self._events()
         projects = [e["data"] for e in events if e["type"] in {"project.init", "project.update"}]
         project = projects[-1] if projects else {}
-        dossier = {"schema_version": 2, "decision_contract_version": 2,
+        dossier = {"schema_version": 3, "decision_contract_version": 3,
             "project": {"id": project.get("id", self.ledger.project.name), "question": project.get("question", ""),
                         "research_type": project.get("research_type", "empirical"),
                         "constraints": project.get("constraints", {}), "assumptions": project.get("assumptions", [])},
             "config": {"ranking_weights": {"scientific_value": 40, "differentiation": 35, "testability": 25}},
             "searches": [], "papers": [], "screening": [], "evidence": [], "ideas": [],
-            "reviews": [], "pilots": [], "history": [{"type": "python_ledger_projection",
+            "reviews": [], "pilots": [], "result_invalidations": [], "history": [{"type": "python_ledger_projection",
                 "protocol": "ledger-json-v1", "requires_reassessment": True,
-                "note": "Initial v2 projection; does not transfer Python reviews, approvals or new hash semantics."}]}
+                "note": "v3 result-history projection; does not transfer Python reviews, approvals or hash semantics."}]}
         papers = {}
         for event in events:
             if event["type"] == "paper.resolve":
@@ -426,12 +499,29 @@ class Judgment:
                 current_candidates[event["data"]["id"]] = event["data"]
         for candidate in current_candidates.values():
             # No reading/claim is manufactured by a projection. Preserve user
-            # fields, leave evidence associations pending explicit v2 reassessment.
+            # fields, leave evidence associations pending explicit Node reassessment.
             item = {k: deepcopy(candidate[k]) for k in ("id", "version", "title", "question", "research_type", "hypothesis", "contribution")}
             item.update({"evidence_ids": [], "evidence_links": [], "nearest_work": [],
                          "search_ids": [sid for sid in candidate["search_ids"] if any(s["id"] == sid for s in dossier["searches"])],
-                         "novelty": {"status": "unclear", "reason": "Projection requires v2 reassessment", "coverage": "See local ledger"},
-                         "feasibility": {"status": "unknown", "reason": "Projection is not a v2 approval", "dependencies": []},
+                         "novelty": {"status": "unclear", "reason": "Projection requires v3 reassessment", "coverage": "See local ledger"},
+                         "feasibility": {"status": "unknown", "reason": "Projection is not a v3 approval", "dependencies": []},
                          "validation": {"status": "missing", **{k: "" for k in ("prediction", "falsifier", "design", "metric", "resource_estimate", "stop_rule")}}})
             dossier["ideas"].append(item)
+            item["claims"] = [{"id": e["id"], **deepcopy(e["data"])} for e in events
+                              if e["type"] == "claim.add" and e["data"].get("candidate_id") == candidate["id"]]
+        for event in events:
+            if event["type"] not in {"result.record", "result.invalidate"}:
+                continue
+            data = deepcopy(event["data"])
+            data["idea_id"] = data.pop("candidate_id")
+            data["idea_version"] = data.pop("candidate_version")
+            data.update({"actor": event["actor"], "trust": event["trust"],
+                         "recorded_at": data.get("recorded_at", event["ts"])})
+            if event["type"] == "result.record":
+                # Node's pilot keeps its stage field; no independent approval or
+                # evidence association is inferred from the result declaration.
+                data["stage"] = "pilot"
+                dossier["pilots"].append(data)
+            else:
+                dossier["result_invalidations"].append(data)
         return dossier

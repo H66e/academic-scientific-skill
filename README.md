@@ -4,7 +4,7 @@
 
 当前版本 **0.3.0**。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
-**本分支未发布改动：Python-first 证据核心。** 新持续项目可使用 Python 3.10+ 标准库工具自动创建来源回执、精确文本锚点与本地只追加账本，并将机器建议和人工决定分开。现有 Node 工具保留；旧审计函数尚未完整移植，PDF 文本提取、实验结果登记和科研效果评测尚未完成。说明与完整命令见 [Python 工作流](skills/ai-research-mentor/references/python-core.md)，实际检查和剩余范围见 [Python 核心验收记录](evaluation/validation-python-core.md)。
+**未发布源码改动：Python-first 证据核心与显式结果生命周期。** 新持续项目可使用 Python 3.10+ 标准库工具创建来源回执、精确文本锚点与本地只追加账本，并将机器建议和人工决定分开。现有 Node 工具保留并提供 v3 结果合同与旧记录迁移；旧审计函数尚未完整移植，PDF 文本提取、自动日志导入和科研效果评测尚未完成。说明与完整命令见 [Python 工作流](skills/ai-research-mentor/references/python-core.md)，实际检查和剩余范围见 [Python 核心验收记录](evaluation/validation-python-core.md)。
 
 ```text
 python -B skills/ai-research-mentor/scripts/research_mentor.py --project ../research-private/example doctor
@@ -14,7 +14,7 @@ python -B evaluation/run-python-tests.py
 
 外部检索默认阻止 private query；只有 public/deidentified 分类可发送。上述路径是本地研究数据，不能发布或同步到安装源码中。CLI/API 使用同一 `runtime/research_mentor` 包，`pip install -e .` 可选；无需为 Skill 安装 pip 包。
 
-结果与阅读记录的后续生命周期已在 [ADR 0004](docs/decisions/0004-result-lifecycle-semantics.md) 冻结。本步只闭合现有 Python 事件词表：写入和验证均拒绝未注册类型，编辑辅助 schema 使用同一集合。`result.record`、`result.invalidate` 与 `reading.retract` 仍未注册；当前阅读谓词、判断策略和 Node 合同保持现状，不能把规范冻结当作功能已实现。
+结果与阅读生命周期以 [ADR 0004](docs/decisions/0004-result-lifecycle-semantics.md) 为共同规范。Python 的 `record-result/reclassify-result/invalidate-result/results` 保存真实声明、显式纠正与运行失效；Node v3 和 Python 投影保留完整结果历史。解除结果阻塞仍须重评，不能恢复旧 GO。各阶段实施状态与策略迁移见 [ADR 0005](docs/decisions/0005-policy-bound-lifecycle-rollout.md)。
 
 正式源码、安装副本和未发布 v0.4 候选的边界见 [工作区与版本治理说明](docs/WORKSPACE_GOVERNANCE.md)。当前 Codex 加载的是最后同步的 v0.3.0；本工作树中的未发布改动不会自动进入安装副本，v0.4 candidate 仍处于开发和审查阶段。
 
@@ -95,9 +95,9 @@ node skills/ai-research-mentor/scripts/research_audit.mjs fingerprint my-topic/d
 node skills/ai-research-mentor/scripts/research_audit.mjs rank my-topic/dossier.json
 ```
 
-先由研究者或宿主填写项目事实、实际来源、候选和评估。初始化文件不含论文或评审；v2 `fingerprint` 的 `review_basis_hash` 写入对应评审后，排序才会检查其是否仍然有效。项目记录保存在用户工作区。
+先由研究者或宿主填写项目事实、实际来源、候选和评估。初始化文件不含论文或评审；当前 `fingerprint` 的 `review_basis_hash` 写入对应评审后，排序才会检查其是否仍然有效。项目记录保存在用户工作区。
 
-schema 2 将证据角色、对象和主张放在候选的 `evidence_links` 中。本版 decision_contract_version=2；资源 KILL 必须把确认约束关联到实际失败的必要依赖。完整验证需要最新同阶段独立 GO，且当次读取真实 JSON 回执核对字节哈希和全部评审字段：
+当前 schema_version=3、decision_contract_version=3 保留候选 evidence_links，并显式标识运行、因果分类纠正与失效。v1/v2 可以验证读取，但须迁移重评。资源 KILL 必须把确认约束关联到实际失败的必要依赖。完整验证需要最新同阶段独立 GO，且当次读取真实 JSON 回执核对字节哈希和全部评审字段：
 
 ```text
 node skills/ai-research-mentor/scripts/research_audit.mjs verify-receipts my-topic/dossier.json --root my-topic
@@ -112,7 +112,7 @@ node skills/ai-research-mentor/scripts/research_audit.mjs rank my-topic/dossier.
 node skills/ai-research-mentor/scripts/research_audit.mjs migrate old-project/dossier.json
 ```
 
-迁移输出到标准输出，不覆盖输入；检查后用 UTF-8 另存新文件。旧 reviews 完整归档到 history，当前 reviews 清空，初始 evidence_links 为空；迁移不会编造新证据角色或新评审指纹。
+迁移输出到标准输出，不覆盖输入；检查后用 UTF-8 另存新文件。旧 reviews 完整归档到 history 并要求重评，旧 pilots 物化 run_id、保留原结果和产物；迁移不会编造分类替代、失效、新证据角色或新评审指纹。
 
 字段说明见 [`data-contract.md`](skills/ai-research-mentor/references/data-contract.md)，评分锚点与门控见 [`evaluation.md`](skills/ai-research-mentor/references/evaluation.md)。无 Node 时仍可依这些规范手动完成任务。
 

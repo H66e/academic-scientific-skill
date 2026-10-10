@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:ai-research-mentor:dossier:2",
-  "title": "AI research dossier schema 2",
-  "description": "Editor assistance for schema-2 records, including legacy decision contracts. research_audit.mjs remains authoritative for references, input fingerprints, migration and GO/HOLD/KILL. Schema validation does not verify sources.",
+  "$id": "urn:ai-research-mentor:dossier:3",
+  "title": "AI research dossier schema 3 with legacy read support",
+  "description": "Editor assistance for schema-3 result lifecycles and readable legacy records. research_audit.mjs remains authoritative for causal references, fingerprints, migration and GO/HOLD/KILL. Schema validation does not verify sources or immutable history.",
   "type": "object",
-  "required": ["schema_version", "project", "config", "searches", "papers", "screening", "evidence", "ideas", "reviews", "pilots", "history"],
+  "required": ["schema_version", "project", "config", "searches", "papers", "evidence", "ideas", "reviews", "pilots", "history"],
   "properties": {
-    "schema_version": { "const": 2 },
-    "decision_contract_version": { "type": "integer", "minimum": 1, "description": "Current contract is 2. Missing, old or unsupported contracts require reassessment; do not rewrite old reviews into current ones." },
+    "schema_version": { "enum": [1, 2, 3] },
+    "decision_contract_version": { "type": "integer", "minimum": 1, "description": "Current contract is 3. Missing, old or unsupported contracts require reassessment; do not rewrite old reviews into current ones." },
     "project": {
       "type": "object", "required": ["id", "question", "research_type", "constraints", "assumptions"],
       "properties": {
@@ -33,6 +33,27 @@
     "pilots": { "type": "array", "items": { "$ref": "#/$defs/pilot" } },
     "history": { "type": "array", "items": { "type": "object" } }
   },
+  "allOf": [
+    { "if": { "properties": { "schema_version": { "enum": [2, 3] } } }, "then": {
+      "required": ["screening"], "properties": {
+        "ideas": { "items": { "required": ["evidence_links"] } },
+        "reviews": { "items": { "required": ["review_basis_hash", "decision_scope", "recommended_stage", "decision_basis"] } }
+      }
+    } },
+    { "if": { "properties": { "schema_version": { "const": 1 } } }, "then": { "properties": { "reviews": { "items": { "required": ["basis_hash"] } } } } },
+    { "if": { "properties": { "schema_version": { "const": 3 } } }, "then": {
+      "required": ["decision_contract_version", "result_invalidations"],
+      "properties": {
+        "pilots": { "items": { "$ref": "#/$defs/resultLifecycle" } },
+        "result_invalidations": { "type": "array", "items": { "$ref": "#/$defs/resultInvalidation" } },
+        "ideas": { "items": { "properties": { "claims": { "type": "array", "items": {
+          "type": "object", "required": ["id"], "properties": {
+            "id": { "$ref": "#/$defs/text" }, "candidate_version": { "type": "integer", "minimum": 1 }
+          }
+        } } } } }
+      }
+    } }
+  ],
   "$defs": {
     "text": { "type": "string", "minLength": 1, "pattern": "\\S" },
     "texts": { "type": "array", "items": { "$ref": "#/$defs/text" } },
@@ -80,7 +101,7 @@
         "status": { "enum": ["met", "failed", "unknown"] }, "basis": { "$ref": "#/$defs/text" }, "constraint_keys": { "$ref": "#/$defs/texts" } }
     },
     "idea": {
-      "type": "object", "required": ["id", "version", "title", "question", "research_type", "hypothesis", "contribution", "evidence_ids", "search_ids", "evidence_links", "nearest_work", "novelty", "feasibility", "validation"],
+      "type": "object", "required": ["id", "version", "title", "question", "research_type", "hypothesis", "contribution", "evidence_ids", "search_ids", "nearest_work", "novelty", "feasibility", "validation"],
       "properties": {
         "id": { "$ref": "#/$defs/text" }, "version": { "type": "integer", "minimum": 1 },
         "title": { "$ref": "#/$defs/text" }, "question": { "$ref": "#/$defs/text" }, "research_type": { "$ref": "#/$defs/researchType" },
@@ -120,10 +141,11 @@
         "differentiation": { "enum": ["low", "medium", "high"] }, "testability": { "enum": ["low", "medium", "high"] } }
     },
     "review": {
-      "type": "object", "required": ["id", "idea_id", "idea_version", "review_basis_hash", "reviewed_at", "kind", "decision", "decision_scope", "recommended_stage", "decision_basis", "reason", "scores", "score_reasons", "penalties", "limitations"],
+      "type": "object", "required": ["id", "idea_id", "idea_version", "reviewed_at", "kind", "decision", "reason", "scores", "score_reasons", "penalties", "limitations"],
       "properties": {
         "id": { "$ref": "#/$defs/text" }, "idea_id": { "$ref": "#/$defs/text" }, "idea_version": { "type": "integer", "minimum": 1 },
         "decision_contract_version": { "type": "integer", "minimum": 1 }, "review_basis_hash": { "$ref": "#/$defs/hash" },
+        "basis_hash": { "$ref": "#/$defs/hash" },
         "reviewed_at": { "$ref": "#/$defs/date" }, "kind": { "enum": ["self", "independent"] }, "decision": { "$ref": "#/$defs/decision" },
         "decision_scope": { "enum": ["scientific_framing", "current_constraints"] }, "recommended_stage": { "enum": ["information_test", "pilot", "full_validation"] },
         "reason": { "$ref": "#/$defs/text" }, "scores": { "$ref": "#/$defs/scores" }, "score_reasons": { "$ref": "#/$defs/reasons" },
@@ -146,7 +168,35 @@
       "type": "object", "required": ["id", "idea_id", "idea_version", "kind", "outcome", "artifacts", "summary", "limitations"],
       "properties": { "id": { "$ref": "#/$defs/text" }, "idea_id": { "$ref": "#/$defs/text" }, "idea_version": { "type": "integer", "minimum": 1 },
         "kind": { "enum": ["smoke", "scientific"] }, "outcome": { "enum": ["execution_failed", "supported", "contradicted", "inconclusive", "not_run"] },
-        "artifacts": { "$ref": "#/$defs/texts" }, "summary": { "$ref": "#/$defs/text" }, "limitations": { "$ref": "#/$defs/texts" } }
+        "artifacts": { "$ref": "#/$defs/texts" }, "summary": { "$ref": "#/$defs/text" }, "limitations": { "$ref": "#/$defs/texts" }
+      }
+    },
+    "resultLifecycle": {
+      "type": "object", "required": ["run_id", "affected_claims"],
+      "properties": {
+        "run_id": { "$ref": "#/$defs/text" }, "supersedes": { "$ref": "#/$defs/text" }, "reason": { "$ref": "#/$defs/text" },
+        "actor": { "enum": ["model", "user"] }, "trust": { "enum": ["T1", "T2"] }, "recorded_at": { "$ref": "#/$defs/date" },
+        "affected_claims": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["claim_id", "reason"], "properties": {
+          "claim_id": { "$ref": "#/$defs/text" }, "reason": { "$ref": "#/$defs/text" }
+        } } }
+      },
+      "allOf": [
+        { "if": { "required": ["supersedes"] }, "then": { "required": ["reason"] } },
+        { "if": { "required": ["reason"] }, "then": { "required": ["supersedes"] } },
+        { "if": { "required": ["actor"] }, "then": { "required": ["trust"], "oneOf": [
+          { "properties": { "actor": { "const": "model" }, "trust": { "const": "T2" } } },
+          { "properties": { "actor": { "const": "user" }, "trust": { "const": "T1" } } }
+        ] } },
+        { "if": { "required": ["trust"] }, "then": { "required": ["actor"] } }
+      ]
+    },
+    "resultInvalidation": {
+      "type": "object", "required": ["id", "run_id", "idea_id", "idea_version", "result_id", "reason", "recorded_at", "actor", "trust"],
+      "properties": {
+        "id": { "$ref": "#/$defs/text" }, "run_id": { "$ref": "#/$defs/text" }, "idea_id": { "$ref": "#/$defs/text" },
+        "idea_version": { "type": "integer", "minimum": 1 }, "result_id": { "$ref": "#/$defs/text" }, "reason": { "$ref": "#/$defs/text" },
+        "recorded_at": { "$ref": "#/$defs/date" }, "actor": { "const": "user" }, "trust": { "const": "T1" }
+      }
     }
   }
 }

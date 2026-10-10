@@ -2,14 +2,14 @@
 // Structural checks and bounded ranking; never a proof of scientific merit.
 // Public APIs: createInitialDossier, validateDossier, canonicalStringify,
 // fingerprintIdea, rankingConfigHash, migrateDossier, rankDossier, initProject,
-// createReviewReceipt, verifyIndependentReceipts, DECISION_CONTRACT_VERSION.
+// createReviewReceipt, verifyIndependentReceipts, effectiveResultState, DECISION_CONTRACT_VERSION.
 // Importing this file has no effects.
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const DECISION_CONTRACT_VERSION = 2;
+export const DECISION_CONTRACT_VERSION = 3;
 const verifiedReceipts = new WeakMap();
 
 const DIMENSIONS = ['scientific_value', 'differentiation', 'testability'];
@@ -86,11 +86,14 @@ export function validateDossier(dossier) {
   const date = (value, where) => { if (!timestamp(value)) fail(where, 'must be an ISO 8601 timestamp with a timezone'); };
   const positive = (value, where) => { if (!positiveInteger(value)) fail(where, 'must be a positive integer'); };
   if (!keys(dossier, 'dossier', ['schema_version', 'project', 'config', 'searches', 'papers', 'evidence', 'ideas', 'reviews', 'pilots', 'history'])) return { valid: false, errors, warnings, notice: NOTICE };
-  if (![1, 2].includes(dossier.schema_version)) fail('schema_version', 'must equal 1 or 2');
-  const v2 = dossier.schema_version === 2;
-  if (v2 && !own(dossier, 'screening')) fail('screening', 'required');
-  if (v2 && own(dossier, 'decision_contract_version')) positive(dossier.decision_contract_version, 'decision_contract_version');
-  if (v2 && dossier.decision_contract_version !== DECISION_CONTRACT_VERSION) warn('decision_contract_version', 'Legacy or unsupported decision contract; decisions remain HOLD until migration and reassessment');
+  if (![1, 2, 3].includes(dossier.schema_version)) fail('schema_version', 'must equal 1, 2 or 3');
+  const modern = [2, 3].includes(dossier.schema_version);
+  const v3 = dossier.schema_version === 3;
+  if (modern && !own(dossier, 'screening')) fail('screening', 'required');
+  if (v3 && !own(dossier, 'decision_contract_version')) fail('decision_contract_version', 'required');
+  if (v3 && !own(dossier, 'result_invalidations')) fail('result_invalidations', 'required');
+  if (modern && own(dossier, 'decision_contract_version')) positive(dossier.decision_contract_version, 'decision_contract_version');
+  if (modern && dossier.decision_contract_version !== DECISION_CONTRACT_VERSION) warn('decision_contract_version', 'Legacy or unsupported decision contract; decisions remain HOLD until migration and reassessment');
   if (keys(dossier.project, 'project', ['id', 'question', 'research_type', 'constraints', 'assumptions'])) {
     text(dossier.project.id, 'project.id');
     text(dossier.project.question, 'project.question', true);
@@ -112,7 +115,7 @@ export function validateDossier(dossier) {
   }
   const collections = {};
   const ids = {};
-  for (const name of ['searches', 'papers', 'evidence', 'ideas', 'reviews', 'pilots', 'history', ...(v2 ? ['screening'] : [])]) {
+  for (const name of ['searches', 'papers', 'evidence', 'ideas', 'reviews', 'pilots', 'history', ...(modern ? ['screening'] : []), ...(v3 ? ['result_invalidations'] : [])]) {
     if (!Array.isArray(dossier[name])) fail(name, 'must be an array');
     collections[name] = Array.isArray(dossier[name]) ? dossier[name] : [];
     ids[name] = new Set();
@@ -177,7 +180,21 @@ export function validateDossier(dossier) {
     choice(item.research_type, `${where}.research_type`, TYPES);
     references(item.evidence_ids, `${where}.evidence_ids`, 'evidence');
     references(item.search_ids, `${where}.search_ids`, 'searches');
-    if (v2) {
+    if (v3 && own(item, 'claims')) {
+      if (!Array.isArray(item.claims)) fail(`${where}.claims`, 'must be an array of supplied claim records');
+      else {
+        const claimIds = new Set();
+        item.claims.forEach((claim, index) => {
+          const location = `${where}.claims[${index}]`;
+          if (!keys(claim, location, ['id'])) return;
+          text(claim.id, `${location}.id`);
+          if (nonempty(claim.id) && claimIds.has(claim.id)) fail(`${location}.id`, 'duplicate claim ID');
+          claimIds.add(claim.id);
+          if (own(claim, 'candidate_version')) positive(claim.candidate_version, `${location}.candidate_version`);
+        });
+      }
+    }
+    if (modern) {
       if (!Array.isArray(item.evidence_links)) fail(`${where}.evidence_links`, 'must be an array');
       else item.evidence_links.forEach((link, index) => {
         const location = `${where}.evidence_links[${index}]`;
@@ -236,11 +253,11 @@ export function validateDossier(dossier) {
       for (const field of fields) text(item.validation[field], `${where}.validation.${field}`, item.validation.status === 'missing');
     }
   });
-  visit('reviews', ['id', 'idea_id', 'idea_version', v2 ? 'review_basis_hash' : 'basis_hash', 'reviewed_at', 'kind', 'decision', 'reason', 'scores', 'score_reasons', 'penalties', 'limitations',
-    ...(v2 ? ['decision_scope', 'recommended_stage', 'decision_basis'] : [])], (item, where) => {
+  visit('reviews', ['id', 'idea_id', 'idea_version', modern ? 'review_basis_hash' : 'basis_hash', 'reviewed_at', 'kind', 'decision', 'reason', 'scores', 'score_reasons', 'penalties', 'limitations',
+    ...(modern ? ['decision_scope', 'recommended_stage', 'decision_basis'] : [])], (item, where) => {
     reference(item.idea_id, `${where}.idea_id`, 'ideas');
     positive(item.idea_version, `${where}.idea_version`);
-    const hashKey = v2 ? 'review_basis_hash' : 'basis_hash';
+    const hashKey = modern ? 'review_basis_hash' : 'basis_hash';
     if (typeof item[hashKey] !== 'string' || !/^[a-f\d]{64}$/.test(item[hashKey])) fail(`${where}.${hashKey}`, 'must be a lowercase SHA-256 hex digest');
     date(item.reviewed_at, `${where}.reviewed_at`);
     choice(item.kind, `${where}.kind`, ['self', 'independent']);
@@ -262,7 +279,7 @@ export function validateDossier(dossier) {
       if (typeof penalty.points !== 'number' || !Number.isFinite(penalty.points) || penalty.points < 0) fail(`${location}.points`, 'must be finite and nonnegative');
     });
     strings(item.limitations, `${where}.limitations`);
-    if (v2) {
+    if (modern) {
       if (own(item, 'decision_contract_version')) positive(item.decision_contract_version, `${where}.decision_contract_version`);
       if (item.decision_contract_version !== DECISION_CONTRACT_VERSION) warn(`${where}.decision_contract_version`, 'Legacy or unsupported review contract; reassessment is required');
       choice(item.decision_scope, `${where}.decision_scope`, ['scientific_framing', 'current_constraints']);
@@ -298,7 +315,7 @@ export function validateDossier(dossier) {
       }
     }
   });
-  visit('pilots', ['id', 'idea_id', 'idea_version', 'kind', 'outcome', 'artifacts', 'summary', 'limitations'], (item, where) => {
+  visit('pilots', ['id', 'idea_id', 'idea_version', 'kind', 'outcome', 'artifacts', 'summary', 'limitations', ...(v3 ? ['run_id', 'affected_claims'] : [])], (item, where) => {
     reference(item.idea_id, `${where}.idea_id`, 'ideas');
     positive(item.idea_version, `${where}.idea_version`);
     choice(item.kind, `${where}.kind`, ['smoke', 'scientific']);
@@ -310,7 +327,62 @@ export function validateDossier(dossier) {
     }
     text(item.summary, `${where}.summary`);
     strings(item.limitations, `${where}.limitations`);
+    if (v3) {
+      text(item.run_id, `${where}.run_id`);
+      if (own(item, 'actor') || own(item, 'trust')) {
+        if (!((item.actor === 'model' && item.trust === 'T2') || (item.actor === 'user' && item.trust === 'T1'))) fail(where, 'result provenance must be model/T2 or user/T1');
+      }
+      if (own(item, 'recorded_at')) date(item.recorded_at, `${where}.recorded_at`);
+      if (own(item, 'supersedes')) { reference(item.supersedes, `${where}.supersedes`, 'pilots'); text(item.reason, `${where}.reason`); }
+      else if (own(item, 'reason')) fail(`${where}.reason`, 'correction reason requires supersedes');
+      if (!Array.isArray(item.affected_claims)) fail(`${where}.affected_claims`, 'must be an array of claim references');
+      else item.affected_claims.forEach((claim, index) => {
+        const location = `${where}.affected_claims[${index}]`;
+        if (keys(claim, location, ['claim_id', 'reason'])) {
+          if (Object.keys(claim).some(key => !['claim_id', 'reason'].includes(key))) fail(location, 'only claim_id and reason are allowed');
+          text(claim.claim_id, `${location}.claim_id`); text(claim.reason, `${location}.reason`);
+        }
+      });
+    }
   });
+  if (v3) {
+    const resultById = new Map(collections.pilots.filter(object).map(item => [item.id, item]));
+    const runScopes = new Map();
+    for (const [index, item] of collections.pilots.entries()) {
+      if (!object(item)) continue;
+      const where = `pilots[${index}]`, scope = `${item.idea_id}\0${item.idea_version}`;
+      const previous = runScopes.get(item.run_id);
+      if (previous !== undefined && previous !== scope) fail(`${where}.run_id`, 'run identity cannot cross candidates or candidate versions');
+      runScopes.set(item.run_id, scope);
+      const target = resultById.get(item.supersedes);
+      if (target && (target.run_id !== item.run_id || target.idea_id !== item.idea_id || target.idea_version !== item.idea_version)) fail(`${where}.supersedes`, 'replacement must stay in the same run, candidate and version');
+      const seen = new Set([item.id]);
+      let ancestor = target;
+      while (ancestor) {
+        if (seen.has(ancestor.id)) { fail(`${where}.supersedes`, 'self-reference or replacement cycle'); break; }
+        seen.add(ancestor.id); ancestor = resultById.get(ancestor.supersedes);
+      }
+      const idea = collections.ideas.find(candidate => candidate?.id === item.idea_id);
+      if (idea && positiveInteger(item.idea_version) && item.idea_version > idea.version) fail(`${where}.idea_version`, 'result version cannot exceed its candidate version');
+      const claimIds = new Set(Array.isArray(idea?.claims) ? idea.claims.filter(claim => object(claim) && (!own(claim, 'candidate_version') || claim.candidate_version === item.idea_version)).map(claim => claim.id) : []);
+      for (const claim of Array.isArray(item.affected_claims) ? item.affected_claims : []) if (object(claim) && nonempty(claim.claim_id) && !claimIds.has(claim.claim_id)) warn(`${where}.affected_claims`, `affected_claims_degraded: unresolved claim ${claim.claim_id}`);
+    }
+    visit('result_invalidations', ['id', 'run_id', 'idea_id', 'idea_version', 'result_id', 'reason', 'recorded_at', 'actor', 'trust'], (item, where) => {
+      if (ids.pilots.has(item.id)) fail(`${where}.id`, 'classification and invalidation IDs must be distinct');
+      reference(item.idea_id, `${where}.idea_id`, 'ideas'); positive(item.idea_version, `${where}.idea_version`);
+      text(item.run_id, `${where}.run_id`); text(item.reason, `${where}.reason`); date(item.recorded_at, `${where}.recorded_at`);
+      reference(item.result_id, `${where}.result_id`, 'pilots');
+      if (item.actor !== 'user' || item.trust !== 'T1') fail(where, 'run invalidation requires declared user/T1 provenance');
+      const target = resultById.get(item.result_id);
+      if (target && (target.run_id !== item.run_id || target.idea_id !== item.idea_id || target.idea_version !== item.idea_version)) fail(`${where}.result_id`, 'invalidation target must match its run, candidate and version');
+    });
+    if (!errors.length) {
+      for (const idea of collections.ideas) {
+        const state = foldResults(dossier, idea.id, idea.version);
+        for (const run of state.runs) if (run.eligible && run.ambiguous) warn('pilots', `ambiguous run ${run.run_id}: multiple effective classification heads require HOLD`);
+      }
+    }
+  }
   visit('history', [], (item, where) => {
     if (own(item, 'idea_id')) reference(item.idea_id, `${where}.idea_id`, 'ideas');
     if (own(item, 'idea_version')) positive(item.idea_version, `${where}.idea_version`);
@@ -318,7 +390,7 @@ export function validateDossier(dossier) {
     if (own(item, 'evidence_ids')) references(item.evidence_ids, `${where}.evidence_ids`, 'evidence');
     for (const field of ['event', 'reason']) if (own(item, field)) text(item[field], `${where}.${field}`);
   });
-  if (v2) {
+  if (modern) {
     const searches = new Map(collections.searches.filter(object).map(item => [item.id, item]));
     visit('screening', ['id', 'search_id', 'paper_id', 'idea_ids', 'stage', 'decision', 'reason', 'screened_at'], (item, where) => {
       reference(item.search_id, `${where}.search_id`, 'searches');
@@ -341,7 +413,7 @@ export function validateDossier(dossier) {
   }
   // Old reviews may refer to superseded candidate links. Check the cross-references
   // only for an actually current review, so editing an idea does not corrupt history.
-  if (v2) collections.reviews.forEach((review, index) => {
+  if (modern) collections.reviews.forEach((review, index) => {
     if (!object(review)) return;
     const idea = collections.ideas.find(idea => idea?.id === review.idea_id);
     if (!object(idea) || review.idea_version !== idea.version || !object(review.decision_basis)) return;
@@ -368,6 +440,42 @@ function requireValid(dossier) {
   if (!result.valid) throw new Error(`Invalid dossier:\n${result.errors.join('\n')}`);
 }
 
+// Called only after relationship validation. No timestamp or array position wins.
+function foldResults(dossier, ideaId, ideaVersion) {
+  const records = dossier.pilots.filter(record => record.idea_id === ideaId && record.idea_version === ideaVersion);
+  const invalidated = new Set(dossier.result_invalidations.filter(record => record.idea_id === ideaId && record.idea_version === ideaVersion).map(record => record.run_id));
+  const superseded = new Set(records.filter(record => own(record, 'supersedes')).map(record => record.supersedes));
+  const runIds = [...new Set(records.map(record => record.run_id))].sort();
+  const runs = runIds.map(run_id => {
+    const heads = records.filter(record => record.run_id === run_id && !superseded.has(record.id)).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    const eligible = !invalidated.has(run_id);
+    return { run_id, eligible, head_ids: heads.map(record => record.id), ambiguous: heads.length > 1,
+      contradiction: eligible && heads.some(record => record.kind === 'scientific' && record.outcome === 'contradicted') };
+  });
+  const contradiction_blocker = runs.some(run => run.contradiction);
+  const ambiguity_blocker = runs.some(run => run.eligible && run.ambiguous);
+  const scientific_refutation_ids = runs.filter(run => run.eligible && !run.ambiguous).flatMap(run => run.head_ids)
+    .filter(id => records.some(record => record.id === id && record.kind === 'scientific' && record.outcome === 'contradicted')).sort();
+  const idea = dossier.ideas.find(candidate => candidate.id === ideaId);
+  const claimIds = new Set(Array.isArray(idea?.claims) ? idea.claims.filter(claim => !own(claim, 'candidate_version') || claim.candidate_version === ideaVersion).map(claim => claim.id) : []);
+  const degraded = records.flatMap(record => record.affected_claims.filter(claim => !claimIds.has(claim.claim_id)).map(claim => ({ result_id: record.id, claim_id: claim.claim_id })));
+  const warnings = runs.filter(run => run.eligible && run.ambiguous).map(run => `ambiguous run ${run.run_id}: multiple effective classification heads require HOLD`);
+  for (const claim of degraded) warnings.push(`affected_claims_degraded: unresolved claim ${claim.claim_id} in result ${claim.result_id}`);
+  return { runs, contradiction_blocker, ambiguity_blocker, requires_hold: contradiction_blocker || ambiguity_blocker,
+    scientific_refutation_ids, affected_claims_degraded: degraded.length > 0, warnings: warnings.sort() };
+}
+
+/** Effective scientific declarations in a validated v3 snapshot, not proof of immutable history. */
+export function effectiveResultState(dossier, ideaId, ideaVersion) {
+  requireValid(dossier);
+  if (dossier.schema_version !== 3) throw new Error('Result lifecycle requires explicit schema v3 migration');
+  const idea = dossier.ideas.find(candidate => candidate.id === ideaId);
+  if (!idea) throw new Error(`Unknown idea ID: ${ideaId}`);
+  const version = ideaVersion ?? idea.version;
+  if (!positiveInteger(version) || version > idea.version) throw new Error('Invalid candidate version');
+  return foldResults(dossier, ideaId, version);
+}
+
 /** Canonical JSON sorts object keys recursively and preserves array order. */
 export function canonicalStringify(value) {
   const seen = new Set();
@@ -385,7 +493,7 @@ export function canonicalStringify(value) {
 }
 
 function basisHash(dossier, idea) {
-  if (dossier.schema_version === 2) return reviewBasisHash(dossier, idea);
+  if ([2, 3].includes(dossier.schema_version)) return reviewBasisHash(dossier, idea);
   return createHash('sha256').update(canonicalStringify({
     project: dossier.project,
     config: dossier.config,
@@ -423,7 +531,7 @@ function reviewBasisHash(dossier, idea) {
     .sort(canonicalOrder);
   semanticIdea.evidence_links = [...idea.evidence_links].sort(canonicalOrder);
   return digest({
-    schema_version: 2,
+    schema_version: dossier.schema_version,
     ...(own(dossier, 'decision_contract_version') ? { decision_contract_version: dossier.decision_contract_version } : {}),
     project: without(dossier.project, ['id', 'created_at', 'updated_at', 'formatting']),
     idea: semanticIdea,
@@ -432,6 +540,7 @@ function reviewBasisHash(dossier, idea) {
     evidence: byId(evidence),
     screening: byId(screening).map(record => ({ ...without(record, ['screened_at']), idea_ids: [idea.id] })),
     pilots: byId(dossier.pilots.filter(record => object(record) && record.idea_id === idea.id)),
+    ...(dossier.schema_version === 3 ? { result_invalidations: byId(dossier.result_invalidations.filter(record => object(record) && record.idea_id === idea.id)) } : {}),
   });
 }
 
@@ -444,13 +553,20 @@ export function rankingConfigHash(dossier) {
 /** Migration is pure and does not manufacture new evidence or a current review. */
 export function migrateDossier(dossier) {
   requireValid(dossier);
-  if (dossier.schema_version === 2 && (dossier.decision_contract_version > DECISION_CONTRACT_VERSION || dossier.reviews.some(review => review.decision_contract_version > DECISION_CONTRACT_VERSION))) throw new Error('Cannot migrate an unsupported future decision contract; use a compatible tool and preserve the original record');
+  if ([2, 3].includes(dossier.schema_version) && (dossier.decision_contract_version > DECISION_CONTRACT_VERSION || dossier.reviews.some(review => review.decision_contract_version > DECISION_CONTRACT_VERSION))) throw new Error('Cannot migrate an unsupported future decision contract; use a compatible tool and preserve the original record');
+  if (dossier.schema_version !== 3 && own(dossier, 'result_invalidations') &&
+    (!Array.isArray(dossier.result_invalidations) || dossier.result_invalidations.length > 0)) {
+    throw new Error('Legacy schema contains uninterpreted result_invalidations; explicitly inspect and migrate this material before converting, rather than activating or discarding withdrawals');
+  }
   const migrated = JSON.parse(JSON.stringify(dossier));
   const fromV1 = migrated.schema_version === 1;
+  const fromLegacySchema = migrated.schema_version !== 3;
   const oldContract = migrated.decision_contract_version;
-  migrated.schema_version = 2;
+  migrated.schema_version = 3;
   migrated.decision_contract_version = DECISION_CONTRACT_VERSION;
   migrated.screening ??= [];
+  if (fromLegacySchema) migrated.result_invalidations = [];
+  if (fromLegacySchema) for (const pilot of migrated.pilots) { pilot.run_id = pilot.id; pilot.affected_claims ??= []; }
   for (const idea of migrated.ideas) idea.evidence_links ??= [];
   const latest = new Map(), latestIndependent = new Map();
   for (const review of migrated.reviews) {
@@ -466,12 +582,12 @@ export function migrateDossier(dossier) {
     // rank would have held. Preserve the same restriction for independent stage approval.
     const blockedByLegacy = latest.get(review.idea_id).decision_contract_version !== DECISION_CONTRACT_VERSION ||
       (review.kind === 'independent' && latestIndependent.get(review.idea_id).decision_contract_version !== DECISION_CONTRACT_VERSION);
-    if (!fromV1 && oldContract === DECISION_CONTRACT_VERSION && review.decision_contract_version === DECISION_CONTRACT_VERSION && !blockedByLegacy) return true;
+    if (!fromLegacySchema && oldContract === DECISION_CONTRACT_VERSION && review.decision_contract_version === DECISION_CONTRACT_VERSION && !blockedByLegacy) return true;
     migrated.history.push({
       event: fromV1 ? 'schema_v1_review_archived' : 'decision_contract_review_archived', idea_id: review.idea_id, idea_version: review.idea_version,
       reason: blockedByLegacy && review.decision_contract_version === DECISION_CONTRACT_VERSION ?
         'Original review archived unchanged because a newer legacy review blocked its authority; migration must not revive an older approval.' :
-        'Original review archived unchanged; decision contract 2 requires explicit reassessment, not a rehashed old decision.',
+        'Original review archived unchanged; decision contract 3 requires explicit reassessment, not a rehashed old decision.',
       original_review: review, requires_reassessment: true,
     });
     return false;
@@ -503,18 +619,18 @@ export function rankDossier(dossier, { receiptVerification } = {}) {
   const attestation = verifiedReceipts.get(receiptVerification);
   const receiptBindings = attestation?.dossier_hash === digest(dossier) ? attestation.reviews : undefined;
   const output = { ranked: [], held: [], killed: [], ranking_config_hash: rankingConfigHash(dossier), notice: NOTICE };
-  if (dossier.schema_version === 1) {
+  if (dossier.schema_version !== 3) {
     output.held = dossier.ideas.map(idea => ({ idea_id: idea.id, title: idea.title, decision: 'HOLD', score: null,
-      reasons: ['Schema v1 needs migration and reassessment; legacy hashes are not current v2 reviews'] }));
+      reasons: [`Schema v${dossier.schema_version} needs explicit migration and reassessment; legacy reviews are not current v3 approvals`] }));
     return output;
   }
   const evidence = new Map(dossier.evidence.map(record => [record.id, record]));
   const searches = new Map(dossier.searches.map(record => [record.id, record]));
-  const pilots = new Map(dossier.pilots.map(record => [record.id, record]));
   const deep = record => record && ['section', 'full_text'].includes(record.read_scope);
   const weights = dossier.config.ranking_weights;
   const weightSum = DIMENSIONS.reduce((sum, key) => sum + weights[key], 0);
   for (const idea of dossier.ideas) {
+    const resultState = foldResults(dossier, idea.id, idea.version);
     // Iterating in record order and replacing equal times implements the tie rule.
     let review;
     for (const candidate of dossier.reviews) if (candidate.idea_id === idea.id && (!review || notEarlier(candidate.reviewed_at, review.reviewed_at))) review = candidate;
@@ -539,11 +655,7 @@ export function rankDossier(dossier, { receiptVerification } = {}) {
       } else if (basis.type === 'scientific_refutation' && review.decision_scope === 'scientific_framing') {
         justified = idea.evidence_links.some(link => link.decision_relevant && link.target === 'hypothesis' && link.relation === 'contradicts' &&
           basis.evidence_ids.includes(link.evidence_id) && deep(evidence.get(link.evidence_id))) ||
-          basis.pilot_ids.some(id => {
-            const pilot = pilots.get(id);
-            return pilot.idea_id === idea.id && pilot.idea_version === idea.version && pilot.kind === 'scientific' &&
-              pilot.outcome === 'contradicted' && pilot.artifacts.length > 0;
-          });
+          basis.pilot_ids.some(id => resultState.scientific_refutation_ids.includes(id));
       } else if (basis.type === 'constraints' && review.decision_scope === 'current_constraints') {
         const failed = mandatory.filter(dependency => dependency.status === 'failed');
         const confirmed = key => {
@@ -588,10 +700,8 @@ export function rankDossier(dossier, { receiptVerification } = {}) {
     if (idea.evidence_links.some(link => link.decision_relevant && link.relation === 'contradicts' && ['hypothesis', 'prerequisite', 'validation'].includes(link.target))) {
       reasons.push('Decision-relevant contradiction to the current hypothesis, prerequisite, or validation needs reassessment');
     }
-    if (dossier.pilots.some(pilot => pilot.idea_id === idea.id && pilot.idea_version === idea.version &&
-      pilot.kind === 'scientific' && pilot.outcome === 'contradicted')) {
-      reasons.push('A scientific pilot contradicts this candidate version; a fresh GO label cannot erase the refutation');
-    }
+    if (resultState.contradiction_blocker) reasons.push('An effective scientific result contradicts this candidate version; a fresh GO label cannot erase the refutation');
+    if (resultState.ambiguity_blocker) reasons.push('An eligible run has multiple effective classification heads; ambiguous results require HOLD');
     if (idea.feasibility.status !== 'ready') reasons.push(`Feasibility is ${idea.feasibility.status}: ${idea.feasibility.reason}`);
     for (const dependency of mandatory) if (dependency.status !== 'met') reasons.push(`Mandatory dependency not verified: ${dependency.name}`);
     if (idea.validation.status !== 'specified') reasons.push('Validation is not specified');
@@ -621,11 +731,11 @@ export function rankDossier(dossier, { receiptVerification } = {}) {
 export function createInitialDossier(name) {
   if (typeof name !== 'string' || name.length > 64 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)) throw new Error('Project name must use lowercase letters and digits separated by single hyphens (1–64 characters)');
   return {
-    schema_version: 2,
+    schema_version: 3,
     decision_contract_version: DECISION_CONTRACT_VERSION,
     project: { id: name, question: '', research_type: 'empirical', constraints: {}, assumptions: [] },
     config: { ranking_weights: { scientific_value: 40, differentiation: 35, testability: 25 } },
-    searches: [], papers: [], screening: [], evidence: [], ideas: [], reviews: [], pilots: [], history: [],
+    searches: [], papers: [], screening: [], evidence: [], ideas: [], reviews: [], pilots: [], result_invalidations: [], history: [],
   };
 }
 
@@ -648,7 +758,7 @@ async function rejectDirectoryLinks(directory) {
 
 /** A JSON receipt template, not evidence that an independent review occurred. */
 export function createReviewReceipt(review) {
-  if (!object(review) || review.kind !== 'independent' || review.decision_contract_version !== DECISION_CONTRACT_VERSION) throw new Error('Receipt needs a contract-2 independent review');
+  if (!object(review) || review.kind !== 'independent' || review.decision_contract_version !== DECISION_CONTRACT_VERSION) throw new Error('Receipt needs a contract-3 independent review');
   return { receipt_version: 1, review: JSON.parse(canonicalStringify(without(review, ['artifact', 'artifact_sha256']))) };
 }
 
@@ -750,7 +860,7 @@ async function main(args) {
     if (!result.valid) process.exitCode = 1;
     return result;
   }
-  if (command === 'fingerprint') return { idea_id: rest[1], [dossier.schema_version === 2 ? 'review_basis_hash' : 'basis_hash']: fingerprintIdea(dossier, rest[1]), notice: NOTICE };
+  if (command === 'fingerprint') return { idea_id: rest[1], [dossier.schema_version >= 2 ? 'review_basis_hash' : 'basis_hash']: fingerprintIdea(dossier, rest[1]), notice: NOTICE };
   if (command === 'migrate') return migrateDossier(dossier);
   if (verifyWithRoot) return verifyIndependentReceipts(dossier, { root: rest[2] });
   if (rankWithRoot) {

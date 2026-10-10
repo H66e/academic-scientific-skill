@@ -1,0 +1,206 @@
+{
+  "synthetic": true,
+  "provenance": "Deliberately invented, offline contract cases frozen from ADR 0004. No paper, experiment, scientific result or research quality is asserted.",
+  "candidate_id": "C-SYNTHETIC",
+  "candidate_version": 1,
+  "claims": ["H1", "H2"],
+  "record_defaults": {
+    "candidate_id": "C-SYNTHETIC", "candidate_version": 1,
+    "kind": "scientific", "outcome": "supported",
+    "artifacts": ["SYNTHETIC-result.json"],
+    "summary": "SYNTHETIC observation declaration; no real research finding",
+    "limitations": ["Invented protocol fixture only"], "affected_claims": [],
+    "actor": "model", "trust": "T2", "recorded_at": "2026-10-10T00:00:00Z"
+  },
+  "invalidation_defaults": {
+    "candidate_id": "C-SYNTHETIC", "candidate_version": 1,
+    "reason": "SYNTHETIC control failure invalidates the whole invented attempt",
+    "actor": "user", "trust": "T1", "recorded_at": "2026-10-10T00:00:00Z"
+  },
+  "cases": [
+    {
+      "name": "empty_has_no_result_gate",
+      "records": [], "invalidations": [],
+      "expected": {"valid": true, "contradiction_blocker": false, "ambiguity_blocker": false, "requires_hold": false, "scientific_refutation_ids": [], "affected_claims_degraded": false}
+    },
+    {
+      "name": "independent_support_cannot_cancel_contradiction",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "contradicted"}, {"id": "R2", "run_id": "RUN2"}], "invalidations": [],
+      "expected": {"valid": true, "contradiction_blocker": true, "ambiguity_blocker": false, "requires_hold": true, "scientific_refutation_ids": ["R1"], "affected_claims_degraded": false}
+    },
+    {
+      "name": "same_run_visible_correction",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "contradicted"}, {"id": "R2", "run_id": "RUN1", "supersedes": "R1", "reason": "SYNTHETIC interpretation corrected explicitly"}], "invalidations": [],
+      "expected": {"valid": true, "contradiction_blocker": false, "ambiguity_blocker": false, "requires_hold": false, "scientific_refutation_ids": [], "affected_claims_degraded": false}
+    },
+    {
+      "name": "backdated_correction_uses_causality_not_time",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "contradicted", "recorded_at": "2026-10-10T00:00:00Z"}, {"id": "R2", "run_id": "RUN1", "supersedes": "R1", "reason": "SYNTHETIC causal correction despite older declared timestamp", "recorded_at": "2025-01-01T00:00:00Z"}], "invalidations": [],
+      "expected": {"valid": true, "contradiction_blocker": false, "ambiguity_blocker": false, "requires_hold": false, "scientific_refutation_ids": [], "affected_claims_degraded": false}
+    },
+    {
+      "name": "replacement_chain_does_not_revive_ancestor",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "contradicted"}, {"id": "R2", "run_id": "RUN1", "supersedes": "R1", "reason": "SYNTHETIC first correction"}, {"id": "R3", "run_id": "RUN1", "supersedes": "R2", "outcome": "inconclusive", "reason": "SYNTHETIC second correction"}], "invalidations": [],
+      "expected": {"valid": true, "contradiction_blocker": false, "ambiguity_blocker": false, "requires_hold": false, "scientific_refutation_ids": [], "affected_claims_degraded": false}
+    },
+    {
+      "name": "all_supported_fork_is_still_ambiguous",
+      "records": [{"id": "R1", "run_id": "RUN1"}, {"id": "R2", "run_id": "RUN1"}], "invalidations": [],
+      "expected": {"valid": true, "contradiction_blocker": false, "ambiguity_blocker": true, "requires_hold": true, "scientific_refutation_ids": [], "affected_claims_degraded": false}
+    },
+    {
+      "name": "supported_children_of_one_contradiction_remain_ambiguous",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "contradicted"}, {"id": "R2", "run_id": "RUN1", "supersedes": "R1", "reason": "SYNTHETIC correction branch A"}, {"id": "R3", "run_id": "RUN1", "supersedes": "R1", "reason": "SYNTHETIC correction branch B"}], "invalidations": [],
+      "expected": {"valid": true, "contradiction_blocker": false, "ambiguity_blocker": true, "requires_hold": true, "scientific_refutation_ids": [], "affected_claims_degraded": false}
+    },
+    {
+      "name": "contradicted_fork_is_hold_without_conclusive_kill",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "contradicted"}, {"id": "R2", "run_id": "RUN1"}], "invalidations": [],
+      "expected": {"valid": true, "contradiction_blocker": true, "ambiguity_blocker": true, "requires_hold": true, "scientific_refutation_ids": [], "affected_claims_degraded": false}
+    },
+    {
+      "name": "invalidation_withdraws_whole_run",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "contradicted"}], "invalidations": [{"id": "INV1", "run_id": "RUN1", "result_id": "R1"}],
+      "expected": {"valid": true, "contradiction_blocker": false, "ambiguity_blocker": false, "requires_hold": false, "scientific_refutation_ids": [], "affected_claims_degraded": false}
+    },
+    {
+      "name": "later_classification_cannot_revive_invalidated_run",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "contradicted"}, {"id": "R2", "run_id": "RUN1", "supersedes": "R1", "outcome": "contradicted", "reason": "SYNTHETIC attempted revival remains ineligible"}], "invalidations": [{"id": "INV1", "run_id": "RUN1", "result_id": "R1"}],
+      "expected": {"valid": true, "contradiction_blocker": false, "ambiguity_blocker": false, "requires_hold": false, "scientific_refutation_ids": [], "affected_claims_degraded": false}
+    },
+    {
+      "name": "new_run_after_invalidation_is_eligible",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "contradicted"}, {"id": "R2", "run_id": "RUN2", "outcome": "contradicted"}], "invalidations": [{"id": "INV1", "run_id": "RUN1", "result_id": "R1"}],
+      "expected": {"valid": true, "contradiction_blocker": true, "ambiguity_blocker": false, "requires_hold": true, "scientific_refutation_ids": ["R2"], "affected_claims_degraded": false}
+    },
+    {
+      "name": "old_candidate_version_remains_historical",
+      "candidate_version": 2,
+      "records": [{"id": "R1", "run_id": "RUN-OLD", "outcome": "contradicted", "candidate_version": 1}, {"id": "R2", "run_id": "RUN-NEW", "candidate_version": 2}], "invalidations": [],
+      "expected": {"valid": true, "contradiction_blocker": false, "ambiguity_blocker": false, "requires_hold": false, "scientific_refutation_ids": [], "affected_claims_degraded": false}
+    },
+    {
+      "name": "smoke_contradiction_is_not_scientific_refutation",
+      "records": [{"id": "R1", "run_id": "RUN1", "kind": "smoke", "outcome": "contradicted"}], "invalidations": [],
+      "expected": {"valid": true, "contradiction_blocker": false, "ambiguity_blocker": false, "requires_hold": false, "scientific_refutation_ids": [], "affected_claims_degraded": false}
+    },
+    {
+      "name": "execution_failure_is_not_scientific_refutation",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "execution_failed"}], "invalidations": [],
+      "expected": {"valid": true, "contradiction_blocker": false, "ambiguity_blocker": false, "requires_hold": false, "scientific_refutation_ids": [], "affected_claims_degraded": false}
+    },
+    {
+      "name": "unexecuted_plan_permits_no_artifacts",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "not_run", "artifacts": []}], "invalidations": [],
+      "expected": {"valid": true, "contradiction_blocker": false, "ambiguity_blocker": false, "requires_hold": false, "scientific_refutation_ids": [], "affected_claims_degraded": false}
+    },
+    {
+      "name": "resolved_claim_H1_does_not_scope_gate",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "contradicted", "affected_claims": [{"claim_id": "H1", "reason": "SYNTHETIC explanation"}]}], "invalidations": [],
+      "expected": {"valid": true, "contradiction_blocker": true, "ambiguity_blocker": false, "requires_hold": true, "scientific_refutation_ids": ["R1"], "affected_claims_degraded": false}
+    },
+    {
+      "name": "resolved_claim_H2_does_not_scope_gate",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "contradicted", "affected_claims": [{"claim_id": "H2", "reason": "SYNTHETIC alternative explanation"}]}], "invalidations": [],
+      "expected": {"valid": true, "contradiction_blocker": true, "ambiguity_blocker": false, "requires_hold": true, "scientific_refutation_ids": ["R1"], "affected_claims_degraded": false}
+    },
+    {
+      "name": "dangling_claim_degrades_explanation_not_gate",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "contradicted", "affected_claims": [{"claim_id": "H3", "reason": "SYNTHETIC unresolved explanation"}]}], "invalidations": [],
+      "expected": {"valid": true, "contradiction_blocker": true, "ambiguity_blocker": false, "requires_hold": true, "scientific_refutation_ids": ["R1"], "affected_claims_degraded": true}
+    },
+    {
+      "name": "missing_supersession_target_is_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1", "supersedes": "MISSING", "reason": "SYNTHETIC missing target"}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "cross_run_supersession_is_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "contradicted"}, {"id": "R2", "run_id": "RUN2", "supersedes": "R1", "reason": "SYNTHETIC wrong run"}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "cross_candidate_supersession_is_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "contradicted"}, {"id": "R2", "run_id": "RUN1", "candidate_id": "C-OTHER", "supersedes": "R1", "reason": "SYNTHETIC wrong candidate"}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "cross_version_supersession_is_invalid",
+      "candidate_version": 2,
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "contradicted"}, {"id": "R2", "run_id": "RUN1", "candidate_version": 2, "supersedes": "R1", "reason": "SYNTHETIC wrong version"}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "self_supersession_is_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1", "supersedes": "R1", "reason": "SYNTHETIC self reference"}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "supersession_cycle_is_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1", "supersedes": "R2", "reason": "SYNTHETIC cycle start"}, {"id": "R2", "run_id": "RUN1", "supersedes": "R1", "reason": "SYNTHETIC cycle end"}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "malformed_affected_claims_is_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1", "affected_claims": ["H1"]}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "executed_result_without_artifacts_is_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": "contradicted", "artifacts": []}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "boolean_candidate_version_is_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1", "candidate_version": true}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "executable_scheme_is_not_an_artifact_locator",
+      "records": [{"id": "R1", "run_id": "RUN1", "artifacts": ["javascript:alert(1)"]}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "malformed_http_url_is_not_an_artifact_locator",
+      "records": [{"id": "R1", "run_id": "RUN1", "artifacts": ["https://"]}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "credential_url_is_not_an_artifact_locator",
+      "records": [{"id": "R1", "run_id": "RUN1", "artifacts": ["https://synthetic:synthetic@example.invalid/result"]}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "object_outcome_is_contract_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1", "outcome": {"label": "supported"}}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "list_supersession_target_is_contract_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1", "supersedes": ["MISSING"], "reason": "SYNTHETIC malformed target"}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "list_actor_is_contract_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1", "actor": ["model"]}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "object_trust_is_contract_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1", "trust": {"level": "T2"}}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "non_iso_invalidation_timestamp_is_contract_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1"}], "invalidations": [{"id": "INV1", "run_id": "RUN1", "result_id": "R1", "recorded_at": "2026-10-10X00:00:00+00:00"}], "expected": {"valid": false}
+    },
+    {
+      "name": "empty_correction_reason_is_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1"}, {"id": "R2", "run_id": "RUN1", "supersedes": "R1", "reason": "  "}], "invalidations": [], "expected": {"valid": false}
+    },
+    {
+      "name": "missing_invalidation_target_is_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1"}], "invalidations": [{"id": "INV1", "run_id": "RUN1", "result_id": "MISSING"}], "expected": {"valid": false}
+    },
+    {
+      "name": "wrong_run_invalidation_is_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1"}], "invalidations": [{"id": "INV1", "run_id": "RUN2", "result_id": "R1"}], "expected": {"valid": false}
+    },
+    {
+      "name": "model_invalidation_is_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1"}], "invalidations": [{"id": "INV1", "run_id": "RUN1", "result_id": "R1", "actor": "model", "trust": "T2"}], "expected": {"valid": false}
+    },
+    {
+      "name": "duplicate_lifecycle_identity_is_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1"}], "invalidations": [{"id": "R1", "run_id": "RUN1", "result_id": "R1"}], "expected": {"valid": false}
+    },
+    {
+      "name": "missing_candidate_is_invalid",
+      "records": [{"id": "R1", "run_id": "RUN1", "candidate_id": "C-MISSING"}], "invalidations": [], "expected": {"valid": false}
+    }
+  ]
+}

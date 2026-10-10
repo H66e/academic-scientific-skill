@@ -80,6 +80,24 @@ def parser() -> argparse.ArgumentParser:
     reading.add_argument("--scope", choices=["abstract", "section", "full_text"], required=True)
     reading.add_argument("--context", required=True)
     reading.add_argument("--human-page-check", action="store_true")
+    record = commands.add_parser("record-result", help="Record a declared result from JSON; does not run an experiment")
+    record.add_argument("file")
+    record.add_argument("--human-confirmed", action="store_true")
+    correction = commands.add_parser("reclassify-result", help="Append an explicit same-run correction, preserving the prior record")
+    correction.add_argument("target")
+    correction.add_argument("--outcome", choices=["not_run", "execution_failed", "inconclusive", "supported", "contradicted"], required=True)
+    correction.add_argument("--reason", required=True)
+    correction.add_argument("--kind", choices=["smoke", "scientific"])
+    correction.add_argument("--summary")
+    correction.add_argument("--artifacts", nargs="*")
+    correction.add_argument("--human-confirmed", action="store_true")
+    invalidation = commands.add_parser("invalidate-result", help="Record an actual person's withdrawal of a whole run's eligibility")
+    invalidation.add_argument("target")
+    invalidation.add_argument("--reason", required=True)
+    invalidation.add_argument("--human-confirmed", action="store_true")
+    state = commands.add_parser("results", help="Inspect effective result heads and blockers without writing")
+    state.add_argument("candidate_id")
+    state.add_argument("--candidate-version", type=int)
     for name in ("coverage", "next", "finalize"):
         command = commands.add_parser(name)
         command.add_argument("candidate_id")
@@ -100,7 +118,7 @@ def parser() -> argparse.ArgumentParser:
     revoke.add_argument("candidate_id")
     revoke.add_argument("--statement", required=True)
     revoke.add_argument("--human-confirmed", action="store_true")
-    commands.add_parser("export-dossier", help="Initial schema-2 projection; no migrated approval")
+    commands.add_parser("export-dossier", help="Schema-3 projection preserving declared results; no migrated approval")
     commands.add_parser("status")
     lint = commands.add_parser("lint", help="Report unregistered DOI/arXiv references, without modifying prose")
     lint.add_argument("file")
@@ -183,6 +201,19 @@ def run(args) -> Envelope:
             human=args.human_page_check, visual_checked=args.human_page_check)
         return Envelope.success(event["data"], status="recorded", ledger_events=[event["id"]],
             warnings=["This records the reader's statement; it cannot prove reading or scientific understanding."])
+    if args.command in {"record-result", "reclassify-result", "invalidate-result"}:
+        if args.command == "record-result":
+            event = judgment.record_result(json.loads(read_input(args.file)), human=args.human_confirmed)
+        elif args.command == "reclassify-result":
+            event = judgment.reclassify_result(args.target, args.outcome, reason=args.reason,
+                human=args.human_confirmed, kind=args.kind, summary=args.summary, artifacts=args.artifacts)
+        else:
+            event = judgment.invalidate_result(args.target, args.reason, human=args.human_confirmed)
+        return Envelope.success(event["data"], status="recorded", ledger_events=[event["id"]], warnings=[
+            "A declaration preserves history and requires reassessment; it does not verify scientific truth or grant execution authority."])
+    if args.command == "results":
+        data = judgment.results(args.candidate_id, candidate_version=args.candidate_version)
+        return Envelope.success(data, status="effective_results", warnings=data.get("warnings", []))
     if args.command in {"coverage", "next"}:
         data = judgment.coverage(args.candidate_id)
         return Envelope.success(data, status="bounded", next=data["missing"][:5])
@@ -204,7 +235,7 @@ def run(args) -> Envelope:
         return Envelope.success(event["data"], status="revoked", ledger_events=[event["id"]])
     if args.command == "export-dossier":
         return Envelope.success(judgment.export_dossier(), status="initial_projection",
-            warnings=["Projection omits new ledger judgments and approvals; Node rank remains HOLD until independent v2 reassessment."])
+            warnings=["Projection preserves result history but omits evidence associations and reviews; Node ranking requires its own current v3 assessment and applicable receipt checks."])
     if args.command == "status":
         events = judgment._events()
         candidates = {}

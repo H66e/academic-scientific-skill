@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "project": {
     "id": "synthetic-empirical",
     "question": "SYNTHETIC: does a routing intervention change an invented retrieval response?",
@@ -140,7 +140,7 @@
       "id": "R1",
       "idea_id": "I1",
       "idea_version": 1,
-      "review_basis_hash": "b674e95ca8ceb5f997c19d2aaddaf6dcb108203232a3caed2d97b9aadec4ee73",
+      "review_basis_hash": "300740d5e23fca5ccf03bebc7cf647e37c968a9449c0c596cdb0a691ad18c944",
       "reviewed_at": "2026-10-05T08:00:00Z",
       "kind": "self",
       "decision": "GO",
@@ -172,10 +172,11 @@
         "SYNTHETIC EXAMPLE — NOT A REAL SCIENTIFIC CLAIM",
         "No real paper, retrieval, validation, or expert review"
       ],
-      "decision_contract_version": 2
+      "decision_contract_version": 3
     }
   ],
   "pilots": [],
   "history": [],
-  "decision_contract_version": 2
+  "decision_contract_version": 3,
+  "result_invalidations": []
 }

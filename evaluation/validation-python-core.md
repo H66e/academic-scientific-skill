@@ -66,3 +66,21 @@ Initial sandbox runs hit interpreter/temporary-directory and Windows directory-l
 Compatibility is deliberately narrower: supported existing events retain their hashes and interpretation, while a legacy ledger containing unknown types is now rejected and needs explicit inspection/migration. Replacing old `claim.record`/`test` fixtures with supported types and asserting the intended hash, torn-line and lock errors prevents the new admission guard from making old negative tests pass for the wrong reason.
 
 Future lifecycle tests in ADR 0004 are frozen acceptance requirements, not checks executed by this step. No result API, effective-reading predicate or policy migration is claimed as implemented, and no topic-selection, gap-discovery or scientific-effectiveness improvement has been measured.
+
+## 2026-10-10 result lifecycle implementation
+
+This dated record supersedes the Step 1 implementation boundary for results. Python policy `python-credibility-v3` implements classifications, causal corrections, user-only whole-run invalidations and shared effective GO/refutation-KILL state. Node schema/decision contract 3 implements the same facts, explicit legacy migration, complete result review inputs and Python result-preserving projection. Reading withdrawal remains a separate next concern in this record. See [ADR 0005](../docs/decisions/0005-policy-bound-lifecycle-rollout.md).
+
+Native local verification used CPython 3.14.5 and Node 24.18.0 on Windows:
+
+| Check | Result | Boundary |
+| --- | --- | --- |
+| Python full suite | 89 passed, 0 failed | Includes 13 result tests, 2 CLI integration tests and 6 conformance tests |
+| Node full suite | 199 tests; 198 passed, 1 skipped, 0 failed | Existing host file-symlink limitation; no test weakened to hide failure |
+| Independent conformance | 41 fixed synthetic cases: 18 valid, 23 invalid; 36 Python and 28 Node order permutations | Actual assess/export/rank/migrate paths; facts and gates, not hash equality |
+| Skill / examples / generic validator | Passed; 44 internal links, 111 entrypoint lines, three synthetic examples | Metadata, structural compatibility and intended example gates only |
+| Rebuilt archive / source bytes | Passed; 41 files, 596132 bytes; SHA-256 `184d8e748bbc9366420499e2a0cd94c3184b6074bbacad05ed17fe846dcefd1d` | Local unreleased package; no install synchronization |
+
+Independent review caught and verified fixes for malformed locators/provenance/time fields, ambiguous Python target aliases, cross-lifecycle ID collisions, and migration that could activate previously ignored legacy invalidations. Legacy `EV-*` pilot IDs remain legal. Nonempty or malformed ignored withdrawals now require explicit investigation rather than automatic activation or silent deletion. Unresolvable explanatory claims warn and degrade without changing blockers.
+
+Old finalized reviews and bound human decisions become stale when only the policy digest input changes; ledger and anchor bytes and event counts remain unchanged. Pure policy changes preserve the scientific missing list. Reclassification or invalidation can clear eligibility blockers but always changes review inputs; fresh human instructions are still needed after reassessment. No research effectiveness or truthful scientific interpretation was measured.

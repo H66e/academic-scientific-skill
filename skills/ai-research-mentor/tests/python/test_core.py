@@ -74,7 +74,7 @@ class PythonCoreTests(unittest.TestCase):
         ledger = Ledger(self.project)
         ledger.append("project.init", {"name": "SYNTHETIC vocabulary fixture"})
         before = ledger.path.read_bytes(), ledger.anchor_path.read_bytes()
-        for event_type in ["project.innit", "claim.record", "result.record", "result.invalidate", "reading.retract"]:
+        for event_type in ["project.innit", "claim.record", "result.reclassify", "result.uninvalidate", "reading.retract"]:
             with self.subTest(event_type=event_type):
                 with self.assertRaisesRegex(LedgerError, "unregistered event type"):
                     ledger.append(event_type, {})
@@ -86,7 +86,7 @@ class PythonCoreTests(unittest.TestCase):
         ledger = Ledger(self.project)
         ledger.append("project.init", {})
         ledger.append("claim.add", {"text": "SYNTHETIC hypothesis"}, actor="model", trust="T2")
-        for event_type in ["project.innit", "result.record", "result.invalidate", "reading.retract"]:
+        for event_type in ["project.innit", "result.reclassify", "result.uninvalidate", "reading.retract"]:
             with self.subTest(event_type=event_type):
                 before = self._replace_last_event_type(ledger, event_type)
                 report = ledger.verify()

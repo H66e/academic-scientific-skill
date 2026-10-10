@@ -25,6 +25,8 @@ jobs:
         with:
           node-version: 24
       - name: Python core and Node projection compatibility
+        env:
+          RESEARCH_MENTOR_REQUIRE_NODE_CONFORMANCE: '1'
         run: python -B evaluation/run-python-tests.py
   validate:
     runs-on: ${{ matrix.os }}
