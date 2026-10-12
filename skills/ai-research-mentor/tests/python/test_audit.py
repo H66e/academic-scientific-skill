@@ -287,6 +287,29 @@ class DossierBehaviorTests(unittest.TestCase):
         dossier["project"]["constraints"]["budget"]["value"] = 0
         self.assertEqual(rank_dossier(dossier)["ranked"], [])
 
+    def test_latest_review_preserves_exact_fraction_zone_and_year_zero_order(self):
+        cases = [
+            ("2026-10-10T00:00:00.123456788Z", "2026-10-10T00:00:00.123456789Z", "REVIEW-2"),
+            ("2026-10-10T00:00:00.123456789Z", "2026-10-10T00:00:00.123456788Z", "REVIEW-1"),
+            ("2026-10-10T00:00:00.1Z", "2026-10-10T00:00:00.100000000Z", "REVIEW-2"),
+            ("2026-10-10T01:00+0100", "2026-10-10T00:00:00Z", "REVIEW-2"),
+            ("2026-10-10T00:00+2359", "2026-10-09T00:01:00Z", "REVIEW-2"),
+            ("2026-10-10T00:00-2359", "2026-10-10T23:59:00Z", "REVIEW-2"),
+            ("2026-10-10T00:00Z", "2026-10-10T00:00:00.000000000Z", "REVIEW-2"),
+            ("0000-02-29T00:00:00.123456789Z", "0000-02-29T00:00:00.123456790Z", "REVIEW-2"),
+            ("0000-12-31T23:59:59.9Z", "0001-01-01T00:00:00Z", "REVIEW-2"),
+        ]
+        for first, second, expected in cases:
+            with self.subTest(first=first, second=second):
+                dossier = behavior_fixture()
+                dossier["reviews"][0]["reviewed_at"] = first
+                add_review(dossier, reviewed_at=second)
+                before = deepcopy(dossier)
+                validation = validate_dossier(dossier)
+                self.assertTrue(validation["valid"], validation["errors"])
+                self.assertEqual(rank_dossier(dossier)["ranked"][0]["review_id"], expected)
+                self.assertEqual(dossier, before)
+
     def test_latest_stale_or_legacy_review_cannot_fall_back_to_an_older_go(self):
         for alteration in ("hash", "contract"):
             dossier = behavior_fixture()
@@ -756,8 +779,12 @@ class AuditContractTests(unittest.TestCase):
             dossier = fixture()
             peer = independent(dossier, artifact="real receipt.json")
             seal(root, peer)
-            peer["artifact"] = str(Path(root) / peer["artifact"])
-            self.assertEqual(len(verify_independent_receipts(dossier, root=root)["verified"]), 1)
+            filename = peer["artifact"]
+            # The Windows CI temp root uses RUNNER~1; resolve expands its name.
+            for artifact in (str(Path(root) / filename), str(Path(root).resolve() / filename)):
+                peer["artifact"] = artifact
+                report = verify_independent_receipts(dossier, root=root)
+                self.assertEqual(len(report["verified"]), 1, report["failed"])
             Path(peer["artifact"]).write_bytes(b"x" * (1024 * 1024 + 1))
             self.assertIn("1 MiB", verify_independent_receipts(dossier, root=root)["failed"][0]["reason"])
             seal(root, peer)

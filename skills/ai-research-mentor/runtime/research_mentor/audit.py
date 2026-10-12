@@ -158,6 +158,12 @@ def _date_seconds(value):
     # equivalent leap year then subtract the whole 400-year Gregorian cycle.
     zero = value.startswith("0000-")
     safe = "0400" + value[4:] if zero else value
+    # Only whole seconds are needed here; _not_earlier compares the original
+    # fractional digits separately. Remove them before parsing so Python 3.10
+    # and later accept the same validated, arbitrary-precision timestamps.
+    safe = re.sub(r"\.[0-9]+(?=(?:Z|[+-][0-9]{2}:?[0-9]{2})$)", "", safe)
+    # Python 3.10 also requires the colon in a numeric timezone offset.
+    safe = re.sub(r"([+-][0-9]{2})([0-9]{2})$", r"\1:\2", safe)
     parsed = datetime.fromisoformat(safe.replace("Z", "+00:00"))
     whole = parsed.replace(microsecond=0)
     seconds = (whole - datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds()
@@ -1013,7 +1019,9 @@ def verify_independent_receipts(dossier, *, root=None):
             if re.match(r"^[a-z][a-z0-9+.-]*:", artifact, re.I) and not re.match(r"^[a-z]:[\\/]", artifact, re.I):
                 raise ValueError("Only local file paths below the explicit root can be verified; URLs are not followed")
             target = Path(os.path.abspath(real_root / artifact))
-            if target == real_root or not _inside(real_root, target):
+            # Windows can spell this already-checked root with an 8.3 alias.
+            # Keep target unchanged for link checks and real containment below.
+            if target in (resolved_root, real_root) or not (_inside(resolved_root, target) or _inside(real_root, target)):
                 raise ValueError("Receipt path escapes the explicit root")
             _directory_links(target.parent)
             before = target.lstat()

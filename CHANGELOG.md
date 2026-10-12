@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- 修复实际 Python CI 暴露的跨环境兼容问题：日期比较在解析前标准化高精度小数秒和无冒号时区，保留原精度排序；回执校验接受 Windows 同一已核验根目录的短名与完整名，同时保留越界、链接、身份、字节哈希和快照守卫。冻结回归与科研合同不变。
+
 - 清理公开历史调用日志中的三个本机绝对路径，以明确标记替代共同前缀，保留调用、阅读和来源观察；补充 pytest 缓存忽略规则，移除本地未跟踪缓存。此次清理不改变运行、科研合同或安装包。
 
 - Unify the maintained project on Python: retire the superseded JavaScript entrypoints, tests, runners and CI dependencies; preserve native APIs and existing dossier canonical bytes, schema/decision contract 3, `ledger-json-v1` and `python-credibility-v4`.
