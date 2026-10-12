@@ -11,6 +11,7 @@ research-projects/
 my-topic/
 .evolution/
 __pycache__/
+.pytest_cache/
 *.py[cod]
 *.egg-info/
 .venv/

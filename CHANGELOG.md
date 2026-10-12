@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- 清理公开历史调用日志中的三个本机绝对路径，以明确标记替代共同前缀，保留调用、阅读和来源观察；补充 pytest 缓存忽略规则，移除本地未跟踪缓存。此次清理不改变运行、科研合同或安装包。
+
 - Unify the maintained project on Python: retire the superseded JavaScript entrypoints, tests, runners and CI dependencies; preserve native APIs and existing dossier canonical bytes, schema/decision contract 3, `ledger-json-v1` and `python-credibility-v4`.
 - Replace live cross-language execution with frozen, provenance-bearing protocol observations and native behavioral regressions. Add a Python-only source check to validation and CI; structure and packaging reject unsupported source rather than silently excluding it. Old script/import callers must use Python; changed maintenance file sets require a new frozen baseline. See [ADR 0007](docs/decisions/0007-python-only-toolchain.md). No release promotion or installation synchronization is implied.
 

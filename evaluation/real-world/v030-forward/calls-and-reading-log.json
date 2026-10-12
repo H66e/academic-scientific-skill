@@ -1,12 +1,13 @@
 {
   "schema_version": 1,
+  "publication_note": "2026-10-12：公开副本将三个本机绝对路径的共同前缀替换为 <PRIVATE_RUN_ROOT>。该标记表示原运行的本地隔离目录，不是仓库中的可用路径；其余原始观察未改动。",
   "output_verification": {"json_files_parsed":6,"json_parse_errors":[],"bibtex_export_entries":4,"position_bibtex_entries":1,"brace_balance_checks":"两份BibTeX均平衡且无提前闭合","citation_key_check":"position-related-work.md与position-references.bib均包含liu2024lost","reference_manager_import":"not_performed","source_byte_sum_rechecked":553601,"scientific_validation":"not_performed"},
   "executed_date": "2026-10-06",
   "language": "zh-CN",
   "authorization": {
-    "cases_file": "E:/academic skill/.skill-development/research-v030-final-20261006/forward-suite.json",
-    "skill": "E:/academic skill/.skill-development/research-v030-final-20261006/forward-skill/ai-research-mentor/SKILL.md",
-    "output_root": "E:/academic skill/.skill-development/research-v030-final-20261006/forward-artifacts",
+    "cases_file": "<PRIVATE_RUN_ROOT>/forward-suite.json",
+    "skill": "<PRIVATE_RUN_ROOT>/forward-skill/ai-research-mentor/SKILL.md",
+    "output_root": "<PRIVATE_RUN_ROOT>/forward-artifacts",
     "external_request_limit": 8,
     "acquisition_budget_bytes": 8388608,
     "training": false,
