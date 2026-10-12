@@ -9,6 +9,6 @@ This example illustrates theoretical validation and a bounded GO pilot record. S
 Run from the repository root:
 
 ```text
-node skills/ai-research-mentor/scripts/research_audit.mjs validate examples/theoretical-example/dossier.json
-node skills/ai-research-mentor/scripts/research_audit.mjs rank examples/theoretical-example/dossier.json
+python -B skills/ai-research-mentor/scripts/research_audit.py validate examples/theoretical-example/dossier.json
+python -B skills/ai-research-mentor/scripts/research_audit.py rank examples/theoretical-example/dossier.json
 ```

@@ -33,7 +33,7 @@
 
 ## 可选验收工具
 
-Python 3.10+ 标准库工具，无额外包；旧 Node 入口保留兼容，只读文件与 JSON，不执行 shell、Git、网络或模型：
+Python 3.10+ 标准库工具，无额外包，只读文件与 JSON，不执行 shell、Git、网络或模型：
 
 ```text
 python -B <skill>/scripts/evolution_guard.py snapshot <skill-directory>
@@ -42,7 +42,7 @@ python -B <skill>/scripts/evolution_guard.py checks-hash <run-directory>/run.jso
 python -B <skill>/scripts/evolution_guard.py check <run-directory>/run.json
 ```
 
-snapshot 返回完整文件集合与总体 hash；hash 返回单文件 SHA-256。先生成基线与候选指纹，再让评估者产生回执。不能在提交候选后用变化中的 HEAD 当作旧版。
+snapshot 返回完整文件集合与总体 hash；hash 返回单文件 SHA-256。先生成基线与候选指纹，再让评估者产生回执。不能在提交候选后用变化中的 HEAD 当作旧版。运行时、Python 脚本、schema、测试和本验收协议保持保护文件；更换语言入口不扩大默认可改范围。旧入口退役导致文件集合变化后，旧维护轮次的 snapshot 与回执不能复用，须从当前源码重新冻结基线与评估。
 
 run.json 必需字段：
 

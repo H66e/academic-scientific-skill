@@ -1,4 +1,4 @@
-"""SYNTHETIC cross-runtime result semantics, not scientific-effectiveness tests.
+"""SYNTHETIC ledger/dossier result semantics, not scientific-effectiveness tests.
 
 The fixture expectations are independent of both implementations. Adapters map
 declared identity/provenance to each production API; they do not implement a
@@ -11,7 +11,6 @@ import itertools
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -20,12 +19,15 @@ import unittest
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "skills" / "ai-research-mentor" / "runtime"))
 
+from research_mentor.audit import (
+    DECISION_CONTRACT_VERSION, create_initial_dossier, effective_result_state,
+    fingerprint_idea, migrate_dossier, rank_dossier, validate_dossier,
+)
 from research_mentor.judgment import Judgment
 from research_mentor.ledger import Ledger, PROTOCOL, digest
 from research_mentor.results import candidate_result_state
 
 FIXTURE = REPO / "evaluation" / "fixtures" / "result-lifecycle.json"
-AUDIT_URI = (REPO / "skills" / "ai-research-mentor" / "scripts" / "research_audit.mjs").as_uri()
 STAMP = "2026-10-10T00:00:00Z"
 
 
@@ -59,94 +61,6 @@ def python_facts(state):
     }
 
 
-# Node receives the neutral fixtures and builds a valid public synthetic context
-# with its production initializer. This bridge adapts fields, never folds runs.
-NODE_BRIDGE = r"""
-import fs from 'node:fs';
-const audit = await import(AUDIT_URI);
-const input = JSON.parse(fs.readFileSync(0, 'utf8'));
-const original = JSON.parse(fs.readFileSync(input.example, 'utf8'));
-function dossierFor(value) {
-  const dossier = audit.createInitialDossier('synthetic-result-conformance');
-  const idea = structuredClone(original.ideas[0]);
-  Object.assign(idea, {id: input.candidate_id, version: value.candidate_version ?? input.candidate_version,
-    claims: input.claims.map(id => ({id, candidate_version: 1}))});
-  dossier.ideas = [idea, {...structuredClone(idea), id: 'C-OTHER', claims: []}];
-  for (const key of ['papers', 'searches', 'evidence']) dossier[key] = structuredClone(original[key]);
-  dossier.screening = [];
-  dossier.pilots = value.records.map(record => {
-    const {candidate_id, candidate_version, ...fields} = record;
-    return {...fields, idea_id: candidate_id, idea_version: candidate_version};
-  });
-  dossier.result_invalidations = value.invalidations.map(record => {
-    const {candidate_id, candidate_version, ...fields} = record;
-    return {...fields, idea_id: candidate_id, idea_version: candidate_version};
-  });
-  return dossier;
-}
-function facts(state) {
-  return {valid: true, contradiction_blocker: state.contradiction_blocker,
-    ambiguity_blocker: state.ambiguity_blocker, requires_hold: state.requires_hold,
-    scientific_refutation_ids: [...state.scientific_refutation_ids].sort(),
-    affected_claims_degraded: state.affected_claims_degraded};
-}
-function addReview(dossier, decision='GO', pilotIds=[]) {
-  const review = structuredClone(original.reviews[0]);
-  Object.assign(review, {id: 'REVIEW-SYNTHETIC', idea_id: input.candidate_id,
-    idea_version: dossier.ideas[0].version, decision_contract_version: audit.DECISION_CONTRACT_VERSION,
-    decision, review_basis_hash: audit.fingerprintIdea(dossier, input.candidate_id)});
-  if (decision === 'KILL') review.decision_basis = {
-    type: 'scientific_refutation', evidence_ids: [], pilot_ids: pilotIds,
-    dependency_names: [], constraint_keys: [], explanation: 'SYNTHETIC bounded refutation basis'};
-  dossier.reviews = [review];
-}
-function decision(dossier) {
-  const ranking = audit.rankDossier(dossier);
-  const row = [...ranking.ranked, ...ranking.held, ...ranking.killed]
-    .find(item => item.idea_id === input.candidate_id);
-  return {decision: row.decision, reasons: row.reasons};
-}
-const checked = input.cases.map(value => {
-  const dossier = dossierFor(value);
-  const validation = audit.validateDossier(dossier);
-  if (!validation.valid) return {facts: {valid:false}, errors:validation.errors};
-  const state = audit.effectiveResultState(dossier, input.candidate_id, value.candidate_version ?? input.candidate_version);
-  addReview(dossier);
-  const go = decision(dossier);
-  addReview(dossier, 'KILL', dossier.pilots.filter(pilot => pilot.outcome === 'contradicted' && pilot.idea_version === dossier.ideas[0].version).map(pilot => pilot.id));
-  const kill = decision(dossier);
-  return {facts: facts(state), warnings:state.warnings,
-    runs:state.runs.map(run=>({run_id:run.run_id, eligible:run.eligible, head_ids:[...run.head_ids].sort()})), go, kill};
-});
-if (input.currency) {
-  const empty = dossierFor({records: [], invalidations: []});
-  addReview(empty);
-  const before = decision(empty);
-  const initialHash = empty.reviews[0].review_basis_hash;
-  empty.pilots = dossierFor(input.currency.contradiction).pilots;
-  const afterRecord = decision(empty);
-  addReview(empty);
-  const contradictedHash = empty.reviews[0].review_basis_hash;
-  empty.pilots = dossierFor(input.currency.correction).pilots;
-  const afterCorrection = decision(empty);
-  const correctedHash = audit.fingerprintIdea(empty, input.candidate_id);
-  addReview(empty);
-  const afterReassessment = decision(empty);
-  const invalidated = dossierFor(input.currency.contradiction);
-  addReview(invalidated);
-  const preInvalidationHash = invalidated.reviews[0].review_basis_hash;
-  invalidated.result_invalidations = dossierFor(input.currency.invalidation).result_invalidations;
-  const afterInvalidation = decision(invalidated);
-  const invalidatedHash = audit.fingerprintIdea(invalidated, input.candidate_id);
-  addReview(invalidated);
-  const invalidationReassessed = decision(invalidated);
-  console.log(JSON.stringify({checked, currency: {before, afterRecord, afterCorrection, afterReassessment,
-    afterInvalidation, invalidationReassessed,
-    recordChangedBasis: initialHash !== contradictedHash,
-    correctionChangedBasis: correctedHash !== contradictedHash,
-    invalidationChangedBasis: invalidatedHash !== preInvalidationHash}}));
-} else console.log(JSON.stringify({checked}));
-""".replace("AUDIT_URI", json.dumps(AUDIT_URI))
 
 
 class ResultConformanceTests(unittest.TestCase):
@@ -165,8 +79,6 @@ class ResultConformanceTests(unittest.TestCase):
         cls.claim_ids = {name: judgment.add_claim("SYNTHETIC explanatory claim " + name,
             cls.fixture["candidate_id"])["id"] for name in cls.fixture["claims"]}
         cls.base_events = ledger.read()
-        if os.environ.get("RESEARCH_MENTOR_REQUIRE_NODE_CONFORMANCE") == "1" and shutil.which("node") is None:
-            raise RuntimeError("CI requires Node conformance; unavailable Node must fail, not skip")
 
     @classmethod
     def events_for(cls, case):
@@ -217,18 +129,96 @@ class ResultConformanceTests(unittest.TestCase):
                 "runs": [{"run_id": run["run_id"], "eligible": not run["invalidated"],
                           "head_ids": sorted(head["id"] for head in run["heads"])} for run in state["runs"]]}
 
-    def node_check(self, cases, *, currency=None):
-        if shutil.which("node") is None:
-            self.skipTest("Node unavailable locally; CI requires cross-runtime conformance")
-        payload = {key: self.fixture[key] for key in ("candidate_id", "candidate_version", "claims")}
-        payload.update(cases=cases, example=str(REPO / "examples" / "empirical-example" / "dossier.json"))
-        if currency:
-            payload["currency"] = currency
-        completed = subprocess.run(["node", "--input-type=module", "-e", NODE_BRIDGE],
-            input=json.dumps(payload, ensure_ascii=False).encode("utf-8"), capture_output=True,
-            timeout=60, cwd=REPO)
-        self.assertEqual(completed.returncode, 0, completed.stderr.decode("utf-8", errors="replace"))
-        return json.loads(completed.stdout.decode("utf-8"))
+    def dossier_check(self, cases, *, currency=None):
+        """Adapt identity fields only; all folds and gates are production APIs."""
+        original = json.loads((REPO / "examples/empirical-example/dossier.json").read_text(encoding="utf-8"))
+
+        def dossier_for(value):
+            dossier = create_initial_dossier("synthetic-result-conformance")
+            idea = deepcopy(original["ideas"][0])
+            idea.update(id=self.fixture["candidate_id"],
+                        version=value.get("candidate_version", self.fixture["candidate_version"]),
+                        claims=[{"id": identifier, "candidate_version": 1} for identifier in self.fixture["claims"]])
+            dossier["ideas"] = [idea, {**deepcopy(idea), "id": "C-OTHER", "claims": []}]
+            for key in ("papers", "searches", "evidence"):
+                dossier[key] = deepcopy(original[key])
+            dossier["screening"] = []
+            for source, target in (("records", "pilots"), ("invalidations", "result_invalidations")):
+                dossier[target] = []
+                for record in value[source]:
+                    fields = deepcopy(record)
+                    fields["idea_id"] = fields.pop("candidate_id")
+                    fields["idea_version"] = fields.pop("candidate_version")
+                    dossier[target].append(fields)
+            return dossier
+
+        def add_review(dossier, decision="GO", pilot_ids=None):
+            review = deepcopy(original["reviews"][0])
+            review.update(id="REVIEW-SYNTHETIC", idea_id=self.fixture["candidate_id"],
+                          idea_version=dossier["ideas"][0]["version"],
+                          decision_contract_version=DECISION_CONTRACT_VERSION,
+                          decision=decision,
+                          review_basis_hash=fingerprint_idea(dossier, self.fixture["candidate_id"]))
+            if decision == "KILL":
+                review["decision_basis"] = {"type": "scientific_refutation", "evidence_ids": [],
+                    "pilot_ids": pilot_ids or [], "dependency_names": [], "constraint_keys": [],
+                    "explanation": "SYNTHETIC bounded refutation basis"}
+            dossier["reviews"] = [review]
+
+        def decision(dossier):
+            ranking = rank_dossier(dossier)
+            row = next(item for group in ("ranked", "held", "killed") for item in ranking[group]
+                       if item["idea_id"] == self.fixture["candidate_id"])
+            return {key: row[key] for key in ("decision", "reasons")}
+
+        checked = []
+        for value in cases:
+            dossier = dossier_for(value)
+            validation = validate_dossier(dossier)
+            if not validation["valid"]:
+                checked.append({"facts": {"valid": False}, "errors": validation["errors"]})
+                continue
+            state = effective_result_state(dossier, self.fixture["candidate_id"],
+                                           value.get("candidate_version", self.fixture["candidate_version"]))
+            facts = {"valid": True, **{key: state[key] for key in ("contradiction_blocker",
+                "ambiguity_blocker", "requires_hold", "affected_claims_degraded")},
+                "scientific_refutation_ids": sorted(state["scientific_refutation_ids"])}
+            add_review(dossier)
+            go = decision(dossier)
+            add_review(dossier, "KILL", [pilot["id"] for pilot in dossier["pilots"]
+                if pilot["outcome"] == "contradicted" and pilot["idea_version"] == dossier["ideas"][0]["version"]])
+            checked.append({"facts": facts, "warnings": state["warnings"], "go": go,
+                            "kill": decision(dossier), "runs": [{"run_id": run["run_id"],
+                            "eligible": run["eligible"], "head_ids": sorted(run["head_ids"])} for run in state["runs"]]})
+        if currency is None:
+            return {"checked": checked}
+
+        empty = dossier_for({"records": [], "invalidations": []})
+        add_review(empty)
+        before = decision(empty)
+        initial_hash = empty["reviews"][0]["review_basis_hash"]
+        empty["pilots"] = dossier_for(currency["contradiction"])["pilots"]
+        after_record = decision(empty)
+        add_review(empty)
+        contradicted_hash = empty["reviews"][0]["review_basis_hash"]
+        empty["pilots"] = dossier_for(currency["correction"])["pilots"]
+        after_correction = decision(empty)
+        corrected_hash = fingerprint_idea(empty, self.fixture["candidate_id"])
+        add_review(empty)
+        after_reassessment = decision(empty)
+        invalidated = dossier_for(currency["contradiction"])
+        add_review(invalidated)
+        pre_invalidation_hash = invalidated["reviews"][0]["review_basis_hash"]
+        invalidated["result_invalidations"] = dossier_for(currency["invalidation"])["result_invalidations"]
+        after_invalidation = decision(invalidated)
+        invalidated_hash = fingerprint_idea(invalidated, self.fixture["candidate_id"])
+        add_review(invalidated)
+        return {"checked": checked, "currency": {"before": before, "afterRecord": after_record,
+            "afterCorrection": after_correction, "afterReassessment": after_reassessment,
+            "afterInvalidation": after_invalidation, "invalidationReassessed": decision(invalidated),
+            "recordChangedBasis": initial_hash != contradicted_hash,
+            "correctionChangedBasis": corrected_hash != contradicted_hash,
+            "invalidationChangedBasis": invalidated_hash != pre_invalidation_hash}}
 
     def test_python_effective_facts_match_independent_frozen_cases(self):
         for case in self.cases:
@@ -239,9 +229,9 @@ class ResultConformanceTests(unittest.TestCase):
                     self.assertTrue(observed["warnings"], "Ambiguity/degradation must be visible")
 
     def test_both_production_folds_and_ranking_obey_the_same_cases(self):
-        node = self.node_check(self.cases)["checked"]
-        self.assertEqual(len(node), len(self.cases))
-        for case, observed in zip(self.cases, node):
+        dossier = self.dossier_check(self.cases)["checked"]
+        self.assertEqual(len(dossier), len(self.cases))
+        for case, observed in zip(self.cases, dossier):
             with self.subTest(case=case["name"]):
                 self.assertEqual(observed["facts"], case["expected"], observed)
                 self.assertEqual(observed["facts"], self.python_check(case)["facts"])
@@ -268,7 +258,7 @@ class ResultConformanceTests(unittest.TestCase):
                 {"run_id": "RUN1", "eligible": False, "head_ids": ["R2"]}],
             "old_candidate_version_remains_historical": [{"run_id": "RUN-NEW", "eligible": True, "head_ids": ["R2"]}],
         }
-        for case, observed in zip(self.cases, node):
+        for case, observed in zip(self.cases, dossier):
             if case["name"] in frozen_heads:
                 with self.subTest(case=case["name"], expected="frozen causal heads"):
                     self.assertEqual(observed["runs"], frozen_heads[case["name"]])
@@ -290,18 +280,18 @@ class ResultConformanceTests(unittest.TestCase):
                 variant = deepcopy(case)
                 variant["records"] = list(ordering)
                 variants.append(variant)
-        node = self.node_check(variants)["checked"]
-        for case, observed in zip(variants, node):
+        dossier = self.dossier_check(variants)["checked"]
+        for case, observed in zip(variants, dossier):
             with self.subTest(case=case["name"], ids=[item["id"] for item in case["records"]]):
                 self.assertEqual(observed["facts"], case["expected"], observed)
                 self.assertEqual(observed["runs"], self.python_check(case)["runs"])
 
-    def test_node_removing_result_gate_never_restores_old_review(self):
+    def test_dossier_removing_result_gate_never_restores_old_review(self):
         by_name = {case["name"]: case for case in self.cases}
         correction = by_name["same_run_visible_correction"]
         contradiction = deepcopy(correction)
         contradiction["records"] = contradiction["records"][:1]
-        result = self.node_check([], currency={"contradiction": contradiction,
+        result = self.dossier_check([], currency={"contradiction": contradiction,
             "correction": correction, "invalidation": by_name["invalidation_withdraws_whole_run"]})["currency"]
         self.assertEqual(result["before"]["decision"], "GO", "Positive ranking control is necessary")
         for field in ("afterRecord", "afterCorrection", "afterInvalidation"):
@@ -312,45 +302,35 @@ class ResultConformanceTests(unittest.TestCase):
         for field in ("recordChangedBasis", "correctionChangedBasis", "invalidationChangedBasis"):
             self.assertTrue(result[field], field)
 
-    def test_node_legacy_migration_preserves_contradiction_and_record_identity(self):
-        if shutil.which("node") is None:
-            self.skipTest("Node unavailable locally; CI requires cross-runtime conformance")
-        script = r"""
-import fs from 'node:fs';
-const audit = await import(AUDIT_URI);
-const legacy = JSON.parse(fs.readFileSync('examples/empirical-example/dossier.json', 'utf8'));
-legacy.schema_version = 2; legacy.decision_contract_version = 2;
-for (const review of legacy.reviews) review.decision_contract_version = 2;
-delete legacy.result_invalidations;
-legacy.pilots = [
-  {id:'EV-000003', idea_id:legacy.ideas[0].id, idea_version:1, kind:'scientific', outcome:'contradicted',
-    artifacts:['SYNTHETIC-result.json'], summary:'SYNTHETIC legacy contradiction', limitations:['Invented fixture only']},
-  {id:'LEGACY-SUPPORT', idea_id:legacy.ideas[0].id, idea_version:1, kind:'scientific', outcome:'supported',
-    artifacts:['SYNTHETIC-support.json'], summary:'SYNTHETIC independent support', limitations:['Invented fixture only']}
-];
-const before = JSON.stringify(legacy);
-const migrated = audit.migrateDossier(legacy);
-const state = audit.effectiveResultState(migrated, legacy.ideas[0].id, 1);
-const extra = structuredClone(legacy);
-extra.result_invalidations = [{id:'IGNORED-LEGACY-INV',run_id:'EV-000003',idea_id:legacy.ideas[0].id,
-  idea_version:1,result_id:'EV-000003',reason:'SYNTHETIC previously uninterpreted field',
-  recorded_at:'2026-10-10T00:00:00Z',actor:'user',trust:'T1'}];
-let rejected = false, error = null;
-try { audit.migrateDossier(extra); } catch (failure) { rejected = true; error = failure.message; }
-console.log(JSON.stringify({legacyValid:audit.validateDossier(legacy).valid,
-  legacyInputUnchanged:before===JSON.stringify(legacy), migratedValid:audit.validateDossier(migrated).valid,
-  schemaVersion:migrated.schema_version, contractVersion:migrated.decision_contract_version,
-  runIds:migrated.pilots.map(pilot=>pilot.run_id), pilotIds:migrated.pilots.map(pilot=>pilot.id),
-  artifacts:migrated.pilots.map(pilot=>pilot.artifacts), invalidations:migrated.result_invalidations,
-  reviewCount:migrated.reviews.length,
-  archivedReviews:migrated.history.filter(record=>record.original_review).map(record=>record.original_review),
-  originalReviews:legacy.reviews, blocker:state.contradiction_blocker,
-  extraLegacyReadable:audit.validateDossier(extra).valid, extraRejected:rejected, extraError:error}));
-""".replace("AUDIT_URI", json.dumps(AUDIT_URI))
-        completed = subprocess.run(["node", "--input-type=module", "-e", script],
-            capture_output=True, timeout=30, cwd=REPO)
-        self.assertEqual(completed.returncode, 0, completed.stderr.decode("utf-8", errors="replace"))
-        value = json.loads(completed.stdout.decode("utf-8"))
+    def test_dossier_legacy_migration_preserves_contradiction_and_record_identity(self):
+        legacy = json.loads((REPO / "examples/empirical-example/dossier.json").read_text(encoding="utf-8"))
+        legacy.update(schema_version=2, decision_contract_version=2)
+        for review in legacy["reviews"]:
+            review["decision_contract_version"] = 2
+        legacy.pop("result_invalidations", None)
+        idea_id = legacy["ideas"][0]["id"]
+        legacy["pilots"] = [
+            {"id": "EV-000003", "idea_id": idea_id, "idea_version": 1, "kind": "scientific", "outcome": "contradicted",
+             "artifacts": ["SYNTHETIC-result.json"], "summary": "SYNTHETIC legacy contradiction", "limitations": ["Invented fixture only"]},
+            {"id": "LEGACY-SUPPORT", "idea_id": idea_id, "idea_version": 1, "kind": "scientific", "outcome": "supported",
+             "artifacts": ["SYNTHETIC-support.json"], "summary": "SYNTHETIC independent support", "limitations": ["Invented fixture only"]}]
+        before = deepcopy(legacy)
+        migrated = migrate_dossier(legacy)
+        state = effective_result_state(migrated, idea_id, 1)
+        extra = deepcopy(legacy)
+        extra["result_invalidations"] = [{"id": "IGNORED-LEGACY-INV", "run_id": "EV-000003", "idea_id": idea_id,
+            "idea_version": 1, "result_id": "EV-000003", "reason": "SYNTHETIC previously uninterpreted field",
+            "recorded_at": STAMP, "actor": "user", "trust": "T1"}]
+        with self.assertRaisesRegex(ValueError, "(?i)legacy|invalidation"):
+            migrate_dossier(extra)
+        value = {"legacyValid": validate_dossier(legacy)["valid"], "legacyInputUnchanged": legacy == before,
+            "migratedValid": validate_dossier(migrated)["valid"], "schemaVersion": migrated["schema_version"],
+            "contractVersion": migrated["decision_contract_version"], "runIds": [pilot["run_id"] for pilot in migrated["pilots"]],
+            "pilotIds": [pilot["id"] for pilot in migrated["pilots"]], "artifacts": [pilot["artifacts"] for pilot in migrated["pilots"]],
+            "invalidations": migrated["result_invalidations"], "reviewCount": len(migrated["reviews"]),
+            "archivedReviews": [item["original_review"] for item in migrated["history"] if "original_review" in item],
+            "originalReviews": legacy["reviews"], "blocker": state["contradiction_blocker"],
+            "extraLegacyReadable": validate_dossier(extra)["valid"]}
         self.assertTrue(value["legacyValid"])
         self.assertTrue(value["legacyInputUnchanged"])
         self.assertTrue(value["migratedValid"])
@@ -364,8 +344,6 @@ console.log(JSON.stringify({legacyValid:audit.validateDossier(legacy).valid,
         self.assertEqual(value["archivedReviews"], value["originalReviews"])
         self.assertTrue(value["blocker"], "Migration cannot erase a legacy contradiction")
         self.assertTrue(value["extraLegacyReadable"])
-        self.assertTrue(value["extraRejected"], "Previously ignored withdrawals cannot silently acquire semantics")
-        self.assertRegex(value["extraError"], r"(?i)legacy|invalidation")
 
     def test_python_assessment_and_projection_preserve_effective_results(self):
         """Run real private writes, assess/finalize and the production export."""
@@ -400,27 +378,43 @@ console.log(JSON.stringify({legacyValid:audit.validateDossier(legacy).valid,
             self.assertEqual(exported["schema_version"], 3)
             self.assertEqual(len(exported["pilots"]), 2)
             self.assertEqual(len(exported["result_invalidations"]), 1)
-            self.assertEqual(exported["reviews"], [], "Python approval cannot transfer to Node")
-            if shutil.which("node") is None:
-                if os.environ.get("RESEARCH_MENTOR_REQUIRE_NODE_CONFORMANCE") == "1":
-                    self.fail("Node required in CI")
-                return
-            script = (
-                "import fs from 'node:fs';const a=await import(" + json.dumps(AUDIT_URI) + ");"
-                "const d=JSON.parse(fs.readFileSync(0,'utf8'));const v=a.validateDossier(d);"
-                "console.log(JSON.stringify({validation:v,state:v.valid?a.effectiveResultState(d,'C-SYNTHETIC',1):null,"
-                "ranking:v.valid?a.rankDossier(d):null}));"
-            )
-            checked = subprocess.run(["node", "--input-type=module", "-e", script],
-                input=json.dumps(exported, ensure_ascii=False).encode("utf-8"), capture_output=True, timeout=30, cwd=REPO)
-            self.assertEqual(checked.returncode, 0, checked.stderr.decode("utf-8", errors="replace"))
-            value = json.loads(checked.stdout.decode("utf-8"))
+            self.assertEqual(exported["reviews"], [], "Ledger approval cannot transfer to dossier")
+            validation = validate_dossier(exported)
+            value = {"validation": validation, "state": effective_result_state(exported, "C-SYNTHETIC", 1) if validation["valid"] else None,
+                     "ranking": rank_dossier(exported) if validation["valid"] else None}
             self.assertTrue(value["validation"]["valid"], value["validation"])
             expected = python_facts(judgment.results("C-SYNTHETIC"))
             actual = value["state"]
             self.assertEqual(expected, {"valid": True, **{key: actual[key] for key in expected if key != "valid"}})
             self.assertEqual(value["ranking"]["ranked"], [])
             self.assertEqual(value["ranking"]["held"][0]["decision"], "HOLD")
+
+    def test_cli_migration_emits_reassessment_without_overwriting_legacy_input(self):
+        legacy = json.loads((REPO / "examples/empirical-example/dossier.json").read_text(encoding="utf-8"))
+        legacy["schema_version"] = 1
+        for key in ("screening", "decision_contract_version", "result_invalidations"):
+            legacy.pop(key)
+        for idea in legacy["ideas"]:
+            idea.pop("evidence_links")
+        for review in legacy["reviews"]:
+            review["basis_hash"] = review["review_basis_hash"]
+            for key in ("review_basis_hash", "decision_scope", "recommended_stage", "decision_basis", "decision_contract_version"):
+                review.pop(key)
+        self.assertTrue(validate_dossier(legacy)["valid"])
+        with tempfile.TemporaryDirectory(prefix="mentor-legacy-cli-") as directory:
+            file = Path(directory) / "legacy.json"
+            file.write_text(json.dumps(legacy, ensure_ascii=False), encoding="utf-8")
+            original_bytes = file.read_bytes()
+            process = subprocess.run([sys.executable, "-B", str(REPO / "skills/ai-research-mentor/scripts/research_audit.py"), "migrate", str(file)],
+                env={**os.environ, "PATH": str(Path(directory) / "no-executables")}, capture_output=True, timeout=20)
+            self.assertEqual(process.returncode, 0, process.stderr.decode("utf-8", errors="replace"))
+            migrated = json.loads(process.stdout.decode("utf-8"))
+            self.assertTrue(validate_dossier(migrated)["valid"])
+            self.assertEqual(migrated["schema_version"], 3)
+            self.assertEqual(migrated["reviews"], [])
+            self.assertEqual([row["original_review"] for row in migrated["history"]], legacy["reviews"])
+            self.assertEqual(rank_dossier(migrated)["ranked"], [])
+            self.assertEqual(file.read_bytes(), original_bytes)
 
 
 if __name__ == "__main__":

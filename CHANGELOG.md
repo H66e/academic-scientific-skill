@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Unify the maintained project on Python: retire the superseded JavaScript entrypoints, tests, runners and CI dependencies; preserve native APIs and existing dossier canonical bytes, schema/decision contract 3, `ledger-json-v1` and `python-credibility-v4`.
+- Replace live cross-language execution with frozen, provenance-bearing protocol observations and native behavioral regressions. Add a Python-only source check to validation and CI; structure and packaging reject unsupported source rather than silently excluding it. Old script/import callers must use Python; changed maintenance file sets require a new frozen baseline. See [ADR 0007](docs/decisions/0007-python-only-toolchain.md). No release promotion or installation synchronization is implied.
+
+### 此前迁移阶段记录
+
+以下条目记录先前实际完成的双运行时迁移、兼容检查和 CI 配置；其中第二运行时的持续维护承诺现由 ADR 0007 取代，原观察值与历史发行记录不改写。
+
 - Complete native standard-library Python ports for dossier validation, v1/v2 migration, candidate fingerprints/ranking, actual independent receipts, Crossref/DOI/arXiv source utilities, note cards/drafts/BibTeX and read-only evolution checks. CLI adapters and APIs share implementations; no runtime command launches Node. Retain and exercise Node entrypoints as compatibility oracles.
 - Preserve existing dossier contract 3 and ECMAScript-compatible fingerprints; keep ledger-json-v1 and snapshot-bound human decisions separate. Copying a receipt report never grants authorization, legacy migration does not revive approvals, and PDF acquisition does not imply extraction or reading.
 - Add native repository checks and deterministic ZIP packaging, Python-only CLI regression cases and independent cross-language contract cases. Source-tool private queries are blocked before network access; fixed arXiv resource transport preserves the requested version and format across redirects.

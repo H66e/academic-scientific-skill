@@ -97,9 +97,9 @@ Python `assess` 是严格机器建议，人工决定另行记录并绑定当前�
 
 简单请求直接回复；需要保留判断但尚未持续维护时，用 research-outputs.md 的 Markdown 决策卡或 gap 卡。跨轮恢复、机器排序或跟踪证据变化时再按 data-contract.md 升级 dossier.json，不要求所有请求填写全套记录。不要将空文件、schema 检查通过或模型一致意见当作证据充分。
 
-如使用辅助脚本，先 validate；旧接口评审保持 HOLD，按合同补依据并复评。fingerprint 绑定当前候选依赖；full_validation 用 rank 的 receipt-root 对真实回执核验。scripts/research_audit.py 核验记录、版本和排序必要条件，不评定论文真实性、检索完备性或科学新颖性。没有 Python 时用旧 Node 兼容入口或依合同手动核验，不因此停止用户的研究任务。
+如使用辅助脚本，先 validate；旧接口评审保持 HOLD，按合同补依据并复评。fingerprint 绑定当前候选依赖；full_validation 用 rank 的 receipt-root 对真实回执核验。scripts/research_audit.py 核验记录、版本和排序必要条件，不评定论文真实性、检索完备性或科学新颖性。没有 Python 时依合同手动核验，明确自动检查未运行，不因此停止用户的研究任务。
 
-维护或改造本 skill 时可读 [design-basis.md](references/design-basis.md)。Python 和 Node 回归分别运行，不把开发测试数据混入真实研究证据。每次决定前比较最强反方依据；用户的信心或反复要求不能代替新证据，也不能让模型给自己的意见标为人工批准。
+维护或改造本 skill 时可读 [design-basis.md](references/design-basis.md)。运行 Python 回归，不把开发测试数据混入真实研究证据。每次决定前比较最强反方依据；用户的信心或反复要求不能代替新证据，也不能让模型给自己的意见标为人工批准。
 
 ## 从使用反馈改进本 skill
 

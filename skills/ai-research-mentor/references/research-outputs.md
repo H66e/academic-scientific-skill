@@ -12,7 +12,7 @@
 
 ## 轻量输出工具
 
-Python 3.10+ 可用时，`scripts/research_outputs.py` 提供标准库纯整理工具；旧 Node 入口保留兼容；宿主先填真实材料，工具不生成科学论证或自动查新。例如一份最小 notes.json：
+Python 3.10+ 可用时，`scripts/research_outputs.py` 提供标准库纯整理工具；宿主先填真实材料，工具不生成科学论证或自动查新。例如一份最小 notes.json：
 
 ```json
 {

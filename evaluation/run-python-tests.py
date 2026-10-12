@@ -1,4 +1,4 @@
-"""Run standard-library Python tests and optional Node projection checks."""
+"""Run standard-library Python regressions, contracts and frozen baselines."""
 from pathlib import Path
 import sys
 import unittest

@@ -313,7 +313,7 @@ class ReadingContractTests(unittest.TestCase):
         fresh = self.assess(judgment)
         self.assertEqual(fresh["policy_version"], "python-credibility-v4")
         self.assertEqual(judgment.export_dossier()["decision_contract_version"], 3,
-                         "Python reading interpretation does not bump the Node decision contract")
+                         "Ledger reading interpretation does not bump the dossier decision contract")
         self.assertEqual(fresh["machine_recommendation"], "GO", fresh["missing"])
         self.assertEqual(judgment.finalize(CANDIDATE)["approval_status"], "pending_human")
         with self.assertRaises(ValueError):

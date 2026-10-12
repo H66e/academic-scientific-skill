@@ -1,5 +1,7 @@
 # ADR 0002: MIT license and license propagation
 
+**2026-10-10 tooling update:** the packaging commands named below are historical and retired under [ADR 0007](0007-python-only-toolchain.md). Current license propagation is performed and verified by `python -B evaluation/skill_tools.py package` and `check-package`; the license decision is unchanged.
+
 ## Context
 
 The repository was published without a `LICENSE` file, and `README.md` and `CONTRIBUTING.md` stated that no license had been selected. Absence of a license is not neutral: the default is exclusive copyright, so the published source could not lawfully be reused, forked or embedded, which contradicts the reason the project is public. Review comments received before this decision recommended different licenses (MIT in one, Apache-2.0 in another), and the closest comparable project, `Imbad0202/academic-research-skills`, publishes under CC-BY-NC 4.0.

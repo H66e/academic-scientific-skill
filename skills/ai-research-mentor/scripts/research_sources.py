@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Standalone native source acquisition; no Node or package installation."""
+"""Standalone source acquisition using the shared Python runtime."""
 from pathlib import Path
 import sys
 

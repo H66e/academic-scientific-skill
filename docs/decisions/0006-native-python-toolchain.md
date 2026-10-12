@@ -1,5 +1,7 @@
 # Native Python toolchain with retained dossier compatibility
 
+**2026-10-10 supersession:** [ADR 0007](0007-python-only-toolchain.md) completes the transition to a Python-only maintained source and retires the compatibility entrypoints and live differential execution. This document records the preceding migration stage and its actual compatibility obligations; historical checks are not rewritten as Python-only observations.
+
 ## Context
 
 The evidence ledger already runs on Python, but dossier audit, independent review receipts, source utilities, note outputs and controlled-maintenance checks still require Node. Users cannot finish the existing research workflow in a Python-only environment. A language migration must not silently change fingerprints, revive archived approval, invent missing metadata or lower scientific gates.

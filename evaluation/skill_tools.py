@@ -1,7 +1,7 @@
 """Native repository checks and byte-compatible deterministic skill packaging.
 
 No network, package installation, archive extraction or research-data publication.
-Node counterparts remain independently exercised compatibility checks.
+Source and release checks enforce the Python-only implementation boundary.
 """
 from __future__ import annotations
 
@@ -23,6 +23,10 @@ LICENSE = REPO / "LICENSE"
 sys.path.insert(0, str(SKILL / "runtime"))
 LIMIT = 128 * 1024 * 1024
 PREFIX = "ai-research-mentor"
+NON_PYTHON_CODE = frozenset({".js", ".mjs", ".cjs", ".jsx", ".ts", ".mts", ".cts", ".tsx"})
+NON_PYTHON_MANIFESTS = frozenset({"package.json", "package-lock.json", "npm-shrinkwrap.json",
+                                "yarn.lock", "pnpm-lock.yaml", "bun.lock", "bun.lockb",
+                                ".npmrc", ".yarnrc", ".yarnrc.yml"})
 
 
 def no_links(path, *, allow_missing=False):
@@ -47,10 +51,53 @@ def safe_name(name):
     return name
 
 
+def check_python_only(root=REPO):
+    """Reject executable alternate sources and their package manifests.
+
+    Inspect file names without executing code or reading private research data.
+    Historical prose and JSON observations are data, not alternate runtimes.
+    """
+    root = no_links(root)
+    if not root.is_dir():
+        raise ValueError("Source root is not a directory")
+    errors, files = [], 0
+
+    def walk(directory):
+        nonlocal files
+        for path in sorted(directory.iterdir(), key=lambda item: item.name):
+            # Match the packager's bytecode exclusions exactly. A folder named
+            # build or .venv inside the skill is still packaged source, so its
+            # executable files and manifests must be inspected rather than hidden.
+            if path.name == "__pycache__" or re.search(r"\.py[co]$", path.name):
+                continue
+            if directory == root and root == REPO and path.name == ".git":
+                continue
+            no_links(path)
+            relative = path.relative_to(root).as_posix()
+            if path.is_dir():
+                if path.name.lower() == "node_modules":
+                    errors.append(f"Forbidden dependency directory: {relative}")
+                else:
+                    walk(path)
+            elif path.is_file():
+                files += 1
+                if path.suffix.lower() in NON_PYTHON_CODE or path.name.lower() in NON_PYTHON_MANIFESTS:
+                    errors.append(f"Forbidden executable source or manifest: {relative}")
+            else:
+                errors.append(f"Unsupported source entry: {relative}")
+
+    walk(root)
+    return {"valid": not errors, "errors": errors, "files_checked": files,
+            "note": "Python-only source boundary; historical observations are preserved."}
+
+
 def source_files(root=SKILL, *, license_path=None):
     root = no_links(root)
     if not root.is_dir():
         raise ValueError("Skill source is not a directory")
+    boundary = check_python_only(root)
+    if not boundary["valid"]:
+        raise ValueError("Python-only source boundary: " + "; ".join(boundary["errors"]))
     files = {}
     total = 0
     def add(name, path):
@@ -90,7 +137,7 @@ def source_files(root=SKILL, *, license_path=None):
 
 
 def build_package(root=SKILL, *, license_path=None):
-    """Stored ZIP, UTF-8 names, fixed 1980 timestamp; byte-for-byte Node format."""
+    """Stored ZIP, UTF-8 names, fixed 1980 timestamp; stable archive format."""
     files = source_files(root, license_path=license_path)
     locals_, central = [], []
     offset = 0
@@ -191,14 +238,15 @@ def verify_package(root, content, *, license_path=None):
 def check_skill(root=SKILL):
     root = Path(root).absolute()
     errors, links = [], 0
+    if root.is_dir():
+        errors.extend(check_python_only(root)["errors"])
     required = ["SKILL.md", "agents/openai.yaml", "references/python-core.md"]
-    required += [f"scripts/{name}.{ext}" for name in ("research_audit", "research_sources", "research_outputs", "evolution_guard") for ext in ("py", "mjs")]
+    required += [f"scripts/{name}.py" for name in ("research_audit", "research_sources", "research_outputs", "evolution_guard")]
     required += ["scripts/research_mentor.py", "runtime/research_mentor/tool_cli.py"]
     required += [f"runtime/research_mentor/{name}.py" for name in ("core", "judgment", "audit", "sources", "outputs", "evolution")]
     required += [f"references/{name}.md" for name in ("data-contract", "literature", "ideation", "evaluation", "feedback", "design-basis", "self-improvement", "retrieval-adapters", "fulltext", "research-outputs", "source-tools")]
     required += [f"schemas/{name}.schema.json" for name in ("notes", "dossier", "ledger-event")]
-    required += [f"tests/{name}.test.mjs" for name in ("research_audit", "research_sources", "research_outputs", "evolution_guard")]
-    required += [f"tests/python/test_{name}.py" for name in ("audit", "sources", "outputs", "evolution")]
+    required += [f"tests/python/test_{name}.py" for name in ("core", "audit", "sources", "outputs", "evolution", "readings", "results")]
     for name in required:
         if not (root / name).is_file():
             errors.append(f"Missing {name}")
@@ -298,10 +346,12 @@ def main(argv=None):
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("check-skill", "check-examples", "package", "check-package"))
+    parser.add_argument("command", choices=("check-python-only", "check-skill", "check-examples", "package", "check-package"))
     args = parser.parse_args(argv)
     try:
-        if args.command == "check-skill":
+        if args.command == "check-python-only":
+            result = check_python_only()
+        elif args.command == "check-skill":
             result = check_skill()
         elif args.command == "check-examples":
             result = check_examples()

@@ -1,8 +1,8 @@
 """SYNTHETIC maintenance receipts, not evidence of scientific improvement.
 
 Cases exercise current bytes, independent-context declarations, immutable
-evaluation inputs, and protected files. An optional actual Node oracle compares
-the native port with the retained compatibility implementation.
+evaluation inputs, and protected files. Frozen source responses retain the
+previous acceptance contract without an external execution dependency.
 """
 from __future__ import annotations
 
@@ -24,21 +24,6 @@ sys.path.insert(0, str(SKILL / "runtime"))
 from research_mentor.evolution import (NOTICE, check_evolution, hash_checks,
                                        hash_file, read_run, snapshot_skill)
 
-NODE = shutil.which("node")
-NODE_URI = (SKILL / "scripts" / "evolution_guard.mjs").as_uri()
-NODE_BRIDGE = r"""
-import fs from 'node:fs';
-const guard = await import(GUARD_URI);
-const input = JSON.parse(fs.readFileSync(0, 'utf8'));
-const answers = [];
-for (const item of input) {
-  if (item.action === 'check') answers.push(await guard.checkEvolution(item.run, item.root));
-  if (item.action === 'snapshot') answers.push(await guard.snapshotSkill(item.root));
-  if (item.action === 'hash') answers.push(await guard.hashFile(item.file));
-  if (item.action === 'checks') answers.push(guard.hashChecks(item.value));
-}
-console.log(JSON.stringify(answers));
-""".replace("GUARD_URI", json.dumps(NODE_URI))
 
 
 class SyntheticEvolution:
@@ -326,39 +311,58 @@ class EvolutionGuardTests(unittest.TestCase):
         self.assertEqual(run, f.run)
         self.assertEqual(run_file, file)
 
+    def test_cli_checks_actual_bound_run_and_remains_read_only_for_keep_and_reject(self):
+        f = self.fixture
+        run_file = f.run_dir / "run.json"
+        for regression, decision in ((False, "KEEP"), (True, "REJECT")):
+            if regression:
+                f.review["case_results"][2]["verdict"] = "worse"
+                f.seal_review()
+            run_file.write_text(json.dumps(f.run), encoding="utf-8")
+            before = {str(file): file.read_bytes() for file in f.root.rglob("*") if file.is_file()}
+            before_run = deepcopy(f.run)
+            with self.subTest(decision=decision):
+                process = subprocess.run([sys.executable, "-B", str(SKILL / "scripts/evolution_guard.py"), "check", str(run_file)],
+                    env={**os.environ, "PATH": str(f.root / "no-executables"), "PYTHONIOENCODING": "utf-8"},
+                    capture_output=True, timeout=20)
+                self.assertEqual(process.returncode, 0, process.stderr.decode("utf-8", errors="replace"))
+                observed = json.loads(process.stdout.decode("utf-8"))
+                self.assertEqual(observed["decision"], decision)
+                self.assertEqual(observed["changed_paths"], ["SKILL.md"])
+                if regression:
+                    self.assertIn("case regressed: C3", observed["reasons"])
+                self.assertEqual(f.run, before_run)
+                self.assertEqual(before, {str(file): file.read_bytes() for file in f.root.rglob("*") if file.is_file()})
 
-@unittest.skipUnless(NODE, "Node oracle is optional; native Python tests above remain runnable")
-class EvolutionNodeConformanceTests(unittest.TestCase):
+
+class EvolutionContractTests(unittest.TestCase):
     @staticmethod
-    def oracle(requests):
-        result = subprocess.run([NODE, "--input-type=module", "-e", NODE_BRIDGE],
-                                input=json.dumps(requests, ensure_ascii=True), text=True,
-                                encoding="utf-8", capture_output=True, timeout=60)
-        if result.returncode:
-            raise AssertionError(result.stderr or result.stdout)
-        return json.loads(result.stdout)
+    def baseline(batch):
+        path = SKILL.parents[1] / "evaluation/fixtures/native-runtime-baseline.json"
+        document = json.loads(path.read_text(encoding="utf-8"))
+        if document.get("synthetic") is not True:
+            raise AssertionError("Maintenance baselines must be explicitly synthetic")
+        return document["contracts"]["evolution"][batch]["expected"]
 
-    def test_exact_hash_protocol_matches_actual_node_for_json_edges_and_snapshots(self):
+    def test_exact_hash_protocol_matches_baseline_for_json_edges_and_snapshots(self):
         values = [{"10": "ten", "2": "two", "1": "one", "01": "leading"},
                   {"\U0001f9ea": "SYNTHETIC 中文", "\ue000": "bmp", "control": "\x00\n\r\t"},
                   [0.0, -0.0, 1e-7, 1e-6, 1e20, 1e21, 1.2345678901234567],
                   [{"passed": True, "nested": {"b": None, "a": False}}, 9007199254740992]]
-        answers = self.oracle([{"action": "checks", "value": value} for value in values])
+        answers = self.baseline(0)
         self.assertEqual(answers, [hash_checks(value) for value in values])
-        with tempfile.TemporaryDirectory(prefix="mentor-evolution-node-") as temporary:
+        with tempfile.TemporaryDirectory(prefix="mentor-evolution-contract-") as temporary:
             f = SyntheticEvolution(temporary)
-            answers = self.oracle([{"action": "snapshot", "root": str(f.candidate)},
-                                   {"action": "hash", "file": str(f.candidate / "SKILL.md")}])
+            answers = self.baseline(1)
             self.assertEqual(answers, [snapshot_skill(f.candidate), hash_file(f.candidate / "SKILL.md")])
 
-    def test_frozen_decisions_reasons_and_changed_paths_match_actual_node(self):
-        with tempfile.TemporaryDirectory(prefix="mentor-evolution-node-") as temporary:
-            fixtures, expected = [], []
+    def test_frozen_decisions_reasons_and_changed_paths_match_baseline(self):
+        with tempfile.TemporaryDirectory(prefix="mentor-evolution-contract-") as temporary:
+            expected = []
 
             def case(name, change):
                 f = SyntheticEvolution(str(Path(temporary) / name))
                 change(f)
-                fixtures.append({"action": "check", "run": f.run, "root": str(f.run_dir)})
                 expected.append(check_evolution(f.run, f.run_dir))
 
             case("keep", lambda f: None)
@@ -395,4 +399,4 @@ class EvolutionNodeConformanceTests(unittest.TestCase):
                 f.refresh_checks()
                 f.seal_review()
             case("outside-suite", restricted)
-            self.assertEqual(self.oracle(fixtures), expected)
+            self.assertEqual(self.baseline(2), expected)

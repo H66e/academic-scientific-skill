@@ -1,7 +1,7 @@
 """Native adapters for the retained dossier, source, output and maintenance contracts.
 
 These tools operate on existing JSON/files, not the append-only evidence ledger.
-They share the importable implementations and never launch Node or experiments.
+They share the importable implementations and never launch experiments.
 """
 from __future__ import annotations
 

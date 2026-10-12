@@ -1,5 +1,7 @@
 # ADR 0004: Result lifecycle and effective reading semantics
 
+**2026-10-10 runtime retirement:** references below to the prior dossier runtime describe the specification and rollout stage. [ADR 0007](0007-python-only-toolchain.md) retires that implementation; native Python preserves the dossier contract, explicit review dependency projection and the language-neutral lifecycle clauses. No historical observation is restated as a new execution.
+
 ## Context
 
 The existing [Node contract](../../skills/ai-research-mentor/references/data-contract.md) blocks GO for a current-version scientific contradiction; the [feedback workflow](../../skills/ai-research-mentor/references/feedback.md) distinguishes failed execution, inconclusive tests and scientific outcomes. Python records evidence but has no result lifecycle. Classification correction, run invalidation and reading correction need explicit meanings before either runtime changes its judgments.

@@ -9,6 +9,6 @@ This example illustrates measurement validation and a HOLD with an information t
 Run from the repository root:
 
 ```text
-node skills/ai-research-mentor/scripts/research_audit.mjs validate examples/measurement-example/dossier.json
-node skills/ai-research-mentor/scripts/research_audit.mjs rank examples/measurement-example/dossier.json
+python -B skills/ai-research-mentor/scripts/research_audit.py validate examples/measurement-example/dossier.json
+python -B skills/ai-research-mentor/scripts/research_audit.py rank examples/measurement-example/dossier.json
 ```

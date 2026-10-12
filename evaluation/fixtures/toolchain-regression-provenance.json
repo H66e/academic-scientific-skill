@@ -1,0 +1,25 @@
+{
+  "source_commit": "b2647a94595626f039ef1091cde5f4e5cb908b2b",
+  "synthetic": true,
+  "oracle_version": "v24.18.0",
+  "groups": 11,
+  "cases": 164,
+  "sha256": {
+    "examples/empirical-example/dossier.json": "f03c42454025ac78ff624ea3f829398a1bd15dd4266ed78d3de426875d08d342",
+    "examples/theoretical-example/dossier.json": "b57c9a3065e013b7a1d49207aeec93f2b8499798afddada9a101381cec1d8f72",
+    "examples/measurement-example/dossier.json": "9d04f32d4c4bfa86674f01b2a9bcf71c1ce785793a3bea389e4e686665ee9ad2",
+    "examples/lightweight-example/notes.json": "d9892ca03644bc98e9f7657305a5e21ab8f4e1b7ea94e115e8b984f05f422631",
+    "evaluation/fixtures/toolchain-regression.json": "f0c5011e22be25775c56c863adcd80c12196865508a9d6f528affc85879a6aba",
+    "evaluation/fixtures/package-synthetic.zip": "efab0c6443bb73c26ea9add532ba057eeda824be4a10e861dc898fd90b8f1fa7",
+    "evaluation/tests/test_toolchain_conformance.py": "eeb97d0e2ae57bdc81600ec3bebdcac125cc217f3ffcaf7cbdcb855280b07f9e",
+    "skills/ai-research-mentor/scripts/research_audit.mjs": "bad8914a9c86533b0d4bd41a50c71412b6547e460ea0f95ba0b2cb719c4ff256",
+    "skills/ai-research-mentor/scripts/research_sources.mjs": "2dfc4d1009a77ce4d08099e8f751e8e93070c415f404de57de51915d5d2d63c7",
+    "skills/ai-research-mentor/scripts/research_outputs.mjs": "23d2dad37945553f6da3bf43ae996fae4b26e2593b87b548dcad724ef882be8b",
+    "evaluation/package-skill.mjs": "a62a595eb1548939f9d01c2d01d63a28a73dbabbf20381812f0f19369d8f22d2"
+  },
+  "synthetic_package_inputs_sha256": {
+    "empty.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "SKILL.md": "b380d60b1b0312e2bd3555c27214099555913695055ec8c0e7ab845e25ac74e4",
+    "references/\u4e2d\u6587\ud83d\ude00.md": "cefaef19fc754eaf16ea8b2184ce7e75611d640441fa19576482734e9bac4451"
+  }
+}

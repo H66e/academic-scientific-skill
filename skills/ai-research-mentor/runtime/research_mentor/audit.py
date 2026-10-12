@@ -26,11 +26,11 @@ ROLES = ("motivation", "nearest_work", "contradiction", "assumption", "feasibili
 TARGETS = ("problem", "hypothesis", "nearest_work", "prerequisite", "validation")
 NOTICE = "Structural checks only: passing does not establish source authenticity, literature coverage, novelty, or scientific correctness."
 _HEX = re.compile(r"[a-f0-9]{64}\Z")
-_JS_SPACE = " \t\v\f\r\n\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
+_CONTRACT_SPACE = " \t\v\f\r\n\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
 
 
 def _text(value):
-    return isinstance(value, str) and bool(value.strip(_JS_SPACE))
+    return isinstance(value, str) and bool(value.strip(_CONTRACT_SPACE))
 
 
 def _number(value):
@@ -52,8 +52,8 @@ def _utf16(value):
     return value.encode("utf-16-be", "surrogatepass")
 
 
-def _js_number(value):
-    """ECMAScript JSON number spelling for the binary64 input domain."""
+def _json_number(value):
+    """Dossier JSON number spelling for the binary64 input domain."""
     try:
         number = float(value)
     except (OverflowError, ValueError):
@@ -64,8 +64,8 @@ def _js_number(value):
         return "0"
     negative = number < 0
     number = abs(number)
-    # CPython and ECMAScript choose the shortest round-tripping decimal. Their
-    # display thresholds differ; Decimal expands that decimal without rounding.
+    # The dossier protocol uses the shortest round-tripping decimal with
+    # fixed display thresholds; Decimal expands that decimal without rounding.
     shortest = repr(number).lower()
     if 1e-6 <= number < 1e21:
         result = format(Decimal(shortest), "f")
@@ -82,16 +82,16 @@ def _js_number(value):
 
 
 def canonical_stringify(value):
-    """Node canonical JSON: UTF-16 keys, index ordering, finite binary64 numbers.
+    """Dossier canonical JSON: UTF-16 keys, index ordering, finite binary64 numbers.
 
-    Arrays retain order. Lone UTF-16 surrogates are escaped as JSON.stringify
-    does; this protocol remains distinct from ledger-json-v1.
+    Arrays retain order. Lone UTF-16 surrogates are escaped; this legacy
+    data protocol remains distinct from ledger-json-v1.
     """
     seen = set()
 
     def string(item):
-        # A native Python string may explicitly contain a UTF-16 pair. Node
-        # treats that pair and the corresponding Unicode scalar identically.
+        # The dossier protocol treats a UTF-16 pair and its corresponding
+        # Unicode scalar identically, including explicitly paired Python strings.
         item = item.encode("utf-16-le", "surrogatepass").decode("utf-16-le", "surrogatepass")
         encoded = json.dumps(item, ensure_ascii=False, separators=(",", ":"))
         return "".join(f"\\u{ord(char):04x}" if 0xD800 <= ord(char) <= 0xDFFF else char for char in encoded)
@@ -104,7 +104,7 @@ def canonical_stringify(value):
         if type(item) is bool:
             return "true" if item else "false"
         if type(item) in (int, float):
-            return _js_number(item)
+            return _json_number(item)
         if not isinstance(item, (list, dict)):
             raise ValueError("Only finite JSON values can be fingerprinted")
         if id(item) in seen:
@@ -116,8 +116,8 @@ def canonical_stringify(value):
             if any(not isinstance(key, str) for key in item):
                 raise ValueError("Only string JSON object keys can be fingerprinted")
             keys = sorted(item, key=_utf16)
-            # JSON.stringify enumerates uint32 index properties ahead of other
-            # properties even when Object.fromEntries received lexically sorted keys.
+            # The dossier protocol places uint32 index keys ahead of other
+            # properties, even when their lexical ordering would differ.
             indexed = [key for key in keys if re.fullmatch(r"0|[1-9][0-9]*", key) and int(key) < 4294967295]
             keys = sorted(indexed, key=int) + [key for key in keys if key not in indexed]
             return "{" + ",".join(string(key) + ":" + encode(item[key]) for key in keys) + "}"
@@ -364,7 +364,7 @@ def validate_dossier(dossier):
         choice(item.get("read_scope"), f"{where}.read_scope", READ_SCOPES)
         text(item.get("locator"), f"{where}.locator")
         locator = item.get("locator")
-        if item.get("read_scope") in ("section", "full_text") and isinstance(locator, str) and (re.fullmatch(r"paper|article|full[ _-]?text|全文|整篇论文", locator.strip(_JS_SPACE), re.I) or re.fullmatch(r"https?://\S+", locator.strip(_JS_SPACE), re.I)):
+        if item.get("read_scope") in ("section", "full_text") and isinstance(locator, str) and (re.fullmatch(r"paper|article|full[ _-]?text|全文|整篇论文", locator.strip(_CONTRACT_SPACE), re.I) or re.fullmatch(r"https?://\S+", locator.strip(_CONTRACT_SPACE), re.I)):
             warn(f"{where}.locator", "Deep evidence needs a precise section, page, figure, equation, or searchable passage")
         text(item.get("observation"), f"{where}.observation")
         choice(item.get("polarity"), f"{where}.polarity", ("supports", "contradicts", "context"))

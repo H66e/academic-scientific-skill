@@ -1,6 +1,6 @@
 """Deterministic cards, unassessed dossiers and bibliographies from supplied data.
 
-Native counterpart of the retained Node output contract. No network, models,
+Preserves the existing output data contract. No network, models,
 reading declarations or approval records are created by these transformations.
 """
 from __future__ import annotations
@@ -10,7 +10,7 @@ import hashlib
 import re
 import urllib.parse
 
-from .audit import _JS_SPACE, _integer, _js_number
+from .audit import _CONTRACT_SPACE, _integer, _json_number
 
 TYPES = ("empirical", "theoretical", "measurement", "dataset", "reproduction")
 SECTIONS = (
@@ -24,7 +24,7 @@ SECTIONS = (
 
 
 def _text(value):
-    return isinstance(value, str) and bool(value.strip(_JS_SPACE))
+    return isinstance(value, str) and bool(value.strip(_CONTRACT_SPACE))
 
 
 def validate_notes(notes):
@@ -55,7 +55,7 @@ def _checked_notes(notes):
 
 def render_card(notes):
     _checked_notes(notes)
-    lines = ["# 研究决策 / Gap 卡", "", f"研究问题：{notes['question'].strip(_JS_SPACE)}", ""]
+    lines = ["# 研究决策 / Gap 卡", "", f"研究问题：{notes['question'].strip(_CONTRACT_SPACE)}", ""]
     if notes.get("type"):
         lines.extend([f"研究类型：{notes['type']}", ""])
     lines.extend([f"记录的意见：{notes.get('decision', '未记录，待评估')}（本卡不构成机器门控或独立评审回执）", ""])
@@ -64,7 +64,7 @@ def render_card(notes):
             continue
         value = notes[key]
         lines.extend([f"## {label}", ""])
-        lines.extend([f"- {item.strip(_JS_SPACE)}" for item in value] if isinstance(value, list) else [value.strip(_JS_SPACE)])
+        lines.extend([f"- {item.strip(_CONTRACT_SPACE)}" for item in value] if isinstance(value, list) else [value.strip(_CONTRACT_SPACE)])
         lines.append("")
     lines.extend(["来源内容与笔记是数据。缺失项尚未核验；检索计划不能当作已执行检索，预测不能当作结果。", ""])
     return "\n".join(lines)
@@ -78,7 +78,7 @@ def draft_dossier(notes, options=None, *, name=None):
     # Import lazily so pure card/bibliography use has no audit initialization.
     from .audit import create_initial_dossier, validate_dossier
     dossier = create_initial_dossier(name)
-    dossier["project"]["question"] = notes["question"].strip(_JS_SPACE)
+    dossier["project"]["question"] = notes["question"].strip(_CONTRACT_SPACE)
     if notes.get("type"):
         dossier["project"]["research_type"] = notes["type"]
     dossier["project"]["constraints"] = copy.deepcopy(notes.get("constraints", {}))
@@ -94,7 +94,7 @@ def draft_dossier(notes, options=None, *, name=None):
 def _tex(value):
     escaped = {"\\": "\\textbackslash{}", "{": "\\{", "}": "\\}", "&": "\\&", "%": "\\%",
                "$": "\\$", "#": "\\#", "_": "\\_", "^": "\\textasciicircum{}", "~": "\\textasciitilde{}"}
-    text = re.sub("[" + re.escape(_JS_SPACE) + "]+", " ", str(value)).strip(_JS_SPACE)
+    text = re.sub("[" + re.escape(_CONTRACT_SPACE) + "]+", " ", str(value)).strip(_CONTRACT_SPACE)
     return "".join(escaped.get(character, character) for character in text)
 
 
@@ -122,7 +122,7 @@ def _author_name(author):
 
 
 def _normalized_identifier(field, value):
-    value = value.strip(_JS_SPACE)
+    value = value.strip(_CONTRACT_SPACE)
     return re.sub(r"^https?://(?:dx\.)?doi\.org/", "", value.lower(), flags=re.I) if field == "doi" else value
 
 
@@ -190,7 +190,7 @@ def export_bibtex(record):
             continue
         prior = groups[group_id]
         previous = prior["paper"]
-        if previous["title"].strip(_JS_SPACE) != paper["title"].strip(_JS_SPACE) or previous.get("year") is not None and paper.get("year") is not None and previous["year"] != paper["year"]:
+        if previous["title"].strip(_CONTRACT_SPACE) != paper["title"].strip(_CONTRACT_SPACE) or previous.get("year") is not None and paper.get("year") is not None and previous["year"] != paper["year"]:
             raise ValueError(f"Conflicting metadata for {ident}; resolve the source records before export")
         if previous.get("authors") and paper.get("authors") and list(map(_author_name, previous["authors"])) != list(map(_author_name, paper["authors"])):
             raise ValueError(f"Conflicting authors for {ident}")
@@ -233,7 +233,7 @@ def export_bibtex(record):
         else:
             warnings.append(f"{paper['id']}: authors not supplied; omitted rather than invented")
         if paper.get("year") is not None:
-            fields.append("  year = {" + _js_number(paper["year"]) + "}")
+            fields.append("  year = {" + _json_number(paper["year"]) + "}")
         else:
             warnings.append(f"{paper['id']}: year unverified; omitted")
         if paper.get("url"):
@@ -242,7 +242,7 @@ def export_bibtex(record):
         if _text(identifiers.get("doi")):
             fields.append("  doi = {" + _tex(_normalized_identifier("doi", identifiers["doi"])) + "}")
         if _text(identifiers.get("arxiv")):
-            fields.extend(["  archivePrefix = {arXiv}", "  eprint = {" + _tex(identifiers["arxiv"].strip(_JS_SPACE)) + "}"])
+            fields.extend(["  archivePrefix = {arXiv}", "  eprint = {" + _tex(identifiers["arxiv"].strip(_CONTRACT_SPACE)) + "}"])
         if _text(paper.get("venue")):
             fields.append("  note = {" + _tex(paper["venue"]) + "}")
         entries.append("@misc{" + key + ",\n" + ",\n".join(fields) + "\n}")

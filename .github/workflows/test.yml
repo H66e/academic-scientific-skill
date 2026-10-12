@@ -21,48 +21,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - name: Native Python toolchain and Node contract compatibility
-        env:
-          RESEARCH_MENTOR_REQUIRE_NODE_CONFORMANCE: '1'
+      - name: Python regressions and frozen contract compatibility
         run: python -B evaluation/run-python-tests.py
+      - name: Enforce Python-only source
+        run: python -B evaluation/skill_tools.py check-python-only
       - name: Native skill and synthetic-example checks
         run: |
           python -B evaluation/skill_tools.py check-skill
           python -B evaluation/skill_tools.py check-examples
       - name: Native release package verification
         run: python -B evaluation/skill_tools.py check-package
-  validate:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      # Enumerated rather than os x node: the two axes are independent (a Node
-      # version behaves the same on either platform), so the cross product would
-      # add four redundant Windows jobs.  Windows runs the current LTS only.
-      matrix:
-        include:
-          - os: ubuntu-latest
-            node: 18
-          - os: ubuntu-latest
-            node: 20
-          - os: ubuntu-latest
-            node: 22
-          - os: ubuntu-latest
-            node: 24
-          - os: windows-latest
-            node: 24
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node }}
-      - name: Run research, evolution, and packaging tests
-        run: node evaluation/run-tests.mjs
-      - name: Check skill metadata and local references
-        run: node evaluation/check-skill.mjs skills/ai-research-mentor
-      - name: Validate explicitly synthetic examples
-        run: node evaluation/check-examples.mjs
-      - name: Compare release package with skill source
-        run: node evaluation/check-package.mjs

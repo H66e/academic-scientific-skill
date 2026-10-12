@@ -1,7 +1,7 @@
 """Read-only, byte-bound skill maintenance receipts; not scientific evaluation.
 
-This is the native Python equivalent of ``scripts/evolution_guard.mjs``.  It
-never applies a candidate, launches a process, invokes Git, or makes requests.
+The guard never applies a candidate, launches a process, invokes Git, or
+makes requests.
 The fixed editable whitelist cannot be expanded by a submitted suite.
 """
 from __future__ import annotations
@@ -45,7 +45,7 @@ def _version_one(value: Any) -> bool:
 
 
 def _display(value: Any) -> str:
-    """JavaScript interpolation for invalid fields that occur in diagnostics."""
+    """Preserve existing diagnostic spellings for malformed input fields."""
     if value is _MISSING:
         return "undefined"
     if value is None:
@@ -62,8 +62,8 @@ def _display(value: Any) -> str:
 
 
 def _identity(value: Any) -> Any:
-    # JS Set/Map can store malformed object IDs without throwing or conflating
-    # them with structurally equal values. Validation will still hold the run.
+    # Preserve distinct malformed object IDs without conflating structurally
+    # equal values. Validation will still hold the run.
     if isinstance(value, (dict, list)):
         return ("object", id(value))
     if isinstance(value, bool):
@@ -137,8 +137,8 @@ def _read_bytes(file: str | os.PathLike[str]) -> bytes:
 def hash_file(file: str | os.PathLike[str]) -> str:
     """Hash exact file bytes; reject links and linked ancestors.
 
-    Streaming avoids retaining large files in memory. Like the compatibility
-    guard, this imposes no newly invented file-size acceptance limit.
+    Streaming avoids retaining large files in memory without imposing a new
+    file-size acceptance limit on the recorded contract.
     """
     absolute = _no_links(file, "file")
     digest = hashlib.sha256()
@@ -150,7 +150,7 @@ def hash_file(file: str | os.PathLike[str]) -> str:
 
 
 def hash_checks(checks: Any) -> str:
-    """Bind checks using the existing Node fingerprint serialization protocol."""
+    """Bind checks using the existing dossier fingerprint serialization protocol."""
     return hashlib.sha256(canonical_stringify(checks).encode("utf-8")).hexdigest()
 
 
@@ -183,7 +183,7 @@ def snapshot_skill(directory: str | os.PathLike[str]) -> dict[str, Any]:
 def _parse_json(data: bytes) -> Any:
     def invalid_constant(value: str) -> None:
         raise ValueError(f"invalid JSON constant: {value}")
-    # Node converts buffer bytes to UTF-8 with replacement before JSON.parse.
+    # Preserve the recorded UTF-8 replacement behavior for malformed bytes.
     return json.loads(data.decode("utf-8", errors="replace"), parse_constant=invalid_constant)
 
 

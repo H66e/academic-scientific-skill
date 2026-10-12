@@ -9,8 +9,8 @@
 | 范围 | 当前状态 |
 | --- | --- |
 | 新项目的 Python 证据与判断主流程 | 已实现；记录机器建议与实际人工决定，不自动执行实验 |
-| 旧 dossier 审计、迁移、独立评审回执与排序 | 原生 Python 已实现；Node 保留为兼容路径 |
-| 决策卡、初步项目、BibTeX 与自优化验收 | 原生 Python 已实现；Node 保留为兼容路径 |
+| 旧 dossier 审计、迁移、独立评审回执与排序 | 已统一为原生 Python，保留原有数据合同 |
+| 决策卡、初步项目、BibTeX 与自优化验收 | 已统一为原生 Python |
 | Python ledger 与 dossier 的数据关系 | 可以投影导出，不是无损双向迁移，不转移旧批准 |
 | PDF 正文提取、自动实验日志解析 | 尚未实现；宿主取得正文并实际阅读后再记录 |
 | 真实选题、brainstorm 和 gap 质量 | 尚无效果证明；自动测试检查合同与回归，不证明科研价值 |
@@ -25,7 +25,7 @@ python -B evaluation/run-python-tests.py
 
 外部检索默认阻止 private query；只有 public/deidentified 分类可发送。上述路径是本地研究数据，不能发布或同步到安装源码中。CLI/API 使用同一 `runtime/research_mentor` 包，`pip install -e .` 可选；无需为 Skill 安装 pip 包。
 
-结果与阅读生命周期以 [ADR 0004](docs/decisions/0004-result-lifecycle-semantics.md) 为共同规范。Python 的 `record-result/reclassify-result/invalidate-result/results` 保存真实声明、显式纠正与运行失效；Node v3 和 Python 投影保留完整结果历史。`confirm-read` 累计资格，`retract-read` 显式撤回误报；两者都使旧评审过期。解除阻塞仍须重评，不能恢复旧 GO。各阶段实施状态与策略迁移见 [ADR 0005](docs/decisions/0005-policy-bound-lifecycle-rollout.md)。
+结果与阅读生命周期以 [ADR 0004](docs/decisions/0004-result-lifecycle-semantics.md) 为共同规范。`record-result/reclassify-result/invalidate-result/results` 保存真实声明、显式纠正与运行失效；schema 3 dossier 和 ledger 投影保留完整结果历史。`confirm-read` 累计资格，`retract-read` 显式撤回误报；两者都使旧评审过期。解除阻塞仍须重评，不能恢复旧 GO。各阶段实施状态与策略迁移见 [ADR 0005](docs/decisions/0005-policy-bound-lifecycle-rollout.md)。
 
 正式源码、安装副本和未发布 v0.4 候选的边界见 [工作区与版本治理说明](docs/WORKSPACE_GOVERNANCE.md)。当前 Codex 加载的是最后同步的 v0.3.0；本工作树中的未发布改动不会自动进入安装副本，v0.4 candidate 仍处于开发和审查阶段。
 
@@ -95,7 +95,7 @@ gap 方法见 [ideation.md](skills/ai-research-mentor/references/ideation.md)，
 
 ## 可选项目记录工具
 
-审计程序优先使用 **Python 3.10+ 标准库**，无需 pip 安装；旧 Node.js 18+ 入口保留并持续进行兼容测试。它只检查记录、版本、回执与排序必要条件，不联网，也不判断论文真实性或科学正确性；联网能力由独立来源工具提供。
+审计程序使用 **Python 3.10+ 标准库**，无需 pip 安装。运行、API、测试、CI 与打包统一使用 Python。它只检查记录、版本、回执与排序必要条件，不联网，也不判断论文真实性或科学正确性；联网能力由独立来源工具提供。
 
 在仓库根目录运行：
 
@@ -115,7 +115,7 @@ python -B skills/ai-research-mentor/scripts/research_audit.py verify-receipts ..
 python -B skills/ai-research-mentor/scripts/research_audit.py rank ../research-private/my-topic/dossier.json --receipt-root ../research-private/my-topic
 ```
 
-原生 Python 与旧 Node 审计使用相同的 dossier 指纹和回执门槛；没有已核验回执时，裸 `rank` 不批准 full_validation。回执核验不能证明评审者实际独立或科学结论正确。HOLD 可建议补信息；有界 pilot 也需基础科学门槛。
+Python 审计保留既有 dossier 指纹格式和回执门槛；没有已核验回执时，裸 `rank` 不批准 full_validation。回执核验不能证明评审者实际独立或科学结论正确。HOLD 可建议补信息；有界 pilot 也需基础科学门槛。
 
 `validate` 返回结构错误与提醒；warnings 不使合法的初步构思无效，也不替代决策门控。旧 schema 1 或旧决策契约可读取，但旧评审不授权当前决定，需显式迁移并重新评审：
 
@@ -125,7 +125,7 @@ python -B skills/ai-research-mentor/scripts/research_audit.py migrate old-projec
 
 迁移输出到标准输出，不覆盖输入；检查后用 UTF-8 另存新文件。旧 reviews 完整归档到 history 并要求重评，旧 pilots 物化 run_id、保留原结果和产物；迁移不会编造分类替代、失效、新证据角色或新评审指纹。
 
-字段说明见 [`data-contract.md`](skills/ai-research-mentor/references/data-contract.md)，评分锚点与门控见 [`evaluation.md`](skills/ai-research-mentor/references/evaluation.md)。无 Python 时可使用旧 Node 兼容入口或依合同手动核验，明确自动检查未运行。
+字段说明见 [`data-contract.md`](skills/ai-research-mentor/references/data-contract.md)，评分锚点与门控见 [`evaluation.md`](skills/ai-research-mentor/references/evaluation.md)。无 Python 时依合同手动核验，明确自动检查未运行。旧脚本和导入接口已退役，请将调用改为当前 Python 入口；已有研究数据无需因此改写，迁移边界见 [ADR 0007](docs/decisions/0007-python-only-toolchain.md)。
 
 ## 验证
 
@@ -133,21 +133,12 @@ python -B skills/ai-research-mentor/scripts/research_audit.py migrate old-projec
 python -B evaluation/run-python-tests.py
 python -B evaluation/skill_tools.py check-skill
 python -B evaluation/skill_tools.py check-examples
+python -B evaluation/skill_tools.py check-python-only
 python -B evaluation/skill_tools.py package
 python -B evaluation/skill_tools.py check-package
 ```
 
-以上测试与维护命令可以在只有 Python 的环境执行。安装了 Node 时，Python 测试另外运行差分检查；开发验收设置 `RESEARCH_MENTOR_REQUIRE_NODE_CONFORMANCE=1`，避免缺少兼容工具时静默跳过。旧 Node 回归与维护入口继续保留：
-
-```text
-node evaluation/run-tests.mjs
-node evaluation/check-skill.mjs skills/ai-research-mentor
-node evaluation/check-examples.mjs
-node evaluation/package-skill.mjs
-node evaluation/check-package.mjs
-```
-
-测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；Python 与 Node 构建相同的确定性 ZIP，包检查比较完整文件集合和逐文件字节。CI 配置覆盖 Windows/Linux 的 Python 3.10 / 3.12 / 3.14，以及旧 Node 兼容矩阵；配置存在不代表 CI 已通过。未发布迁移验收见 [`evaluation/validation-python-core.md`](evaluation/validation-python-core.md)，发行版验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)。
+以上测试与维护命令只需要 Python。测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；冻结协议用例保留迁移前的实际观察值，新增原生测试检查当前实现。ZIP 使用确定性文件顺序和时间戳，包检查比较完整文件集合和逐文件字节。CI 配置覆盖 Windows/Linux 的 Python 3.10 / 3.12 / 3.14；配置存在不代表 CI 已通过。未发布迁移验收见 [`evaluation/validation-python-core.md`](evaluation/validation-python-core.md)，发行版历史验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)。
 
 自动测试与原离线案例使用合成资料；[真实论文有限语料试用与评估协议](evaluation/real-world/README.md) 单独记录来源、实际答复和未测范围。真实科研评估应记录原始检索和输出、近邻发现、引用忠实性、过度断言、误淘汰和下一步建议质量；尚未完成的评估不作为性能证明。历史回测以当时可得信息判断决策，不把后来的实验失败等同于当时应该 KILL。
 
@@ -199,11 +190,7 @@ skills/ai-research-mentor/
 │   ├── research_audit.py
 │   ├── research_sources.py
 │   ├── research_outputs.py
-│   ├── evolution_guard.py
-│   ├── research_audit.mjs
-│   ├── research_sources.mjs
-│   ├── research_outputs.mjs
-│   └── evolution_guard.mjs
+│   └── evolution_guard.py
 ├── runtime/research_mentor/      # Python CLI/API 共用的证据、审计、产出与维护实现
 ├── schemas/
 │   ├── notes.schema.json
@@ -211,10 +198,10 @@ skills/ai-research-mentor/
 │   └── dossier.schema.json
 └── tests/
     ├── python/test_core.py
-    ├── research_audit.test.mjs
-    ├── research_sources.test.mjs
-    ├── research_outputs.test.mjs
-    └── evolution_guard.test.mjs
+    ├── python/test_audit.py
+    ├── python/test_sources.py
+    ├── python/test_outputs.py
+    └── python/test_evolution.py
 ```
 
 采用单入口、按需加载细则；文献工具与宿主解耦，不依赖其他 skill 的安装。设计参考了 ResearchStudio、Academic-Research-Agent-Skill、claude-scholar、ChineseResearchLaTeX、NoviScl/AI-Researcher、PaperQA、AstaBench 和 AutoSci 等项目，并保留各自的适用边界。对应来源与未采用的规则见 [`design-basis.md`](skills/ai-research-mentor/references/design-basis.md)。

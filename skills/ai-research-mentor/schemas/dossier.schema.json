@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:ai-research-mentor:dossier:3",
   "title": "AI research dossier schema 3 with legacy read support",
-  "description": "Editor assistance for schema-3 result lifecycles and readable legacy records. research_audit.mjs remains authoritative for causal references, fingerprints, migration and GO/HOLD/KILL. Schema validation does not verify sources or immutable history.",
+  "description": "Editor assistance for schema-3 result lifecycles and readable legacy records. research_audit.py remains authoritative for causal references, fingerprints, migration and GO/HOLD/KILL. Schema validation does not verify sources or immutable history.",
   "type": "object",
   "required": ["schema_version", "project", "config", "searches", "papers", "evidence", "ideas", "reviews", "pilots", "history"],
   "properties": {

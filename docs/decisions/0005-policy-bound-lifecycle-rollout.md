@@ -1,5 +1,7 @@
 # ADR 0005: Policy-bound lifecycle rollout
 
+**2026-10-10 runtime retirement:** [ADR 0007](0007-python-only-toolchain.md) retires the second implementation described below. Native Python keeps both the dossier contract-3 dependency projection and the ledger policy-v4 snapshot semantics. Their distinct hashing mechanisms and historical rollout observations remain unchanged.
+
 ## Context
 
 [ADR 0004](0004-result-lifecycle-semantics.md) froze the common semantics while Step 1 only closed admission. Result gates and cumulative reading reinterpret scientific inputs, including existing histories with unchanged ledger bytes. Old reviews must not remain current under changed rules.

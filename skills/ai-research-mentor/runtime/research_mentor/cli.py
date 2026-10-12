@@ -244,7 +244,7 @@ def run(args) -> Envelope:
         return Envelope.success(event["data"], status="revoked", ledger_events=[event["id"]])
     if args.command == "export-dossier":
         return Envelope.success(judgment.export_dossier(), status="initial_projection",
-            warnings=["Projection preserves result history but omits evidence associations and reviews; Node ranking requires its own current v3 assessment and applicable receipt checks."])
+            warnings=["Projection preserves result history but omits evidence associations and reviews; Dossier ranking requires its own current v3 assessment and applicable receipt checks."])
     if args.command == "status":
         events = judgment._events()
         candidates = {}

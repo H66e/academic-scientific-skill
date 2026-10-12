@@ -24,18 +24,18 @@ from datetime import datetime, timezone
 
 from .privacy import check_outbound
 from .transport import Transport, Response, checked_url
-from .audit import _JS_SPACE
+from .audit import _CONTRACT_SPACE
 
 NOTICE = "Acquisition and identity checks only; source existence does not prove faithful reading, coverage, novelty, or scientific correctness."
-_SPACE_PATTERN = "[" + re.escape(_JS_SPACE) + "]"
+_SPACE_PATTERN = "[" + re.escape(_CONTRACT_SPACE) + "]"
 
 
 def _text(value):
-    return isinstance(value, str) and bool(value.strip(_JS_SPACE))
+    return isinstance(value, str) and bool(value.strip(_CONTRACT_SPACE))
 
 
 def _collapse(value):
-    return re.sub(_SPACE_PATTERN + "+", " ", value).strip(_JS_SPACE)
+    return re.sub(_SPACE_PATTERN + "+", " ", value).strip(_CONTRACT_SPACE)
 
 
 def _json(body):
@@ -51,7 +51,7 @@ def _html_charset(label):
     if label == "utf-16be":
         return "utf-16-be"
     codec = codecs.lookup(label).name
-    # Reject Python-specific transformations unsupported by TextDecoder.
+    # Reject transformations outside the existing browser charset contract.
     overrides = {"ascii": "cp1252", "iso8859-1": "cp1252", "iso8859-9": "cp1254",
                  "iso8859-11": "cp874", "gb2312": "gbk", "shift_jis": "cp932", "euc_kr": "cp949"}
     allowed = {"utf-8", "utf-16-le", "utf-16-be", "big5", "gbk", "gb18030", "euc_jp", "iso2022_jp",
@@ -98,9 +98,9 @@ def _options(options):
 def normalize_doi(value):
     if not _text(value):
         raise ValueError("DOI required")
-    doi = re.sub(r"^https?://(?:dx\.)?doi\.org/", "", value.strip(_JS_SPACE), flags=re.I)
+    doi = re.sub(r"^https?://(?:dx\.)?doi\.org/", "", value.strip(_CONTRACT_SPACE), flags=re.I)
     doi = re.sub("^doi:" + _SPACE_PATTERN + "*", "", doi, flags=re.I)
-    if not re.fullmatch(r"10\.[0-9]{4,9}/.+", doi, flags=re.I) or any(v in _JS_SPACE for v in doi) or re.search(r"[\x00-\x20<>]", doi) or len(doi.encode("utf-16-le", "surrogatepass")) // 2 > 512:
+    if not re.fullmatch(r"10\.[0-9]{4,9}/.+", doi, flags=re.I) or any(v in _CONTRACT_SPACE for v in doi) or re.search(r"[\x00-\x20<>]", doi) or len(doi.encode("utf-16-le", "surrogatepass")) // 2 > 512:
         raise ValueError("Invalid DOI syntax")
     return doi.lower()
 
@@ -108,7 +108,7 @@ def normalize_doi(value):
 def normalize_arxiv(value):
     if not _text(value):
         raise ValueError("arXiv ID required")
-    identity = re.sub(r"^https?://(?:www\.)?arxiv\.org/(?:abs|pdf|html)/", "", value.strip(_JS_SPACE), flags=re.I)
+    identity = re.sub(r"^https?://(?:www\.)?arxiv\.org/(?:abs|pdf|html)/", "", value.strip(_CONTRACT_SPACE), flags=re.I)
     identity = re.sub("^arxiv:" + _SPACE_PATTERN + "*", "", identity, flags=re.I)
     identity = re.sub(r"\.pdf$", "", identity, flags=re.I)
     if not re.fullmatch(r"(?:[0-9]{4}\.[0-9]{4,5}|[a-z][a-z.\-]+/[0-9]{7})(?:v[1-9][0-9]*)?", identity, flags=re.I):
@@ -117,7 +117,7 @@ def normalize_arxiv(value):
 
 
 def is_public_address(address):
-    # Preserve Node's conservative address contract, including documentation,
+    # Preserve the conservative address contract, including documentation,
     # transition, shared and benchmark ranges across Python stdlib versions.
     if not isinstance(address, str) or "%" in address:
         return False
@@ -178,8 +178,6 @@ class _InjectedTransport:
             trusted = self.options.get("trustedProviderTransport", False)
             if trusted and not (parsed.geturl() == trusted_resource if trusted_resource else _fixed_api(parsed)):
                 raise ValueError("Trusted-provider transport is limited to fixed official API/resource paths")
-            if trusted and os.environ.get("NODE_TLS_REJECT_UNAUTHORIZED") == "0":
-                raise ValueError("Trusted-provider transport requires TLS certificate verification")
             if len(self.requests) >= self.request_budget:
                 raise ValueError("Request budget exhausted")
             mode = "trusted_provider_tls" if trusted else "public_dns_pinned_tls"
@@ -315,7 +313,7 @@ def _crossref_paper(item, at):
             names.append(name)
     score = item.get("score")
     deposited = item.get("deposited")
-    return {"id": "doi-" + _hash(doi)[:24], "title": title.strip(_JS_SPACE),
+    return {"id": "doi-" + _hash(doi)[:24], "title": title.strip(_CONTRACT_SPACE),
             "year": int(date[0]) if isinstance(date, list) and date and type(date[0]) in (int, float) and math.isfinite(date[0]) and int(date[0]) == date[0] else None,
             "url": "https://doi.org/" + "/".join(urllib.parse.quote(segment, safe="~!*'()") for segment in doi.split("/")),
             "identifiers": {"doi": doi}, "version": "unknown", "accessed_at": at, "authors": names,
@@ -342,7 +340,7 @@ def search_crossref(options=None, dependencies=None):
     check_outbound(query, sensitivity=options.get("sensitivity", "private"))
     at = _now(dependencies)
     search = {"id": options.get("searchId", "search-crossref-" + _hash(at + ":" + query)[:16]),
-              "query": query.strip(_JS_SPACE), "provider": "crossref", "searched_at": at, "status": "failed",
+              "query": query.strip(_CONTRACT_SPACE), "provider": "crossref", "searched_at": at, "status": "failed",
               "scope": f"Crossref deposited work metadata; bibliographic query ordered by provider relevance score descending; at most {pages} page(s) of {rows} records",
               "limitations": ["Crossref coverage is not exhaustive for AI preprints; metadata search is not full-text reading."],
               "result_paper_ids": []}
@@ -520,7 +518,7 @@ def extract_html(html, source_url):
                     current["start"] = offsets[token.end()]
             continue
         identity = re.search(r"\bid" + _SPACE_PATTERN + "*=" + _SPACE_PATTERN +
-                             r'''*(?:"([^"]*)"|'([^']*)'|([^''' + re.escape(_JS_SPACE) + r'''>]+))''', raw, re.I)
+                             r'''*(?:"([^"]*)"|'([^']*)'|([^''' + re.escape(_CONTRACT_SPACE) + r'''>]+))''', raw, re.I)
         anchor = _decode_entities(next(value for value in identity.groups() if value is not None)) if identity else \
             next((item["id"] for item in reversed(stack) if item["id"]), None)
         starts_block = not any(item["tag"] in skipped for item in stack) and tag in block_tags

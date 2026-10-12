@@ -4,7 +4,6 @@
 !examples/empirical-example/dossier.json
 !examples/theoretical-example/dossier.json
 !examples/measurement-example/dossier.json
-node_modules/
 .env
 .env.*
 *.log

@@ -1,12 +1,14 @@
-"""Bounded SYNTHETIC protocol observations and native Node source comparison."""
+"""Bounded SYNTHETIC protocol observations against frozen source contracts."""
 from __future__ import annotations
 
 import copy
+import hashlib
 import io
 import json
 import os
 from pathlib import Path
 import shutil
+import ssl
 import subprocess
 import tempfile
 import threading
@@ -19,7 +21,7 @@ from research_mentor.privacy import PrivacyError
 from research_mentor.sources import (acquire_fulltext, extract_html, is_public_address,
                                      normalize_arxiv, normalize_doi, save_source_bytes,
                                      search_crossref, verify_identifier)
-from research_mentor.transport import Response
+from research_mentor.transport import Response, _PinnedHTTPS
 
 SKILL = Path(__file__).resolve().parents[2]
 AT = "2026-10-10T00:00:00.000Z"
@@ -49,6 +51,14 @@ def public_options(**options):
 
 
 class SourceTests(unittest.TestCase):
+    def test_production_https_requires_certificate_and_hostname_verification(self):
+        # Constructing the real connection does not open a socket.
+        with patch("socket.create_connection", side_effect=AssertionError("No network in TLS regression")):
+            connection = _PinnedHTTPS("api.crossref.org", "1.1.1.1", 1)
+            self.assertEqual(connection._context.verify_mode, ssl.CERT_REQUIRED)
+            self.assertTrue(connection._context.check_hostname)
+            connection.close()
+
     def test_identity_normalization_preserves_version_and_suffix(self):
         self.assertEqual(normalize_doi(" https://doi.org/10.1234/ABC?x#y "), "10.1234/abc?x#y")
         self.assertEqual(normalize_arxiv("https://arxiv.org/pdf/2401.12345v2.pdf"), "2401.12345v2")
@@ -304,7 +314,7 @@ class SourceTests(unittest.TestCase):
         result = search_crossref(public_options(query="A"), dependencies(lambda *_: nonstandard))
         self.assertEqual(result["searches"][0]["status"], "failed")
 
-    def test_javascript_whitespace_and_numeric_entities_preserved(self):
+    def test_contract_whitespace_and_numeric_entities_preserved(self):
         self.assertEqual(normalize_doi("\ufeff10.1234/A\ufeff"), "10.1234/a")
         self.assertEqual(extract_html("<p>A\ufeffB\u0085C\u001cD &#١٥;.</p>", "https://example.org")[0]["text"], "A B\u0085C\u001cD &#١٥;.")
 
@@ -401,8 +411,7 @@ class SourceTests(unittest.TestCase):
             with self.subTest(option=option), self.assertRaises(ValueError):
                 search_crossref(public_options(query="A", **option), dependencies(lambda *_: self.fail("HTTP called")))
 
-    @unittest.skipUnless(shutil.which("node"), "Node is optional and used only for differential development tests")
-    def test_native_node_differential_observations_and_gate_boundaries(self):
+    def test_frozen_observations_and_gate_boundaries(self):
         htmls = ['<article id="S2"><h2>Mechanism</h2><p>A &amp; B.</p></article>',
                  '<li id="outer">Before<p id="inner">Inner &le; &#946;.</p>After</li>',
                  '<p>🧪 A</p><p id="second">B &#x1f9ea; &unknown;.</p>',
@@ -436,28 +445,15 @@ class SourceTests(unittest.TestCase):
         for case in serialized:
             for record in case.get("responses", []):
                 record["body"] = record["body"].decode("utf-8")
-        script = r'''
-import fs from 'node:fs';
-const api = await import(process.argv[1]);
-const RealDate = Date;
-globalThis.Date = class extends RealDate { constructor(...args) { super(...(args.length ? args : ['2026-10-10T00:00:00.000Z'])); } };
-const cases = JSON.parse(fs.readFileSync(0, 'utf8'));
-const results = [];
-for (const c of cases) {
-  try {
-    let index = 0;
-    const deps = {lookup: async () => [{address:'1.1.1.1',family:4}], pause:async()=>{},
-      fetch:async()=>{ const r=c.responses[index++]; return new Response(Buffer.from(r.body,'utf8'),{status:r.status,headers:r.headers}); }};
-    results.push({ok:true,value:c.fn==='extractHtml'?api.extractHtml(c.html,c.url):await api[c.fn](c.options,deps)});
-  } catch(error) { results.push({ok:false,error:error.message}); }
-}
-process.stdout.write(JSON.stringify(results));
-'''
-        result = subprocess.run([shutil.which("node"), "--input-type=module", "-e", script,
-                                 (SKILL / "scripts/research_sources.mjs").as_uri()],
-                                input=json.dumps(serialized, ensure_ascii=False), text=True, encoding="utf-8",
-                                capture_output=True, timeout=30, check=True)
-        node = json.loads(result.stdout)
+        baseline_path = SKILL.parents[1] / "evaluation/fixtures/native-runtime-baseline.json"
+        baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+        self.assertIs(baseline["synthetic"], True)
+        batch = baseline["contracts"]["source"][0]
+        encoded = json.dumps(serialized, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode()
+        self.assertEqual(hashlib.sha256(encoded).hexdigest(), batch["inputs_sha256"],
+                         "Frozen public synthetic inputs changed; review the contract before updating expectations")
+        observed_baseline = batch["expected"]
+        self.assertEqual(len(observed_baseline), len(cases))
         functions = {"searchCrossref": search_crossref, "verifyIdentifier": verify_identifier, "acquireFulltext": acquire_fulltext}
 
         def normalize(value):
@@ -472,7 +468,7 @@ process.stdout.write(JSON.stringify(results));
                 return result
             return value
 
-        for case, expected in zip(cases, node):
+        for case, expected in zip(cases, observed_baseline):
             with self.subTest(case=case):
                 if case["fn"] == "extractHtml":
                     actual = extract_html(case["html"], case["url"])

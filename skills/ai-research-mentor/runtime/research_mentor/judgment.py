@@ -518,7 +518,7 @@ class Judgment:
                 current_candidates[event["data"]["id"]] = event["data"]
         for candidate in current_candidates.values():
             # No reading/claim is manufactured by a projection. Preserve user
-            # fields, leave evidence associations pending explicit Node reassessment.
+            # fields, leave evidence associations pending explicit dossier reassessment.
             item = {k: deepcopy(candidate[k]) for k in ("id", "version", "title", "question", "research_type", "hypothesis", "contribution")}
             item.update({"evidence_ids": [], "evidence_links": [], "nearest_work": [],
                          "search_ids": [sid for sid in candidate["search_ids"] if any(s["id"] == sid for s in dossier["searches"])],
@@ -537,7 +537,7 @@ class Judgment:
             data.update({"actor": event["actor"], "trust": event["trust"],
                          "recorded_at": data.get("recorded_at", event["ts"])})
             if event["type"] == "result.record":
-                # Node's pilot keeps its stage field; no independent approval or
+                # The dossier pilot keeps its stage field; no independent approval or
                 # evidence association is inferred from the result declaration.
                 data["stage"] = "pilot"
                 dossier["pilots"].append(data)

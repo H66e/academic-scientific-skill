@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 from pathlib import Path
-import shutil
-import subprocess
 import unittest
 
 from research_mentor.outputs import draft_dossier, export_bibtex, render_card, validate_notes
@@ -129,7 +128,7 @@ class OutputTests(unittest.TestCase):
         self.assertEqual(empty["bibtex"], "")
         self.assertEqual(empty["exported_count"], 0)
 
-    def test_javascript_whitespace_and_numeric_year_semantics(self):
+    def test_contract_whitespace_and_numeric_year_semantics(self):
         self.assertFalse(validate_notes({"question": "\ufeff"})["valid"])
         self.assertTrue(validate_notes({"question": "\u0085"})["valid"])
         card = render_card({"question": "\ufeffSYNTHETIC Q\ufeff", "known": "A\u0085B"})
@@ -138,8 +137,7 @@ class OutputTests(unittest.TestCase):
         result = export_bibtex([{**PAPER, "year": 2024.0}])
         self.assertIn("year = {2024}", result["bibtex"])
 
-    @unittest.skipUnless(shutil.which("node"), "Node is optional and only used by differential development tests")
-    def test_native_node_differential_cards_bibliographies_and_rejections(self):
+    def test_frozen_cards_bibliographies_and_rejections(self):
         bridge = [{**PAPER, "id": "doi-only"},
                   {**PAPER, "id": "arxiv-only", "identifiers": {"arxiv": "2401.00001v1"}},
                   {**PAPER, "id": "bridge", "identifiers": {"doi": "10.1234/synthetic", "arxiv": "2401.00001v1"}}]
@@ -160,21 +158,17 @@ class OutputTests(unittest.TestCase):
         for change in ({"title": "Other"}, {"authors": ["Someone"]}, {"authors": 2},
                        {"citation_key": "bad}\\input{x}"}, {"url": "https://name:secret@example.org/"}, {"version": 2}):
             cases.append({"fn": "exportBibtex", "data": [PAPER, {**PAPER, "id": "P2", **change}]})
-        script = r'''
-import fs from 'node:fs';
-const api = await import(process.argv[1]);
-const cases = JSON.parse(fs.readFileSync(0, 'utf8'));
-const results = cases.map(c => { try { return {ok: true, value: api[c.fn](c.data)}; }
-  catch (error) { return {ok: false, error: error.message}; } });
-process.stdout.write(JSON.stringify(results));
-'''
-        result = subprocess.run([shutil.which("node"), "--input-type=module", "-e", script,
-                                 (SKILL / "scripts/research_outputs.mjs").as_uri()],
-                                input=json.dumps(cases, ensure_ascii=True), text=True, encoding="utf-8",
-                                capture_output=True, timeout=30, check=True)
-        node = json.loads(result.stdout)
+        baseline_path = SKILL.parents[1] / "evaluation/fixtures/native-runtime-baseline.json"
+        baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+        self.assertIs(baseline["synthetic"], True)
+        batch = baseline["contracts"]["output"][0]
+        encoded = json.dumps(cases, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode()
+        self.assertEqual(hashlib.sha256(encoded).hexdigest(), batch["inputs_sha256"],
+                         "Frozen public synthetic inputs changed; review the contract before updating expectations")
+        observed_baseline = batch["expected"]
+        self.assertEqual(len(observed_baseline), len(cases))
         functions = {"renderCard": render_card, "validateNotes": validate_notes, "exportBibtex": export_bibtex}
-        for case, expected in zip(cases, node):
+        for case, expected in zip(cases, observed_baseline):
             with self.subTest(case=case):
                 try:
                     actual = {"ok": True, "value": functions[case["fn"]](case["data"])}

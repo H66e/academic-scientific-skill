@@ -10,7 +10,6 @@ import io
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -22,6 +21,7 @@ from unittest import mock
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "skills" / "ai-research-mentor" / "runtime"))
 
+from research_mentor.audit import rank_dossier, validate_dossier
 from research_mentor.ledger import Ledger, LedgerError, EVENT_ACTORS
 from research_mentor.judgment import Judgment
 from research_mentor.core import ResearchCore
@@ -105,28 +105,14 @@ class ProjectionContractTests(unittest.TestCase):
             self.judgment.confirm_read(quote.data["id"], "section", "SYNTHETIC fixture section actually inspected")
         return core, claim["id"], quote.data["id"]
 
-    def node_contract(self, dossier):
-        if shutil.which("node") is None:
-            self.skipTest("Node reference runtime is unavailable")
-        audit_uri = (REPO / "skills" / "ai-research-mentor" / "scripts" / "research_audit.mjs").as_uri()
-        script = (
-            "import fs from 'node:fs';"
-            "const audit = await import(" + json.dumps(audit_uri) + ");"
-            "const d = JSON.parse(fs.readFileSync(0, 'utf8'));"
-            "const validation = audit.validateDossier(d);"
-            "console.log(JSON.stringify({validation,ranking:validation.valid?audit.rankDossier(d):null}));"
-        )
-        result = subprocess.run(
-            ["node", "--input-type=module", "-e", script],
-            input=json.dumps(dossier, ensure_ascii=False).encode("utf-8"),
-            capture_output=True, timeout=30, cwd=REPO,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8", errors="replace"))
-        return json.loads(result.stdout.decode("utf-8"))
+    def dossier_contract(self, dossier):
+        """Exercise the independent dossier API against the ledger projection."""
+        validation = validate_dossier(dossier)
+        return {"validation": validation, "ranking": rank_dossier(dossier) if validation["valid"] else None}
 
     def test_empty_projection_is_valid_and_has_no_approval(self):
         dossier = self.judgment.export_dossier()
-        checked = self.node_contract(dossier)
+        checked = self.dossier_contract(dossier)
         self.assertTrue(checked["validation"]["valid"], checked["validation"]["errors"])
         self.assertEqual(checked["ranking"]["ranked"], [])
         self.assertEqual(dossier["evidence"], [])
@@ -135,7 +121,7 @@ class ProjectionContractTests(unittest.TestCase):
     def test_candidate_projection_remains_hold_and_preserves_utf8(self):
         self.judgment.upsert_candidate(candidate(title="SYNTHETIC 中文候选—未验证"))
         dossier = self.judgment.export_dossier()
-        checked = self.node_contract(dossier)
+        checked = self.dossier_contract(dossier)
         self.assertTrue(checked["validation"]["valid"], checked["validation"]["errors"])
         self.assertEqual(checked["ranking"]["ranked"], [])
         self.assertEqual(len(checked["ranking"]["held"]), 1)
@@ -143,14 +129,14 @@ class ProjectionContractTests(unittest.TestCase):
         self.assertEqual(dossier["ideas"][0]["novelty"]["status"], "unclear")
         self.assertEqual(dossier["reviews"], [])
 
-    def test_projection_does_not_upgrade_a_recorded_human_override_to_node_go(self):
+    def test_projection_does_not_upgrade_a_recorded_human_override_to_dossier_go(self):
         self.judgment.upsert_candidate(candidate())
         review = self.judgment.assess("C-SYNTHETIC", reason="SYNTHETIC missing-source demonstration")
         self.assertEqual(review["machine_recommendation"], "HOLD")
         self.judgment.record_decision(review["review_id"], "GO", "SYNTHETIC user override only",
                                       human=True, override_reason="SYNTHETIC accepts an information-gathering step")
         dossier = self.judgment.export_dossier()
-        checked = self.node_contract(dossier)
+        checked = self.dossier_contract(dossier)
         self.assertTrue(checked["validation"]["valid"], checked["validation"]["errors"])
         self.assertEqual(dossier["reviews"], [])
         self.assertEqual(checked["ranking"]["ranked"], [])
@@ -198,7 +184,7 @@ class ProjectionContractTests(unittest.TestCase):
         self.assertEqual(len(dossier["papers"]), 1, "Projection must preserve actually acquired metadata")
         self.assertEqual(dossier["searches"][0]["result_paper_ids"], [result.data["papers"][0]["id"]])
         self.assertEqual(dossier["evidence"], [])
-        checked = self.node_contract(dossier)
+        checked = self.dossier_contract(dossier)
         self.assertTrue(checked["validation"]["valid"], checked["validation"]["errors"])
         self.assertEqual(checked["ranking"]["ranked"], [])
 
@@ -228,7 +214,7 @@ class ProjectionContractTests(unittest.TestCase):
         self.assertEqual(searches[0]["data"]["status"], "failed")
         self.assertEqual(searches[0]["data"]["result_paper_ids"], [])
         dossier = self.judgment.export_dossier()
-        checked = self.node_contract(dossier)
+        checked = self.dossier_contract(dossier)
         self.assertTrue(checked["validation"]["valid"], checked["validation"]["errors"])
         self.assertEqual(dossier["papers"], [])
         self.assertEqual(checked["ranking"]["ranked"], [])

@@ -1,5 +1,7 @@
 # ADR 0001: Python evidence core with explicit compatibility
 
+**2026-10-10 runtime retirement:** [ADR 0007](0007-python-only-toolchain.md) supersedes the continuing dual-runtime obligation below. The previous entrypoints are retired; data contracts and historical observations remain preserved. This document records the original design stage.
+
 **2026-10-10 supersession:** the original policy and initial schema-2 export below describe the initial core. Result lifecycle uses schema/decision contract 3; current policy v4 also incorporates effective reading and withdrawal. See [ADR 0004](0004-result-lifecycle-semantics.md) and [ADR 0005](0005-policy-bound-lifecycle-rollout.md). Historical design text is retained rather than rewritten as current behavior.
 
 ## Context
