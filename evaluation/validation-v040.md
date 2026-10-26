@@ -20,6 +20,8 @@
 | `check-package`（有本地包） | valid，`deterministic: true`：两次独立构建逐字节相同 | 确定性不等于科学正确性 |
 | `check-package`（无本地包） | valid：仅验证一次内存构建 | 用于 fresh clone |
 
+CI：同一提交在 GitHub Actions 的 6 个矩阵作业（Ubuntu/Windows × Python 3.10/3.12/3.14）全部成功；构建与校验步骤按上方本地命令执行，发布包另存为运行产物（[run 记录](https://github.com/H66e/academic-scientific-skill/actions/runs/40330556524)）。配置存在或一次成功都不代表其他环境也被覆盖。
+
 ## P0 修复的实测证据
 
 - **隐私分类**：独立来源工具的 `verify` 与 `fulltext` 在出网前调用 `check_outbound`，默认 `public`；`--sensitivity private` 在 0 次 DNS/HTTP 请求前阻断。同时修复了 `check_outbound` 把 `https://` 中 `s:/` 当 Windows 盘符、从而误拒所有公网 URL 的缺陷；`core.fetch` 的公共 URL 分支现在可实际获取并通过 `verify-artifacts`（见 `evaluation/tests/test_privacy_policy.py`）。
