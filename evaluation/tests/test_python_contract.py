@@ -22,10 +22,28 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "skills" / "ai-research-mentor" / "runtime"))
 
 from research_mentor.audit import rank_dossier, validate_dossier
+from research_mentor.contracts import PACKAGE_VERSION
 from research_mentor.ledger import Ledger, LedgerError, EVENT_ACTORS
 from research_mentor.judgment import Judgment
 from research_mentor.core import ResearchCore
 from research_mentor.transport import Response, Transport, TransportError
+
+
+def project_init(**extra):
+    """Realistic project.init producer payload; extra keys are admitted as well."""
+    return {"project_id": "PROJECT-SYNTHETIC", "core_version": PACKAGE_VERSION, **extra}
+
+
+def claim_add(**extra):
+    """Realistic claim.add producer payload for the same synthetic candidate."""
+    return {"text": "SYNTHETIC claim", "candidate_id": "C-SYNTHETIC",
+            "candidate_version": 1, "kind": "hypothesis", "load_bearing": True, **extra}
+
+
+def project_update(**extra):
+    """Realistic project.update producer payload (human/user-T1 origin)."""
+    return {"id": "SYNTHETIC-project", "question": "SYNTHETIC question",
+            "research_type": "empirical", "constraints": {}, "assumptions": [], **extra}
 
 
 class FixtureTransport:
@@ -266,6 +284,7 @@ class ProjectionContractTests(unittest.TestCase):
             "quote": "SYNTHETIC effect is proven", "quote_normalized": "SYNTHETIC effect is proven",
             "quote_sha256": "0" * 64, "source_sha256": acquired.data["text_sha256"],
             "match": "exact", "anchor_version": "text-normalized-v1", "read_scope": "not_read", "block_id": None,
+            "section": "unknown", "lossy": False,
         })
         report = core.verify_artifacts()
         self.assertFalse(report["valid"], "A label 'exact' is not a verified source anchor")
@@ -389,11 +408,11 @@ class ProjectionContractTests(unittest.TestCase):
         self.assertEqual(self.ledger.get(decision["id"])["data"]["human_decision"], "GO")
 
     def test_expected_head_rejects_an_append_based_on_a_concurrently_changed_ledger(self):
-        first = self.ledger.append("project.init", {"name": "SYNTHETIC concurrent fixture"}, expected_head="")
-        accepted = self.ledger.append("claim.add", {"text": "SYNTHETIC first writer"},
+        first = self.ledger.append("project.init", project_init(name="SYNTHETIC concurrent fixture"), expected_head="")
+        accepted = self.ledger.append("claim.add", claim_add(text="SYNTHETIC first writer"),
             actor="model", trust="T2", expected_head=first["sha256"])
         with self.assertRaisesRegex(LedgerError, "ledger changed"):
-            self.ledger.append("claim.add", {"text": "SYNTHETIC stale second writer"},
+            self.ledger.append("claim.add", claim_add(text="SYNTHETIC stale second writer"),
                 actor="model", trust="T2", expected_head=first["sha256"])
         events = self.ledger.read()
         self.assertEqual(len(events), 2)
@@ -426,9 +445,9 @@ class ProjectionContractTests(unittest.TestCase):
                 with tempfile.TemporaryDirectory(prefix="mentor-zero-constraint-") as project:
                     ledger = Ledger(project)
                     judgment = Judgment(ledger)
-                    ledger.append("project.update", {"constraints": {"gpu": {
+                    ledger.append("project.update", project_update(constraints={"gpu": {
                         "status": "confirmed", "value": value,
-                        "source": "SYNTHETIC actual user confirms unavailable resource"}}}, actor="user", trust="T1")
+                        "source": "SYNTHETIC actual user confirms unavailable resource"}}), actor="user", trust="T1")
                     judgment.upsert_candidate(candidate(feasibility={"status": "blocked", "reason": "SYNTHETIC GPU absent",
                         "dependencies": [{"name": "GPU availability", "mandatory": True, "status": "failed",
                                           "basis": "SYNTHETIC user constraint", "constraint_keys": ["gpu"]}]}))

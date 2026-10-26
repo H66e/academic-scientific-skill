@@ -20,8 +20,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any
 
-from .results import validate_result_payload
-from .readings import validate_retraction_payload
+from .event_payloads import validate_payload
 
 PROTOCOL = "ledger-json-v1"
 ANCHOR_PROTOCOL = "ledger-anchor-v1"
@@ -203,16 +202,18 @@ class Ledger:
                 errors.append(f"actor/trust mismatch at line {seq}")
             if actor_valid and isinstance(event.get("type"), str) and event["type"] in EVENT_ACTORS and (event.get("actor"), event.get("trust")) not in EVENT_ACTORS[event["type"]]:
                 errors.append(f"event actor mismatch at line {seq}")
-            if isinstance(event.get("type"), str) and event["type"] in {"result.record", "result.invalidate"}:
+            if isinstance(event.get("type"), str) and event["type"] in EVENT_ACTORS:
                 try:
-                    validate_result_payload(event["type"], event.get("data"))
+                    validate_payload(event["type"], event.get("data"))
                 except ValueError as exc:
-                    errors.append(f"invalid result payload at line {seq}: {exc}")
-            if event.get("type") == "reading.retract":
-                try:
-                    validate_retraction_payload(event["type"], event.get("data"))
-                except ValueError as exc:
-                    errors.append(f"invalid reading retraction payload at line {seq}: {exc}")
+                    # Keep the established vocabulary for the three payloads that
+                    # were already checked before every event type was admitted.
+                    if event["type"] in {"result.record", "result.invalidate"}:
+                        errors.append(f"invalid result payload at line {seq}: {exc}")
+                    elif event["type"] == "reading.retract":
+                        errors.append(f"invalid reading retraction payload at line {seq}: {exc}")
+                    else:
+                        errors.append(f"invalid event payload at line {seq}: {exc}")
             try:
                 timestamp = event.get("ts")
                 if not isinstance(timestamp, str):
@@ -265,8 +266,7 @@ class Ledger:
         if (actor, trust) not in EVENT_ACTORS[event_type]:
             raise LedgerError("event type requires its declared tool/model/user actor")
         try:
-            validate_result_payload(event_type, data)
-            validate_retraction_payload(event_type, data)
+            validate_payload(event_type, data)
         except ValueError as exc:
             raise LedgerError(str(exc)) from exc
         with self._lock():

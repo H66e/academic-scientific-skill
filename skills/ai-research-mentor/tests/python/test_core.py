@@ -9,12 +9,25 @@ from unittest import mock
 RUNTIME = Path(__file__).resolve().parents[2] / "runtime"
 sys.path.insert(0, str(RUNTIME))
 from research_mentor.anchors import AnchorError, normalize_text, quote_text
+from research_mentor.contracts import PACKAGE_VERSION
 from research_mentor.core import ResearchCore
 from research_mentor.judgment import Judgment
 from research_mentor.ledger import Ledger, LedgerError, canonical_json, digest
 from research_mentor.privacy import PrivacyError, check_outbound
 from research_mentor.providers import ProviderError, crossref_papers, normalize_identifier
 from research_mentor.transport import Response, Transport, TransportError, checked_url, public_address
+
+
+def project_init(**extra):
+    """Realistic project.init producer payload; extra keys are admitted as well."""
+    return {"project_id": "PROJECT-SYNTHETIC", "core_version": PACKAGE_VERSION, **extra}
+
+
+def claim_add(**extra):
+    """Realistic claim.add producer payload for the same synthetic candidate."""
+    return {"text": "SYNTHETIC claim", "candidate_id": "C-SYNTHETIC",
+            "candidate_version": 1, "kind": "hypothesis", "load_bearing": True, **extra}
+
 
 class FakeTransport:
     def __init__(self, body=b"", status=200, headers=None, failure=None):
@@ -46,8 +59,8 @@ class PythonCoreTests(unittest.TestCase):
 
     def test_append_chain_detects_modified_history(self):
         ledger = Ledger(self.project, clock=lambda: "2026-01-01T00:00:00Z")
-        first = ledger.append("project.init", {"name": "中文"})
-        second = ledger.append("claim.add", {"text": "hypothesis"}, actor="model", trust="T2")
+        first = ledger.append("project.init", project_init(name="中文"))
+        second = ledger.append("claim.add", claim_add(text="hypothesis"), actor="model", trust="T2")
         self.assertEqual(first["id"], "EV-000001")
         self.assertEqual(second["prev"], first["sha256"])
         self.assertTrue(ledger.verify()["valid"])
@@ -55,24 +68,24 @@ class PythonCoreTests(unittest.TestCase):
         ledger.path.write_text(contents, encoding="utf-8")
         self.assertFalse(ledger.verify()["valid"])
         with self.assertRaisesRegex(LedgerError, "event hash mismatch"):
-            ledger.append("project.init", {})
+            ledger.append("project.init", project_init())
 
     def test_incomplete_final_line_and_lock_never_silently_discard(self):
         ledger = Ledger(self.project)
-        ledger.append("project.init", {})
+        ledger.append("project.init", project_init())
         with ledger.path.open("ab") as stream:
             stream.write(b'{"partial":')
         self.assertFalse(ledger.verify()["valid"])
         with self.assertRaisesRegex(LedgerError, "incomplete final line"):
-            ledger.append("project.init", {})
+            ledger.append("project.init", project_init())
         self.assertTrue(ledger.path.read_bytes().endswith(b'{"partial":'))
         (self.project / "ledger.lock").write_text("active", encoding="utf-8")
         with self.assertRaisesRegex(LedgerError, "writer lock already exists"):
-            ledger.append("project.init", {})
+            ledger.append("project.init", project_init())
 
     def test_unregistered_types_cannot_append_or_change_existing_history(self):
         ledger = Ledger(self.project)
-        ledger.append("project.init", {"name": "SYNTHETIC vocabulary fixture"})
+        ledger.append("project.init", project_init(name="SYNTHETIC vocabulary fixture"))
         before = ledger.path.read_bytes(), ledger.anchor_path.read_bytes()
         for event_type in ["project.innit", "claim.record", "result.reclassify", "result.uninvalidate", "reading.restore"]:
             with self.subTest(event_type=event_type):
@@ -84,8 +97,8 @@ class PythonCoreTests(unittest.TestCase):
 
     def test_legacy_unknown_types_fail_even_with_valid_hashes_and_anchor(self):
         ledger = Ledger(self.project)
-        ledger.append("project.init", {})
-        ledger.append("claim.add", {"text": "SYNTHETIC hypothesis"}, actor="model", trust="T2")
+        ledger.append("project.init", project_init())
+        ledger.append("claim.add", claim_add(text="SYNTHETIC hypothesis"), actor="model", trust="T2")
         for event_type in ["project.innit", "result.reclassify", "result.uninvalidate", "reading.restore"]:
             with self.subTest(event_type=event_type):
                 before = self._replace_last_event_type(ledger, event_type)
@@ -95,14 +108,14 @@ class PythonCoreTests(unittest.TestCase):
                 self.assertEqual(report["anchor"], "matched")
                 self.assertEqual(report["errors"], [f"unregistered event type at line 2: {event_type!r}"])
                 with self.assertRaisesRegex(LedgerError, "refusing append.*unregistered event type"):
-                    ledger.append("project.init", {})
+                    ledger.append("project.init", project_init())
                 with self.assertRaisesRegex(LedgerError, "refusing to anchor.*unregistered event type"):
                     ledger.anchor()
                 self.assertEqual((ledger.path.read_bytes(), ledger.anchor_path.read_bytes()), before)
 
     def test_malformed_event_types_are_rejected_without_type_errors(self):
         ledger = Ledger(self.project)
-        ledger.append("project.init", {})
+        ledger.append("project.init", project_init())
         for event_type in [None, "", True, 42, ["project.init"], {"type": "project.init"}]:
             with self.subTest(event_type=event_type):
                 before = ledger.path.read_bytes(), ledger.anchor_path.read_bytes()
@@ -122,7 +135,7 @@ class PythonCoreTests(unittest.TestCase):
         # still points at its predecessor. Negative control for the anchor file.
         ledger = Ledger(self.project)
         for number in range(4):
-            ledger.append("project.init", {"name": f"SYNTHETIC fixture {number}"})
+            ledger.append("project.init", project_init(name=f"SYNTHETIC fixture {number}"))
         intact = ledger.verify()
         self.assertTrue(intact["valid"])
         self.assertEqual(intact["anchor"], "matched")
@@ -139,7 +152,7 @@ class PythonCoreTests(unittest.TestCase):
         # Projects created before anchoring must keep working; the state is
         # reported so a caller can tell "checked and matched" from "not checked".
         ledger = Ledger(self.project)
-        ledger.append("project.init", {"name": "SYNTHETIC unanchored fixture"})
+        ledger.append("project.init", project_init(name="SYNTHETIC unanchored fixture"))
         ledger.anchor_path.unlink()
         report = ledger.verify()
         self.assertTrue(report["valid"])
@@ -147,23 +160,23 @@ class PythonCoreTests(unittest.TestCase):
 
     def test_anchor_adopts_the_current_state_and_then_matches(self):
         ledger = Ledger(self.project)
-        ledger.append("project.init", {"name": "SYNTHETIC adoption fixture"})
+        ledger.append("project.init", project_init(name="SYNTHETIC adoption fixture"))
         ledger.anchor_path.unlink()
         self.assertEqual(ledger.verify()["anchor"], "absent")
         recorded = ledger.anchor()
         self.assertEqual(recorded["event_count"], 1)
         self.assertEqual(ledger.verify()["anchor"], "matched")
-        ledger.append("project.init", {"name": "SYNTHETIC second fixture"})
+        ledger.append("project.init", project_init(name="SYNTHETIC second fixture"))
         self.assertEqual(ledger.verify()["anchor"], "matched")
 
     def test_append_refuses_a_ledger_whose_anchor_mismatches(self):
         ledger = Ledger(self.project)
         for number in range(3):
-            ledger.append("project.init", {"name": f"SYNTHETIC fixture {number}"})
+            ledger.append("project.init", project_init(name=f"SYNTHETIC fixture {number}"))
         lines = ledger.path.read_bytes().splitlines(keepends=True)
         ledger.path.write_bytes(b"".join(lines[:-1]))
         with self.assertRaises(LedgerError):
-            ledger.append("project.init", {"name": "SYNTHETIC after truncation"})
+            ledger.append("project.init", project_init(name="SYNTHETIC after truncation"))
         self.assertEqual(ledger.verify()["event_count"], 2)
 
     def test_hash_contract_rejects_floats(self):
