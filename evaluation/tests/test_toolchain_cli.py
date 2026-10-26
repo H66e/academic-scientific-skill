@@ -143,12 +143,31 @@ class NativeToolCommandTests(unittest.TestCase):
         self.assertNotEqual(output.returncode, 0)
         self.assertIn("private", (output.stdout + output.stderr).lower())
 
+    def test_private_verify_and_fulltext_are_rejected_before_network(self):
+        for args in (("verify", "--doi", "10.5555/synthetic-cli"),
+                     ("verify", "--arxiv", "2305.13245v1"),
+                     ("fulltext", "--url", "https://example.org/synthetic"),
+                     ("fulltext", "--arxiv", "2305.13245v1")):
+            with self.subTest(args=args):
+                output = self.command("research_sources.py", *args, "--sensitivity", "private")
+                self.assertEqual(output.returncode, 1, output.stdout + output.stderr)
+                self.assertIn("private", (output.stdout + output.stderr).lower())
+                self.assertNotIn("Traceback", output.stderr)
+
     def test_repeated_cli_flags_are_rejected(self):
         output = self.command("research_sources.py", "verify", "--doi", "10.5555/synthetic", "--offline", "--offline")
         self.assertEqual(output.returncode, 2)
         self.assertIn("Repeated option", output.stderr)
         abbreviated = self.command("research_sources.py", "verify", "--doi", "10.5555/synthetic", "--off")
         self.assertEqual(abbreviated.returncode, 2)
+
+    def test_repeated_long_values_and_equals_form_are_rejected(self):
+        for arguments in (("search", "--query", "SYNTHETIC", "--sensitivity", "public", "--sensitivity", "public"),
+                          ("search", "--query=SYNTHETIC", "--query=SYNTHETIC")):
+            with self.subTest(arguments=arguments):
+                output = self.command("research_sources.py", *arguments)
+                self.assertEqual(output.returncode, 2, output.stdout + output.stderr)
+                self.assertIn("Repeated option", output.stderr)
 
     def test_evolution_native_snapshot_and_hash_bind_exact_bytes(self):
         directory = self.root / "synthetic-skill"

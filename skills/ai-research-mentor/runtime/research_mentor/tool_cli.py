@@ -5,10 +5,11 @@ They share the importable implementations and never launch experiments.
 """
 from __future__ import annotations
 
-import argparse
 import json
 from pathlib import Path
 import sys
+
+from .strict_cli import StrictArgumentParser
 
 INPUT_LIMIT = 8 * 1024 * 1024
 
@@ -34,25 +35,8 @@ def read_json(file: str):
     return json.loads(content.decode("utf-8-sig"), parse_constant=nonfinite)
 
 
-class ToolParser(argparse.ArgumentParser):
-    def __init__(self, *args, **kwargs):
-        kwargs.setdefault("allow_abbrev", False)
-        super().__init__(*args, **kwargs)
-
-    def parse_args(self, args=None, namespace=None):
-        arguments = list(sys.argv[1:] if args is None else args)
-        seen = set()
-        for token in arguments:
-            if token.startswith("--") and token != "--":
-                flag = token.split("=", 1)[0]
-                if flag in seen:
-                    self.error(f"Repeated option: {flag}")
-                seen.add(flag)
-        return super().parse_args(arguments, namespace)
-
-
 def audit_parser():
-    parser = ToolParser(prog="research_audit.py", description="Native dossier contract audit; no research execution")
+    parser = StrictArgumentParser(prog="research_audit.py", description="Native dossier contract audit; no research execution")
     commands = parser.add_subparsers(dest="command", required=True)
     init = commands.add_parser("init")
     init.add_argument("--root", required=True)
@@ -93,7 +77,7 @@ def audit_run(args):
 
 
 def sources_parser():
-    parser = ToolParser(prog="research_sources.py", description="Bounded Crossref/arXiv acquisition; no automatic reading")
+    parser = StrictArgumentParser(prog="research_sources.py", description="Bounded Crossref/arXiv acquisition; no automatic reading")
     commands = parser.add_subparsers(dest="command", required=True)
     for name in ("search", "verify", "fulltext"):
         command = commands.add_parser(name)
@@ -133,7 +117,7 @@ def sources_run(args):
 
 
 def outputs_parser():
-    parser = ToolParser(prog="research_outputs.py", description="Organize supplied research notes and metadata")
+    parser = StrictArgumentParser(prog="research_outputs.py", description="Organize supplied research notes and metadata")
     commands = parser.add_subparsers(dest="command", required=True)
     for name in ("card", "draft", "bibtex"):
         command = commands.add_parser(name)
@@ -156,7 +140,7 @@ def outputs_run(args):
 
 
 def evolution_parser():
-    parser = ToolParser(prog="evolution_guard.py", description="Read-only skill maintenance receipts and version checks")
+    parser = StrictArgumentParser(prog="evolution_guard.py", description="Read-only skill maintenance receipts and version checks")
     parser.add_argument("command", choices=("snapshot", "hash", "checks-hash", "check"))
     parser.add_argument("input")
     return parser

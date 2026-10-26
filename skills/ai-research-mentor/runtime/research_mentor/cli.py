@@ -10,11 +10,12 @@ import sys
 from .core import ResearchCore
 from .contracts import Envelope
 from .ledger import LedgerError
+from .strict_cli import StrictArgumentParser
 from .transport import Transport
 from .judgment import Judgment, RESEARCH_TYPES
 
 def parser() -> argparse.ArgumentParser:
-    result = argparse.ArgumentParser(prog="research-mentor", description="Local research ledger and bounded evidence acquisition (Python 3.10+)")
+    result = StrictArgumentParser(prog="research-mentor", description="Local research ledger and bounded evidence acquisition (Python 3.10+)")
     result.add_argument("--project", required=True, help="Local private project directory, outside the skill source tree")
     result.add_argument("--format", choices=["json", "markdown"], default="json")
     result.add_argument("--trusted-provider-transport", action="store_true", help="Use the system HTTPS proxy only for fixed official providers; TLS remains enabled")
@@ -287,6 +288,11 @@ def main(argv: list[str] | None = None) -> int:
         output = run(args)
     except (LedgerError, OSError, ValueError) as exc:
         output = Envelope.failure(str(exc))
+    except Exception as exc:
+        # Fail closed: a structurally valid ledger can still hold an event that
+        # breaks an unexpected code path.  Report the standard envelope instead
+        # of a traceback so callers can detect the failure.
+        output = Envelope.failure(f"{type(exc).__name__}: {exc}")
     if args.format == "json":
         print(json.dumps(output.to_dict(), ensure_ascii=False, indent=2))
     else:
