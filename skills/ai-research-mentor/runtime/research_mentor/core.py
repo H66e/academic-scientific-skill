@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re
+from datetime import datetime
 from html.parser import HTMLParser
 from pathlib import Path
 import urllib.parse
@@ -408,6 +409,7 @@ class ResearchCore:
                     raise ProviderError("provider source identity does not match fetched resource URL")
             elif identity.get("status") != "unconfirmed":
                 raise ProviderError("unknown source identity binding status")
+            self._verify_fetch_receipt(event)
             return
         if event["type"] not in {"paper.resolve", "search.result"}:
             return
@@ -442,3 +444,75 @@ class ResearchCore:
             _, expected_url = resolve_url(kind, identity)
             if receipt.get("url") != expected_url:
                 raise ProviderError("resolution receipt URL does not match requested identity")
+
+    def _verify_fetch_receipt(self, event: dict) -> None:
+        """Re-derive a retained source fetch from its receipt, artifact and IR.
+
+        The raw artifact is the only provider-authored evidence in the ledger, so
+        every duplicated receipt/IR field is replayed against it instead of being
+        trusted because the hash chain is intact.
+        """
+        data, receipt = event["data"], event["data"]["receipt"]
+        request = receipt.get("request")
+        if not isinstance(request, dict) or request.get("operation") != "fetch":
+            raise ProviderError("fetch receipt request does not record a fetch operation")
+        artifact = (self.ledger.project / receipt["artifact"]).read_bytes()
+        if receipt.get("raw_sha256") != hashlib.sha256(artifact).hexdigest() or data.get("raw_sha256") != receipt.get("raw_sha256"):
+            raise ProviderError("fetch raw hash does not match the retained artifact")
+        if receipt.get("bytes") != len(artifact):
+            raise ProviderError("fetch byte count does not match the retained artifact")
+        if receipt.get("http_status") != 200:
+            raise ProviderError("fetch receipt does not record a successful HTTP 200 response")
+        if data.get("media_type") != receipt.get("content_type"):
+            raise ProviderError("fetch content type does not match the retained event")
+        retrieved_at = receipt.get("retrieved_at")
+        try:
+            retrieved_time = datetime.fromisoformat(str(retrieved_at).replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ProviderError("fetch receipt retrieved_at is not an ISO timestamp") from exc
+        if not isinstance(retrieved_at, str) or retrieved_time.tzinfo is None:
+            raise ProviderError("fetch receipt retrieved_at must be a timezone-aware ISO timestamp")
+        provider = receipt.get("provider")
+        if provider == "local":
+            if request.get("origin") != "local" or receipt.get("url") != "local:artifact" or data.get("source_url") is not None:
+                raise ProviderError("local fetch receipt does not describe a local artifact")
+        elif provider == "arxiv":
+            expected = request.get("url")
+            try:
+                expected_kind, expected_identity = normalize_identifier(expected)
+            except ProviderError as exc:
+                raise ProviderError("fetch receipt URL is not the fixed arXiv HTML resource") from exc
+            parsed = urllib.parse.urlsplit(expected) if isinstance(expected, str) else None
+            if expected_kind != "arxiv" or parsed is None or parsed.scheme != "https" or parsed.hostname != "arxiv.org" or \
+               parsed.query or parsed.fragment or parsed.path != "/html/" + expected_identity:
+                raise ProviderError("fetch receipt URL is not the fixed arXiv HTML resource")
+            if data.get("source_url") != expected or receipt.get("url") != expected:
+                raise ProviderError("fetch receipt URL does not match the fetched arXiv resource")
+        elif provider == "public_url":
+            if not isinstance(request.get("url"), str) or not isinstance(receipt.get("url"), str):
+                raise ProviderError("public-URL fetch receipt does not record the requested URL")
+            try:
+                checked_url(request["url"])
+            except ValueError as exc:
+                raise ProviderError("fetch receipt request URL is not a public HTTPS URL") from exc
+            if data.get("source_url") != receipt.get("url"):
+                raise ProviderError("public-URL fetch receipt does not match the fetched URL")
+            # The transport only follows same-host redirects, so a rewritten
+            # receipt/source_url pair cannot move the final host anywhere else.
+            if urllib.parse.urlsplit(request["url"]).hostname != urllib.parse.urlsplit(receipt["url"]).hostname:
+                raise ProviderError("public-URL fetch receipt final host differs from the requested host")
+        else:
+            raise ProviderError("unknown fetch receipt provider")
+        _, ir = self.source(event["id"])
+        ir_sha256 = hashlib.sha256(canonical_json(ir).encode("utf-8")).hexdigest()
+        if data.get("ir_sha256") != ir_sha256 or data.get("ir_path") != "sources/" + ir_sha256 + ".ir.json":
+            raise ProviderError("fetch IR path/hash does not match the re-derived IR")
+        if data.get("text_sha256") != sha256_text(normalize_text(ir["text"])):
+            raise ProviderError("fetch text hash does not match the re-derived IR")
+        if data.get("block_count") != len(ir["blocks"]) or data.get("extractor") != ir.get("extractor") or \
+           data.get("normalization") != ir.get("normalization") or data.get("needs_host_extraction") != ir.get("needs_host_extraction"):
+            raise ProviderError("fetch IR metadata does not match the re-derived IR")
+        if data.get("needs_host_review") is not True:
+            raise ProviderError("fetch event does not record that host review is required")
+        if data.get("limitations") != ir.get("limitations", []):
+            raise ProviderError("fetch limitations do not match the re-derived IR")
