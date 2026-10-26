@@ -19,3 +19,10 @@ build/
 research-private/
 **/ledger.jsonl
 **/artifacts/
+# Ledger anchors and note files are local research material; tracked examples are kept.
+**/ledger.anchor.json
+**/notes.json
+!examples/lightweight-example/notes.json
+!evaluation/real-world/v030-forward/notes.json
+# Release archives are deterministic build products published as GitHub Release assets.
+dist/

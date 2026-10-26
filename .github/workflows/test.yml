@@ -11,6 +11,7 @@ permissions:
 jobs:
   python:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -21,13 +22,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+      - name: Release archive must not be tracked
+        run: >-
+          python -B -c "import subprocess, sys; tracked = subprocess.run(['git', 'ls-files', '--error-unmatch', 'dist/ai-research-mentor.zip'], capture_output=True).returncode == 0; sys.exit(1 if tracked else 0)"
+      # One command per step: a multi-command PowerShell step would only report
+      # the exit code of its last command and could hide an earlier failure.
       - name: Python regressions and frozen contract compatibility
         run: python -B evaluation/run-python-tests.py
       - name: Enforce Python-only source
         run: python -B evaluation/skill_tools.py check-python-only
-      - name: Native skill and synthetic-example checks
-        run: |
-          python -B evaluation/skill_tools.py check-skill
-          python -B evaluation/skill_tools.py check-examples
-      - name: Native release package verification
+      - name: Native skill structure check
+        run: python -B evaluation/skill_tools.py check-skill
+      - name: Synthetic example checks
+        run: python -B evaluation/skill_tools.py check-examples
+      - name: Build deterministic release package
+        run: python -B evaluation/skill_tools.py package
+      - name: Verify package against source and rebuild determinism
         run: python -B evaluation/skill_tools.py check-package
+      - name: Upload release package as a run artifact
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-research-mentor-package
+          path: dist/ai-research-mentor.zip
+          if-no-files-found: error

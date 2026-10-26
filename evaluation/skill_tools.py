@@ -235,6 +235,28 @@ def verify_package(root, content, *, license_path=None):
     return {"valid": True, "files": len(actual), "bytes": len(content), "sha256": hashlib.sha256(content).hexdigest()}
 
 
+def check_package(root=SKILL, *, package=PACKAGE, license_path=None):
+    """Verify a fresh build, and compare a local release artifact when present.
+
+    The archive is no longer committed: a release is built from the tagged source
+    and attached to the GitHub Release.  With a local `package` artifact present,
+    this additionally proves that two independent builds are byte-identical.
+    """
+    content = build_package(root, license_path=license_path)
+    result = verify_package(root, content, license_path=license_path)
+    if package.exists():
+        package = no_links(package)
+        stored = package.read_bytes()
+        if stored != content:
+            raise ValueError("Local package artifact differs from a fresh source build; rebuild with `package`")
+        result.update({"artifact": str(package), "deterministic": True,
+                       "note": "Fresh in-memory build matches the local artifact byte-for-byte."})
+    else:
+        result.update({"artifact": None, "deterministic": None,
+                       "note": "No local artifact; verified a fresh in-memory build. Release assets come from the tagged source."})
+    return result
+
+
 def check_skill(root=SKILL):
     root = Path(root).absolute()
     errors, links = [], 0
@@ -242,7 +264,8 @@ def check_skill(root=SKILL):
         errors.extend(check_python_only(root)["errors"])
     required = ["SKILL.md", "agents/openai.yaml", "references/python-core.md"]
     required += [f"scripts/{name}.py" for name in ("research_audit", "research_sources", "research_outputs", "evolution_guard")]
-    required += ["scripts/research_mentor.py", "runtime/research_mentor/tool_cli.py"]
+    required += ["scripts/research_mentor.py", "runtime/research_mentor/tool_cli.py",
+                 "runtime/research_mentor/strict_cli.py", "runtime/research_mentor/event_payloads.py"]
     required += [f"runtime/research_mentor/{name}.py" for name in ("core", "judgment", "audit", "sources", "outputs", "evolution")]
     required += [f"references/{name}.md" for name in ("data-contract", "literature", "ideation", "evaluation", "feedback", "design-basis", "self-improvement", "retrieval-adapters", "fulltext", "research-outputs", "source-tools")]
     required += [f"schemas/{name}.schema.json" for name in ("notes", "dossier", "ledger-event")]
@@ -356,8 +379,7 @@ def main(argv=None):
         elif args.command == "check-examples":
             result = check_examples()
         elif args.command == "check-package":
-            no_links(PACKAGE)
-            result = verify_package(SKILL, PACKAGE.read_bytes(), license_path=LICENSE)
+            result = check_package(SKILL, package=PACKAGE, license_path=LICENSE)
         else:
             content = build_package(SKILL, license_path=LICENSE)
             no_links(PACKAGE, allow_missing=True)
