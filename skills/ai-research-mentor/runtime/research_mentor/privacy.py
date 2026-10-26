@@ -7,6 +7,7 @@ system and are intentionally reported as a block rather than silently redacted.
 """
 from __future__ import annotations
 import re
+import unicodedata
 from dataclasses import dataclass
 
 class PrivacyError(ValueError):
@@ -22,14 +23,20 @@ def check_outbound(value: str, *, sensitivity: str = "private") -> OutboundCheck
         raise PrivacyError("sensitivity must be public, deidentified, or private")
     if sensitivity == "private":
         raise PrivacyError("private material is blocked from outbound requests; use local/offline mode or explicitly de-identify it")
-    text = value or ""
+    # Full-width and other compatibility forms must not slip past a credential
+    # pattern; normalization is for matching only and never rewrites the request.
+    text = unicodedata.normalize("NFKC", value or "")
     # Do not try to guess arbitrary research ideas.  Block credentials and local paths.
+    # The drive-letter pattern needs a non-alphanumeric boundary so that the "s:/"
+    # in every "https://" URL is not read as a Windows drive path.
     patterns = [
-        r"(?i)(?:api[_-]?key|secret|token|password)\s*[:=]\s*[^\s]+",
+        r"(?i)(?:api[_\s-]?key|secret|token|password)\s*[:=]\s*[^\s]+",
         r"(?i)bearer\s+[a-z0-9._-]{12,}",
-        r"(?i)[a-z]:[\\/][^\s]+",
+        r"(?i)\b(?:sk|pk|ghp|gho|ghs|ghu|github_pat|xox[baprs])[-_][a-z0-9_-]{12,}",
+        r"(?i)(?<![a-z0-9])[a-z]:[\\/][^\s]+",
         r"(?:^|\s)\\\\[^\\\s]+\\[^\s]+",
-        r"(?i)(?:^|\s)/(?:users|home|private|var|mnt)/[^\s]+",
+        r"(?i)(?:^|\s)/(?:users|home|root|etc|private|var|mnt|opt|srv|usr)/[^\s]+",
+        r"(?i)\bfile://",
         r"(?i)\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b",
     ]
     if any(re.search(pattern, text) for pattern in patterns):

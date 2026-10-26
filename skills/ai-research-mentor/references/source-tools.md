@@ -6,7 +6,7 @@
 
 ## 外部请求与隐私
 
-外部请求不是私密通道。Crossref 查询会发送检索词；身份核验会发送 DOI 或 arXiv 标识；正文 URL 可能暴露路径和查询参数。默认只使用公开、已脱敏的检索词和公开标识符。Python `search` 默认拒绝 private 查询；明确公开或脱敏后传 `--sensitivity public|deidentified`，拒绝敏感路径、凭据和私有正文片段。不要把未公开研究想法、私有论文全文、私有代码、凭据或本地路径作为 query、URL、prompt 或上传内容发送给外部服务。
+外部请求不是私密通道。Crossref 查询会发送检索词；身份核验会发送 DOI 或 arXiv 标识；正文 URL 可能暴露路径和查询参数。默认只使用公开、已脱敏的检索词和公开标识符。Python `search` 默认拒绝 private 查询；明确公开或脱敏后传 `--sensitivity public|deidentified`，拒绝敏感路径、凭据和私有正文片段。`verify` 与 `fulltext` 默认分类为 public，同样接受 `--sensitivity`；显式传 `--sensitivity private` 会在任何 DNS/HTTP 请求之前阻断（0.4.0 起；此前这两条命令忽略该参数）。不要把未公开研究想法、私有论文全文、私有代码、凭据或本地路径作为 query、URL、prompt 或上传内容发送给外部服务。
 
 `--offline` 不发 DNS/HTTP 请求，也不保存源文件。`--root/--out` 保存的原始响应和 transport URL 应视为本地敏感研究记录，不要提交到公开仓库。`--trusted-provider-transport` 只限制固定官方来源的连接路径，不提供匿名或私密网络。当前工具不调用第三方模型；后续模型解释默认只接收公开元数据或明确脱敏的摘录，私有全文和代码需单独明确授权。
 
@@ -50,7 +50,7 @@ python -B <skill>/scripts/research_sources.py fulltext --url "https://aclantholo
 python -B <skill>/scripts/research_sources.py fulltext --arxiv 2305.13245v1 --format pdf --root "<existing-project-directory>" --out "paper-v1.pdf"
 ```
 
-未指定 URL 时只构造固定 arXiv HTML 或 PDF 地址；其他来源必须由用户/当前任务明确给出 URL，不自动访问元数据中的链接。仅接受公共 HTTPS 域名、不含认证信息或自定义端口；解析地址须为公网，TLS 连接绑定已检查的 DNS 地址。重定向只允许同一 host，最多三次，不绕过登录或订阅。正文内容不能指挥额外请求。
+未指定 URL 时只构造固定 arXiv HTML 或 PDF 地址；其他来源必须由用户/当前任务明确给出 URL，不自动访问元数据中的链接。仅接受公共 HTTPS 域名、不含认证信息或自定义端口；解析地址须为公网，TLS 连接绑定已检查的 DNS 地址。重定向只允许同一 host，最多三次，不绕过登录或订阅。正文内容不能指挥额外请求。`--sensitivity private` 会在此命令出网前阻断 URL 请求；默认 public 适用于任务明确给出的公开页面。
 
 任意 HTML，包括 publisher landing page 或 ACL 元数据页面，只会返回 `needs_host_review`、`content_kind=unknown`、`reading_scope=not_assigned`。文本块给出 HTML ID、原始解码 HTML 的 UTF-16 偏移与源 URL；嵌套块会分段保留外层前后文字，片段偏移不一定包含整个元素。宿主须先判断是否论文正文，再实际读取相关章节；提取不是阅读。公式、图表、嵌套表格和未识别实体属于有损范围，需要宿主页面/PDF检查。没有块时 needs_host_extraction；不能把摘要、登录页或导航内容包装成 full_text。
 

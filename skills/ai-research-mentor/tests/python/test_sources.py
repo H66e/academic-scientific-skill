@@ -77,6 +77,43 @@ class SourceTests(unittest.TestCase):
             with self.subTest(options=options), self.assertRaises(PrivacyError):
                 search_crossref(options, never)
 
+    def test_private_verification_and_fulltext_block_before_any_request(self):
+        never = {"fetch": lambda *_: self.fail("HTTP called"), "lookup": lambda *_: self.fail("DNS called")}
+        for function, options in ((verify_identifier, {"doi": "10.1234/synthetic"}),
+                                  (verify_identifier, {"arxiv": "2401.12345v2"}),
+                                  (acquire_fulltext, {"url": "https://example.org/a"}),
+                                  (acquire_fulltext, {"arxiv": "2401.12345v2"})):
+            with self.subTest(function=function.__name__, options=options), self.assertRaises(PrivacyError):
+                function({**options, "sensitivity": "private"}, never)
+
+    def test_verification_and_fulltext_gate_the_normalized_outbound_value(self):
+        seen = []
+        result = verify_identifier({"doi": "10.1234/synthetic", "sensitivity": "deidentified"},
+                                   dependencies(lambda *_: seen.append("verify") or response({"status": "ok", "message": item()})))
+        self.assertEqual(result["status"], "resolved")
+        self.assertEqual(seen, ["verify"])
+        acquired = acquire_fulltext({"url": "https://example.org/a", "sensitivity": "deidentified"},
+                                    dependencies(lambda *_: seen.append("fulltext") or response("<p>Body.</p>", headers={"content-type": "text/html; charset=utf-8"})))
+        self.assertEqual(acquired["status"], "needs_host_review")
+        self.assertEqual(seen, ["verify", "fulltext"])
+
+    def test_verification_and_fulltext_keep_their_public_default(self):
+        seen = []
+        result = verify_identifier({"doi": "10.1234/synthetic"},
+                                   dependencies(lambda *_: seen.append("verify") or response({"status": "ok", "message": item()})))
+        self.assertEqual(result["status"], "resolved")
+        acquired = acquire_fulltext({"url": "https://example.org/a"},
+                                    dependencies(lambda *_: seen.append("fulltext") or response("<p>Body.</p>", headers={"content-type": "text/html; charset=utf-8"})))
+        self.assertEqual(acquired["status"], "needs_host_review")
+        self.assertEqual(seen, ["verify", "fulltext"])
+
+    def test_offline_acquisition_never_claims_an_outbound_request(self):
+        never = {"fetch": lambda *_: self.fail("HTTP called"), "lookup": lambda *_: self.fail("DNS called")}
+        for function, options in ((verify_identifier, {"doi": "10.1234/synthetic"}),
+                                  (acquire_fulltext, {"url": "https://example.org/a"})):
+            with self.subTest(function=function.__name__):
+                self.assertEqual(function({**options, "sensitivity": "private", "offline": True}, never)["status"], "offline")
+
     def test_offline_modes_do_not_invent_queries_reading_or_absence(self):
         never = {"fetch": lambda *_: self.fail("HTTP called"), "lookup": lambda *_: self.fail("DNS called")}
         search = search_crossref({"query": "Private planned query", "offline": True}, never)

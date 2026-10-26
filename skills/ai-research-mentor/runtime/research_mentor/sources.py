@@ -420,6 +420,7 @@ def verify_identifier(options=None, dependencies=None):
               "reason": "", "paper": None, "comparison": None, "notice": NOTICE}
     if options.get("offline"):
         return {**result, "status": "offline", "reason": "No network verification requested."}
+    check_outbound(identifier, sensitivity=options.get("sensitivity", "public"))
     network, acquired = _Network(options, dependencies), False
     try:
         url = "https://api.crossref.org/works/" + urllib.parse.quote(identifier, safe="~!*'()") if kind == "doi" else \
@@ -581,6 +582,7 @@ def acquire_fulltext(options=None, dependencies=None):
     if options.get("offline"):
         return {**result, "status": "offline", "limitations": ["No acquisition requested; source availability and body content remain unknown."],
                 "transport": {"requests": [], "bytes_received": 0}}
+    check_outbound(input_url, sensitivity=options.get("sensitivity", "public"))
     network = _Network(options, dependencies, parsed.geturl() if options.get("trustedProviderTransport") else None)
     try:
         response = network.get(input_url, {parsed.hostname})
