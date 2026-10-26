@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
+
+2026-10-26. 发布版本。0.3.0 是 Node 实现的最后一版（`v0.3.0` tag 回填在当时的 0.3.0 提交上）；本版是 Python-only 重建后的第一个发布，发布包由源码构建、不再入库，见 [ADR 0008](docs/decisions/0008-release-identity-and-package-artifacts.md)。
+
+- 发布身份收口：`VERSION`、`pyproject.toml`、`research_mentor.__version__`、README 与 CHANGELOG 一致为 0.4.0；`v0.4.0` tag 与 GitHub Release 指向构建该包的提交，`v0.3.0` 指向历史 0.3.0 提交。`dist/ai-research-mentor.zip` 不再提交到 Git：由 `python -B evaluation/skill_tools.py package` 从源码确定性生成，CI 构建后用 `check-package` 复算，发布时作为 release asset 附加。
+- 隐私：独立来源工具的 `verify` 与 `fulltext` 现在和 `search` 一样，在出网前执行 `check_outbound`；`--sensitivity private` 在这三个命令上都会阻断请求。此前该参数只对 `search` 生效，`verify`/`fulltext` 静默忽略分类，与 [python-core.md](skills/ai-research-mentor/references/python-core.md) 的声明不一致。
+- 账本准入：17 类已注册事件全部有 payload 校验，`Ledger.append` 与 `verify-ledger` 共用同一规则；缺失或类型错误的必需字段不再能写入，也不能通过验证。事件词表、actor/trust、`ledger-json-v1` 哈希链与外部锚点语义不变；旧账本若含缺失必需字段的事件将验证失败并需人工检查，工具不自动改写历史。
+- CLI 严格化：主入口与独立工具入口共用严格参数解析，拒绝重复长选项与缩写（如 `--project A --project B`、`--proj`、重复的 `--format`/`--sensitivity`）。运行期意外异常统一输出标准 JSON envelope 并以非零码退出，不再打印 traceback；`--format markdown` 同样返回结构化错误。
+- `verify-artifacts` 对 `source.fetch` 补上回执元数据重放：provider、url、`http_status`、字节数与哈希、content-type，以及从保留字节重新派生的 IR 字段；伪造这些元数据即使重算哈希链与锚点也会报不一致。`search.result` / `paper.resolve` 的既有重放规则不变。
+- 文档：新增 [ADR 0008](docs/decisions/0008-release-identity-and-package-artifacts.md)（发布身份与包构建）和 [ADR 0009](docs/decisions/0009-acquisition-direction-and-payload-admission.md)（获取实现方向与 payload 准入）；README、工作区治理与 CONTRIBUTING 更新版本/安装/发布边界，删除过期的“发行版仍为 0.3.0”与本机绝对路径；修复 README 中失效的 BibTeX 示例路径。
+- 兼容边界：0.3.0 的 dossier 数据合同（schema 3 / decision contract 3）与 `python-credibility-v4` 判定策略不变；旧 Node 入口已由 ADR 0007 退役，本版不恢复。PDF 抽取、实验日志自动解析、ledger↔dossier 无损互转与科研有效性仍不在本版范围内。
+
+### 此前 0.4.0 开发记录
 
 - 修复实际 Python CI 暴露的跨环境兼容问题：日期比较在解析前标准化高精度小数秒和无冒号时区，保留原精度排序；回执校验接受 Windows 同一已核验根目录的短名与完整名，同时保留越界、链接、身份、字节哈希和快照守卫。冻结回归与科研合同不变。
 

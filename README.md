@@ -2,9 +2,9 @@
 
 **AI Research Mentor**：重点帮助 AI / ML 科研的方向探索、brainstorm、选题评估与 gap 查找。文献检索、全文核验和研究材料整理服务于这些判断。适用于 Codex，也可由其他支持 `SKILL.md` 的宿主按需读取。
 
-当前版本 **0.3.0**。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本 **0.4.0**。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
-**源码包含未发布的 Python 改动，发行版与安装副本仍为 0.3.0。** Python 3.10+ 标准库核心已实现来源回执、精确文本锚点、本地只追加账本、结果与阅读生命周期，以及绑定当前评审的人工决定。推送源码不等于发布或同步安装。
+**0.4.0 是 Python-only 重建后的第一个发布；0.3.0 是最后的 Node 实现版本。** 本仓库是发布源码：发布包由源码确定性构建、不再提交到 Git，tag 与 GitHub Release 指向构建该包的提交，流程见[发布与版本](#发布与版本)。Codex 安装目录是运行时拷贝，只有显式同步后才会更新，源码提交不会自动进入安装副本。
 
 | 范围 | 当前状态 |
 | --- | --- |
@@ -27,7 +27,7 @@ python -B evaluation/run-python-tests.py
 
 结果与阅读生命周期以 [ADR 0004](docs/decisions/0004-result-lifecycle-semantics.md) 为共同规范。`record-result/reclassify-result/invalidate-result/results` 保存真实声明、显式纠正与运行失效；schema 3 dossier 和 ledger 投影保留完整结果历史。`confirm-read` 累计资格，`retract-read` 显式撤回误报；两者都使旧评审过期。解除阻塞仍须重评，不能恢复旧 GO。各阶段实施状态与策略迁移见 [ADR 0005](docs/decisions/0005-policy-bound-lifecycle-rollout.md)。
 
-正式源码、安装副本和未发布 v0.4 候选的边界见 [工作区与版本治理说明](docs/WORKSPACE_GOVERNANCE.md)。当前 Codex 加载的是最后同步的 v0.3.0；本工作树中的未发布改动不会自动进入安装副本，v0.4 candidate 仍处于开发和审查阶段。
+正式源码、发布包与安装副本的边界见 [工作区与版本治理说明](docs/WORKSPACE_GOVERNANCE.md)。当前发布版本是 0.4.0；如果本机 Codex 仍加载旧副本，需要显式同步，源码更新不会自动进入安装目录。
 
 从具体研究问题出发，将已有证据、推断和待验证假设分开，帮助决定下一步值得投入什么；拿到实验结果之后，再判断这个结果实际支持了什么、哪些结论因此失效。它不会承诺新颖性、实验成功或论文录用。
 
@@ -46,7 +46,7 @@ python -B evaluation/run-python-tests.py
 
 ## 安装与使用
 
-完整 skill 位于 [`skills/ai-research-mentor`](skills/ai-research-mentor)，可下载独立包 [`dist/ai-research-mentor.zip`](dist/ai-research-mentor.zip)。压缩包内的 `ai-research-mentor` 文件夹包含全部运行资源。
+完整 skill 位于 [`skills/ai-research-mentor`](skills/ai-research-mentor)。发布包从源码构建：`python -B evaluation/skill_tools.py package` 生成 `dist/ai-research-mentor.zip`（不入 Git）；CI 每次构建并保存该文件，GitHub Release 附加同一次构建的包。压缩包内的 `ai-research-mentor` 文件夹包含全部运行资源。
 
 Codex 用户将该文件夹放入用户技能目录，默认为 `~/.codex/skills/`。Windows PowerShell 可在仓库根目录执行：
 
@@ -70,6 +70,18 @@ Copy-Item -LiteralPath '.\skills\ai-research-mentor' -Destination $researchSkill
 
 普通科研讨论不强制启用脚本、模型 API key 或研究代理框架。需要可复现工具时使用 Python 3.10+ 标准库来源工具，或宿主实际提供的搜索、PDF 和文献库能力。分别记录检索来源、全文访问、引用扩展和代码访问能力，以及实际覆盖和失败；离线时明确语料边界，不冒充完成外部查新。
 
+## 发布与版本
+
+`VERSION` 是版本真源；`evaluation/tests/test_version_consistency.py` 核对 `pyproject.toml`、`research_mentor.__version__`、README 当前版本行与 CHANGELOG 小节。当前发布 tag 是 `v0.4.0`（Python-only），历史 tag `v0.3.0` 指向最后的 Node 实现；两者对应不同的包，不能用同一版本号互相指代。发布流程：
+
+```text
+python -B evaluation/run-python-tests.py
+python -B evaluation/skill_tools.py package
+python -B evaluation/skill_tools.py check-package
+```
+
+`package` 从源码确定性构建 `dist/ai-research-mentor.zip`，该文件不入 Git（`dist/` 被忽略）；CI 在 6 个矩阵作业中构建并用 `check-package` 复算，GitHub Release 附加同一次构建的包。设计理由与替代方案见 [ADR 0008](docs/decisions/0008-release-identity-and-package-artifacts.md)。Codex 安装副本不由 CI 修改，同步是单独的显式动作。
+
 ## 从实际来源到研究材料
 
 在仓库根目录可运行以下独立命令；它们按当前请求组合，不要求每次执行全部步骤：
@@ -80,7 +92,7 @@ python -B skills/ai-research-mentor/scripts/research_sources.py verify --doi 10.
 python -B skills/ai-research-mentor/scripts/research_sources.py fulltext --arxiv 2305.13245v1 --format pdf
 python -B skills/ai-research-mentor/scripts/research_outputs.py card examples/lightweight-example/notes.json
 python -B skills/ai-research-mentor/scripts/research_outputs.py draft examples/lightweight-example/notes.json --name example-question
-python -B skills/ai-research-mentor/scripts/research_outputs.py bibtex source-records.json
+python -B skills/ai-research-mentor/scripts/research_outputs.py bibtex evaluation/real-world/v030-forward/source-records.json
 ```
 
 `search` 输出实际 `searches`/`papers`，`verify` 返回身份与可选元数据对照；宿主检查后再合并记录。Crossref 未覆盖的预印本及前后向引用由实际可用来源补充。`fulltext` 取得 HTML 块或 PDF 字节，分别标记 `needs_host_review` / `needs_host_extraction`，不自动记为 section/full_text 证据。
@@ -138,7 +150,7 @@ python -B evaluation/skill_tools.py package
 python -B evaluation/skill_tools.py check-package
 ```
 
-以上测试与维护命令只需要 Python。测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；冻结协议用例保留迁移前的实际观察值，新增原生测试检查当前实现。ZIP 使用确定性文件顺序和时间戳，包检查比较完整文件集合和逐文件字节。CI 配置覆盖 Windows/Linux 的 Python 3.10 / 3.12 / 3.14；配置存在不代表 CI 已通过。未发布迁移验收见 [`evaluation/validation-python-core.md`](evaluation/validation-python-core.md)，发行版历史验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)。
+以上测试与维护命令只需要 Python。测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；冻结协议用例保留迁移前的实际观察值，新增原生测试检查当前实现。ZIP 使用确定性文件顺序和时间戳；`check-package` 先复算一次源码构建，若本地已用 `package` 生成发布包则再逐字节比较两次构建（确定性检查）。CI 在 Windows/Linux × Python 3.10 / 3.12 / 3.14 的 6 个作业中运行全量测试、结构检查、构建发布包并保存为运行产物；某个历史配置存在不代表当前提交已通过，实际矩阵结果以仓库 Actions 记录为准。迁移验收见 [`evaluation/validation-python-core.md`](evaluation/validation-python-core.md)，0.4.0 发布验收见 [`evaluation/validation-v040.md`](evaluation/validation-v040.md)，发行版历史验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)。
 
 自动测试与原离线案例使用合成资料；[真实论文有限语料试用与评估协议](evaluation/real-world/README.md) 单独记录来源、实际答复和未测范围。真实科研评估应记录原始检索和输出、近邻发现、引用忠实性、过度断言、误淘汰和下一步建议质量；尚未完成的评估不作为性能证明。历史回测以当时可得信息判断决策，不把后来的实验失败等同于当时应该 KILL。
 

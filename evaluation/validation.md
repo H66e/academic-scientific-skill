@@ -2,6 +2,8 @@
 
 日期：2026-10-05。本地运行环境：Windows、Node.js v24.18.0。软件回归使用合成资料与临时目录，不训练、不下载论文、不使用用户研究数据。
 
+**2026-10-26 退役说明：** 下文 `node ...` 命令对应的 Node 入口已在 [ADR 0007](../docs/decisions/0007-python-only-toolchain.md) 中退役。本记录保留 0.2.0 当时的实际观察值、命令与结果，不重写、不重跑；当前命令见 [validation-v040.md](validation-v040.md)。
+
 ## 本地自动检查
 
 ```text

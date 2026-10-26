@@ -2,6 +2,8 @@
 
 日期：2026-10-06。本地环境：Windows、Node.js v24.18.0。本版增加来源获取与研究产出接口，决策记录仍使用 schema 2，decision_contract_version 升为 2。工作区已有改动先冻结，再在独立副本完成核查与修补。
 
+**2026-10-26 退役说明：** 下文 `node ...` 命令对应的 Node 入口已在 [ADR 0007](../docs/decisions/0007-python-only-toolchain.md) 中退役；0.3.0 是最后的 Node 实现版本。本记录保留当时的实际观察值、命令与结果，不重写、不重跑；当前发布验收见 [validation-v040.md](validation-v040.md)。
+
 ## 软件与发布检查
 
 ```text
