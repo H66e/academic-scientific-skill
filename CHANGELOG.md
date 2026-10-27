@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.0
+
+2026-10-27. 两位严厉评委（Fable 5.1 / Opus 5.5）评审后的大改。设计见 [ADR 0014](docs/decisions/0014-major-revision-after-review.md)。
+
+- 新增 `check-draft`（`runtime/research_mentor/draft.py`、`scripts/research_draft.py`）：检查报告等级、引用键、已核验/未核验状态、GO/HOLD/KILL 标签、计划混入结果节、TODO 残留；它只做结构与记录检查，不是真实性检查。
+- 报告分四级：`concept_memo` / `evidence_review` / `preregistration` / `research_plan`。概念备忘录必须带“引用未核验”横幅；非概念等级必须使用已核验引用；模板按研究类型（经验/理论/测量/数据集/复现）裁剪，不适用节删除而不是填满。
+- 清理 0.8.0 残留：删除“决策摘要（做/等/放弃）”，统一为“当前判断与下一步”；go/no-go 改为继续/停止判据；澄清协议删除 24GB/2 周默认值，资源未知写未知，venue 规则永不默认，问题缩到 2–3 个阻塞问题。
+- `SKILL.md` 精简 CLI 语义，账本细节移到 `python-core.md`；自优化改称“提示词/模板变更审计”，明确只证明记录与结构一致，不证明科研质量或效果提升。
+- 新增 `evaluation/effect-protocol.md`（预注册草案，**未执行**）：24 个真实任务、skill/裸模型对照、3 次采样、外部盲评、编造引用率/近邻召回/可执行性；未执行前不得声称效果。
+- 版本交付修复：README 安装/校验示例统一到当前版本；新增测试检查安装块版本；演示报告降级为 concept_memo 并记录 check-draft 结果。
+- 兼容：账本、dossier、`python-credibility-v5` 判定不变；新增的 draft 检查是独立脚本；没有 `report-tier` 标记或引用未核验的旧草稿会被判为不完整。
+
 ## 0.8.0
 
 2026-10-27. 用户面向判断不再默认输出 GO/HOLD/KILL 标签。设计见 [ADR 0013](docs/decisions/0013-no-go-hold-kill-labels.md)。
