@@ -6,11 +6,19 @@ build-backend = "setuptools.build_meta"
 name = "ai-research-mentor"
 version = "0.4.0"
 description = "Local evidence ledger and bounded AI/ML research decisions"
+readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "H66e" }]
+keywords = ["research", "evidence", "ledger", "ai-research", "reproducibility", "skill"]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/H66e/academic-scientific-skill"
+Repository = "https://github.com/H66e/academic-scientific-skill"
+Issues = "https://github.com/H66e/academic-scientific-skill/issues"
+Changelog = "https://github.com/H66e/academic-scientific-skill/blob/main/CHANGELOG.md"
 
 [project.scripts]
 research-mentor = "research_mentor.cli:main"
