@@ -3,9 +3,10 @@
 These are SYNTHETIC structural checks, not scientific or provenance tests.  They
 prove that a realistic producer payload is admitted, that a missing key or a
 mistyped load-bearing field is refused by ``Ledger.append`` and reported by
-``Ledger.verify``, and that the pre-existing result/retraction payload rules and
-their reported vocabulary are unchanged.  Every event type listed in
-``ledger.EVENT_ACTORS`` must have exactly one admission rule.
+``Ledger.verify``, and that the pre-existing legacy result/retraction payload
+rules and their reported vocabulary are unchanged.  Every event type listed in
+``ledger.EVENT_ACTORS`` must have exactly one admission rule; the result types
+stay in the vocabulary only so old ledgers keep verifying.
 """
 from __future__ import annotations
 
@@ -27,7 +28,8 @@ from research_mentor.ledger import (
 STAMP = "2026-10-10T00:00:00Z"
 HASH = "0" * 64
 
-# Current producer shapes (core.py, judgment.py, cli.py, results.py, readings.py).
+# Realistic producer shapes (core.py, judgment.py, cli.py) plus the readings
+# payload; legacy result payloads are kept for old-ledger admission coverage.
 # Extra producer-only keys are included where they are useful for realism; the
 # admission rule ignores keys it does not need.
 REALISTIC = {
@@ -100,10 +102,10 @@ REALISTIC = {
     "reading.retract": {"target": "EV-000012", "reason": "SYNTHETIC honest withdrawal"},
     "review.record": {
         "candidate_id": "C-SYNTHETIC", "candidate_version": 1, "snapshot": "5" * 64,
-        "policy_version": "python-credibility-v4", "machine_recommendation": "HOLD",
+        "policy_version": "python-credibility-v5", "machine_recommendation": "HOLD",
         "requested_recommendation": "GO", "stage": "pilot", "scope": "scientific_framing",
         "kill_type": None, "reason": "SYNTHETIC review", "missing": ["SYNTHETIC missing input"],
-        "coverage": {}, "result_state": {}, "warnings": [],
+        "coverage": {}, "legacy_result_events_ignored": 0, "warnings": [],
         "artifact_verification": {"valid": True, "receipts_verified": 0},
         "human_decision": None, "approval_status": "pending_human", "notice": "SYNTHETIC notice",
     },
@@ -251,7 +253,7 @@ class LedgerPayloadAdmissionTests(unittest.TestCase):
         self.assertEqual(ledger.read(), [])
         self.assertFalse((self.root / "candidate-missing-id" / "ledger.lock").exists())
 
-    def test_result_and_reading_retraction_rules_keep_their_single_rule_and_vocabulary(self):
+    def test_legacy_result_and_reading_retraction_rules_keep_their_single_rule_and_vocabulary(self):
         result_payload = {**deepcopy(REALISTIC["result.record"]), "outcome": "invented"}
         write_ledger(self.root / "result-rule", [make_event("result.record", result_payload)])
         result_report = Ledger(self.root / "result-rule").verify()

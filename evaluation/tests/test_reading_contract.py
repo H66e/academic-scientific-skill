@@ -277,7 +277,7 @@ class ReadingContractTests(unittest.TestCase):
     def test_policy_upgrade_expires_bound_go_without_rewriting_any_ledger_bytes(self):
         fixture, core, _, _ = self.workflow()
         judgment = fixture.judgment
-        self.assertEqual(judgment_module.POLICY_VERSION, "python-credibility-v4")
+        self.assertEqual(judgment_module.POLICY_VERSION, "python-credibility-v5")
         candidate = deepcopy(next(item["data"] for item in fixture.ledger.read()
             if item["type"] == "candidate.upsert" and item["data"]["id"] == CANDIDATE))
         candidate["id"] = "C-UNRELATED"
@@ -311,7 +311,7 @@ class ReadingContractTests(unittest.TestCase):
         self.assertTrue(fixture.ledger.verify()["valid"])
         self.assertTrue(core.verify_artifacts()["valid"])
         fresh = self.assess(judgment)
-        self.assertEqual(fresh["policy_version"], "python-credibility-v4")
+        self.assertEqual(fresh["policy_version"], "python-credibility-v5")
         self.assertEqual(judgment.export_dossier()["decision_contract_version"], 3,
                          "Ledger reading interpretation does not bump the dossier decision contract")
         self.assertEqual(fresh["machine_recommendation"], "GO", fresh["missing"])

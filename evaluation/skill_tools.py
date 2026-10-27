@@ -267,9 +267,9 @@ def check_skill(root=SKILL):
     required += ["scripts/research_mentor.py", "runtime/research_mentor/tool_cli.py",
                  "runtime/research_mentor/strict_cli.py", "runtime/research_mentor/event_payloads.py"]
     required += [f"runtime/research_mentor/{name}.py" for name in ("core", "judgment", "audit", "sources", "outputs", "evolution")]
-    required += [f"references/{name}.md" for name in ("data-contract", "literature", "ideation", "evaluation", "feedback", "design-basis", "self-improvement", "retrieval-adapters", "fulltext", "research-outputs", "source-tools")]
+    required += [f"references/{name}.md" for name in ("data-contract", "literature", "ideation", "evaluation", "design-basis", "self-improvement", "retrieval-adapters", "fulltext", "research-outputs", "source-tools")]
     required += [f"schemas/{name}.schema.json" for name in ("notes", "dossier", "ledger-event")]
-    required += [f"tests/python/test_{name}.py" for name in ("core", "audit", "sources", "outputs", "evolution", "readings", "results")]
+    required += [f"tests/python/test_{name}.py" for name in ("core", "audit", "sources", "outputs", "evolution", "readings")]
     for name in required:
         if not (root / name).is_file():
             errors.append(f"Missing {name}")

@@ -168,6 +168,8 @@ v3 `review_basis_hash` 是规范排序后的实质输入的 SHA-256，包含顶�
 
 ## pilots：验证反馈
 
+> 0.5.0 起，本文件的 `pilots` 与 `result_invalidations`，以及 ledger 的 `result.record`/`result.invalidate`，都是维护栈中的**只读旧合同**：当前技能不再产生或解释结果，只保留校验、指纹、迁移与历史读取兼容。它们是**历史声明，不是现行判定输入**：`assess`、快照与 `verify-artifacts` 不消费它们；需要结果登记的用途停留在 0.4.x。
+
 v3 必需：`id`、`run_id`、`idea_id`、`idea_version`、`kind`、`outcome`、`artifacts`、`summary`、`limitations`、`affected_claims`。run_id 标识同一次尝试，重新分类保留此身份；真正的新尝试使用新 run_id。
 
 - `kind`：`smoke` 或 `scientific`。

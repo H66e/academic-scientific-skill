@@ -231,11 +231,11 @@ class EvolutionGuardTests(unittest.TestCase):
 
     def test_allowed_whitelist_edit_still_requires_suite_permission(self):
         f = self.fixture
-        (f.candidate / "references" / "feedback.md").write_bytes(b"SYNTHETIC changed feedback\n")
+        (f.candidate / "references" / "evaluation.md").write_bytes(b"SYNTHETIC changed evaluation guidance\n")
         f.run["candidate"]["hash"] = snapshot_skill(f.candidate)["hash"]
         f.refresh_checks()
         f.seal_review()
-        self.assertIn("change outside suite.allowed_paths: references/feedback.md", self.check()["reasons"])
+        self.assertIn("change outside suite.allowed_paths: references/evaluation.md", self.check()["reasons"])
 
     def test_traversal_urls_control_characters_and_drive_relative_paths_hold_without_read(self):
         f = self.fixture
@@ -359,6 +359,12 @@ class EvolutionContractTests(unittest.TestCase):
     def test_frozen_decisions_reasons_and_changed_paths_match_baseline(self):
         with tempfile.TemporaryDirectory(prefix="mentor-evolution-contract-") as temporary:
             expected = []
+            # 0.5.0 retired references/feedback.md and put research-outputs.md in
+            # the editable whitelist. Baseline batch 2 is preserved unchanged;
+            # only the renamed whitelist path is migrated for this comparison.
+            frozen = [json.loads(json.dumps(entry).replace(
+                "references/feedback.md", "references/research-outputs.md"))
+                for entry in self.baseline(2)]
 
             def case(name, change):
                 f = SyntheticEvolution(str(Path(temporary) / name))
@@ -394,9 +400,9 @@ class EvolutionContractTests(unittest.TestCase):
             case("protected", protected)
 
             def restricted(f):
-                (f.candidate / "references" / "feedback.md").write_bytes(b"SYNTHETIC outside suite\n")
+                (f.candidate / "references" / "research-outputs.md").write_bytes(b"SYNTHETIC outside suite\n")
                 f.run["candidate"]["hash"] = snapshot_skill(f.candidate)["hash"]
                 f.refresh_checks()
                 f.seal_review()
             case("outside-suite", restricted)
-            self.assertEqual(self.baseline(2), expected)
+            self.assertEqual(frozen, expected)

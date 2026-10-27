@@ -1,4 +1,13 @@
-"""Causal result classifications and run-level eligibility.
+"""Legacy causal result payloads (retired interpretation; compatibility only).
+
+Result interpretation was retired from the ledger workflow in policy
+``python-credibility-v5``: ``Judgment`` no longer records, corrects, invalidates
+or folds results, and no assessment consumes them. The validators below stay so
+old ledgers still verify and malformed historical result events are still
+reported. ``Ledger.append("result.record", ...)`` remains structurally possible as
+a low-level ledger write but is not a supported research workflow and cannot
+influence a machine recommendation, snapshot or human decision. The fold helpers
+are kept for read-only inspection of legacy ledgers by external callers.
 
 These are declared observations, not authenticated execution receipts. Locators
 and structure do not establish control validity, faithful analysis or truth.
@@ -174,10 +183,12 @@ def _history(events: list[dict]) -> tuple[dict[str, dict], list[dict], dict]:
 
 
 def validate_result_history(events: list[dict]) -> None:
+    """Legacy read-only fold helper; policy v5 has no runtime consumer for it."""
     _history(events)
 
 
 def candidate_result_state(events: list[dict], candidate_id: str, candidate_version: int) -> dict:
+    """Legacy read-only fold helper; policy v5 assessments never call it."""
     records, invalidations, claims = _history(events)
     scope = (candidate_id, candidate_version)
     retired_runs = {r["run_id"] for r in invalidations if _scope(r) == scope}

@@ -86,24 +86,6 @@ def parser() -> argparse.ArgumentParser:
     retraction.add_argument("target")
     retraction.add_argument("--reason", required=True)
     retraction.add_argument("--human", action="store_true", help="Use only on an actual person's instruction; does not authenticate identity")
-    record = commands.add_parser("record-result", help="Record a declared result from JSON; does not run an experiment")
-    record.add_argument("file")
-    record.add_argument("--human-confirmed", action="store_true")
-    correction = commands.add_parser("reclassify-result", help="Append an explicit same-run correction, preserving the prior record")
-    correction.add_argument("target")
-    correction.add_argument("--outcome", choices=["not_run", "execution_failed", "inconclusive", "supported", "contradicted"], required=True)
-    correction.add_argument("--reason", required=True)
-    correction.add_argument("--kind", choices=["smoke", "scientific"])
-    correction.add_argument("--summary")
-    correction.add_argument("--artifacts", nargs="*")
-    correction.add_argument("--human-confirmed", action="store_true")
-    invalidation = commands.add_parser("invalidate-result", help="Record an actual person's withdrawal of a whole run's eligibility")
-    invalidation.add_argument("target")
-    invalidation.add_argument("--reason", required=True)
-    invalidation.add_argument("--human-confirmed", action="store_true")
-    state = commands.add_parser("results", help="Inspect effective result heads and blockers without writing")
-    state.add_argument("candidate_id")
-    state.add_argument("--candidate-version", type=int)
     for name in ("coverage", "next", "finalize"):
         command = commands.add_parser(name)
         command.add_argument("candidate_id")
@@ -124,7 +106,7 @@ def parser() -> argparse.ArgumentParser:
     revoke.add_argument("candidate_id")
     revoke.add_argument("--statement", required=True)
     revoke.add_argument("--human-confirmed", action="store_true")
-    commands.add_parser("export-dossier", help="Schema-3 projection preserving declared results; no migrated approval")
+    commands.add_parser("export-dossier", help="Schema-3 projection preserving legacy result history; no migrated approval")
     commands.add_parser("status")
     lint = commands.add_parser("lint", help="Report unregistered DOI/arXiv references, without modifying prose")
     lint.add_argument("file")
@@ -211,19 +193,6 @@ def run(args) -> Envelope:
         event = judgment.retract_read(args.target, args.reason, human=args.human)
         return Envelope.success(event["data"], status="retracted", ledger_events=[event["id"]], warnings=[
             "Withdrawal preserves history and requires reassessment; qualification can decrease. Human flags record actual instructions, not authenticated identity."])
-    if args.command in {"record-result", "reclassify-result", "invalidate-result"}:
-        if args.command == "record-result":
-            event = judgment.record_result(json.loads(read_input(args.file)), human=args.human_confirmed)
-        elif args.command == "reclassify-result":
-            event = judgment.reclassify_result(args.target, args.outcome, reason=args.reason,
-                human=args.human_confirmed, kind=args.kind, summary=args.summary, artifacts=args.artifacts)
-        else:
-            event = judgment.invalidate_result(args.target, args.reason, human=args.human_confirmed)
-        return Envelope.success(event["data"], status="recorded", ledger_events=[event["id"]], warnings=[
-            "A declaration preserves history and requires reassessment; it does not verify scientific truth or grant execution authority."])
-    if args.command == "results":
-        data = judgment.results(args.candidate_id, candidate_version=args.candidate_version)
-        return Envelope.success(data, status="effective_results", warnings=data.get("warnings", []))
     if args.command in {"coverage", "next"}:
         data = judgment.coverage(args.candidate_id)
         return Envelope.success(data, status="bounded", next=data["missing"][:5])
@@ -231,7 +200,7 @@ def run(args) -> Envelope:
         data = judgment.assess(args.candidate_id, args.recommendation, reason=args.reason,
             stage=args.stage, scope=args.scope, kill_type=args.kill_type)
         return Envelope.success(data, status=data["machine_recommendation"], ledger_events=[data["review_id"]],
-            next=data["missing"][:5])
+            next=data["missing"][:5], warnings=data.get("warnings", []))
     if args.command == "decision":
         event = judgment.record_decision(args.review_id, args.decision, args.statement,
             human=args.human_confirmed, override_reason=args.override_reason)
@@ -244,8 +213,10 @@ def run(args) -> Envelope:
         event = judgment.revoke_decision(args.candidate_id, args.statement, human=args.human_confirmed)
         return Envelope.success(event["data"], status="revoked", ledger_events=[event["id"]])
     if args.command == "export-dossier":
+        # Legacy projection only: result interpretation is retired in policy v5,
+        # and these historical events no longer feed any assessment.
         return Envelope.success(judgment.export_dossier(), status="initial_projection",
-            warnings=["Projection preserves result history but omits evidence associations and reviews; Dossier ranking requires its own current v3 assessment and applicable receipt checks."])
+            warnings=["Projection preserves legacy result history as historical declarations, not current verdicts; it omits evidence associations and reviews. Dossier ranking requires its own current v3 assessment and applicable receipt checks."])
     if args.command == "status":
         events = judgment._events()
         candidates = {}

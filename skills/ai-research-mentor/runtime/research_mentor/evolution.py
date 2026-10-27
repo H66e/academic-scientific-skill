@@ -19,7 +19,7 @@ from .audit import canonical_stringify
 
 NOTICE = "Structural and recorded-evidence checks only: KEEP does not establish scientific quality, novelty, or correctness."
 EDITABLE = frozenset({"SKILL.md", *(f"references/{name}.md" for name in
-                                  ("literature", "ideation", "evaluation", "feedback"))})
+                                  ("literature", "ideation", "evaluation", "research-outputs"))})
 REQUIRED_CHECKS = ("unit_regressions", "skill_structure", "protected_principles")
 SPLITS = ("target", "regression", "holdout")
 _MISSING = object()

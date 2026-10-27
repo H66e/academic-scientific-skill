@@ -1,9 +1,12 @@
 # Acquisition contract map
 
-Status: implemented documentation for 0.4.0, 2026-10-27. This map records the two
+Status: implemented documentation for 0.5.0, 2026-10-27. This map records the two
 supported acquisition/audit surfaces in the Python runtime, the data contracts
 each one is bound to, and who may change what. It does not change any contract;
 the direction is decided in [ADR 0009](../decisions/0009-acquisition-direction-and-payload-admission.md).
+Result interpretation was retired from the ledger workflow in 0.5.0
+([ADR 0010](../decisions/0010-scope-refocus-0.5.0.md)); result events and payload
+rules remain only so historical ledgers keep verifying.
 
 ## Why two surfaces exist
 
@@ -27,9 +30,9 @@ stated in [python-core.md](../../skills/ai-research-mentor/references/python-cor
 | Entry functions | `research_mentor/cli.py` → `ResearchCore` (`core.py`), `Judgment` (`judgment.py`) |
 | Modules | `core.py`, `providers.py`, `transport.py`, `ledger.py`, `judgment.py`, `results.py`, `readings.py`, `anchors.py`, `event_payloads.py`, `privacy.py` |
 | Writes | Append-only ledger `<private-project>/ledger.jsonl` plus `<private-project>/ledger.anchor.json`, `sources/` artifacts and IR files |
-| Commands | `init`, `doctor`, `status`, `search`, `resolve`, `fetch`, `quote`, `show-source`, `confirm-source`, `candidate`, `claim`, `link`, `confirm-read`, `retract-read`, `record-result`, `reclassify-result`, `invalidate-result`, `results`, `coverage`, `next`, `assess`, `decision`, `finalize`, `revoke`, `export-dossier`, `verify-ledger`, `anchor-ledger`, `verify-artifacts`, `lint`, `recheck` |
-| Contracts | `ledger-json-v1`, `ledger-anchor-v1`, `text-normalized-v1` anchors, `python-credibility-v4` policy, 17-type closed event vocabulary with payload admission |
-| Change policy | New acquisition, evidence, reading, result and decision features land here. A change to a frozen protocol identifier needs an explicit new protocol/policy version, an ADR, migration notes for existing ledgers and regression tests. |
+| Commands | `init`, `doctor`, `status`, `search`, `resolve`, `fetch`, `quote`, `show-source`, `confirm-source`, `candidate`, `claim`, `link`, `confirm-read`, `retract-read`, `coverage`, `next`, `assess`, `decision`, `finalize`, `revoke`, `export-dossier`, `verify-ledger`, `anchor-ledger`, `verify-artifacts`, `lint`, `recheck` |
+| Contracts | `ledger-json-v1`, `ledger-anchor-v1`, `text-normalized-v1` anchors, `python-credibility-v5` policy, 17-type closed event vocabulary with payload admission (legacy `result.record`/`result.invalidate` readable, not interpreted) |
+| Change policy | New acquisition, evidence, reading and decision features land here. Result interpretation is retired (policy v5, ADR 0010); legacy result events are read-only compatibility. A change to a frozen protocol identifier needs an explicit new protocol/policy version, an ADR, migration notes for existing ledgers and regression tests. |
 
 ### Dossier/reference stack (maintenance-only)
 
@@ -51,8 +54,8 @@ stated in [python-core.md](../../skills/ai-research-mentor/references/python-cor
 | `ledger-json-v1` | `ledger.py:25`, `ledger.py:44-62` (sorted-key JSON, no floats, SHA-256 chain) | Every existing ledger hash and every cross-check of a chain depends on the exact bytes. It is deliberately separate from the dossier fingerprint (`audit.py:88`). |
 | `ledger-anchor-v1` | `ledger.py:26`, `ledger.py:241-255` | The external anchor records the expected head and count; silently changing its shape weakens tail-truncation detection. |
 | `text-normalized-v1` anchors | `anchors.py:10-12` (NFC, NBSP and whitespace normalization), `anchors.py:31-43` | Quote offsets, quote hashes and source-text hashes must be reproducible from retained bytes across platforms. |
-| `python-credibility-v4` | `judgment.py:20` (`POLICY_VERSION`), recorded in `review.record` (`judgment.py:405`) and bound into the snapshot digest (`judgment.py:72`) | The policy decides when a machine recommendation and a human decision are current. A new policy intentionally stales prior reviews; it must be a deliberate, recorded change rather than an edit in place. |
-| 17-event closed vocabulary and payload admission | `ledger.py:27-39` (`EVENT_ACTORS`), `event_payloads.py:15-51` (documented table), `event_payloads.py:138-143` (`REQUIRED_FIELDS`), admission used by `append`/`verify` (`ledger.py:205-216`, `269-271`) | Verification must report malformed data instead of repairing it or crashing later. Adding an event type requires registering its actor/trust pair, payload rule and consumer together. |
+| `python-credibility-v5` | `judgment.py:22` (`POLICY_VERSION`), recorded in `review.record` (`judgment.py:340`) and bound into the snapshot digest (`judgment.py:74`) | The policy decides when a machine recommendation and a human decision are current. v5 retires result-derived inputs and excludes `result.record`/`result.invalidate` from the snapshot; a new policy intentionally stales prior reviews and must be a deliberate, recorded change rather than an edit in place. |
+| 17-event closed vocabulary and payload admission | `ledger.py:27-39` (`EVENT_ACTORS`), `event_payloads.py:15-51` (documented table), `event_payloads.py:138-143` (`REQUIRED_FIELDS`), admission used by `append`/`verify` (`ledger.py:205-216`, `269-271`) | Verification must report malformed data instead of repairing it or crashing later. Adding an event type requires registering its actor/trust pair, payload rule and consumer together. The result event types remain registered only for old-ledger compatibility. |
 
 Dossier semantics and gate rules are documented in
 [data-contract.md](../../skills/ai-research-mentor/references/data-contract.md);
@@ -67,7 +70,7 @@ new contract revision still has to follow the same path.
 | Change class | Ledger stack | Dossier/reference stack |
 | --- | --- | --- |
 | New provider, parser, acquisition or evidence feature | Allowed; add tests and update the reference docs. | **Prohibited.** The stack stays maintenance-only; new capabilities go to the ledger. |
-| New or changed scientific gate, reading semantics, result lifecycle, policy | Allowed only with an ADR, a policy-version change (`python-credibility-v4` → new id), regression cases and a compatibility note. | **Prohibited.** The dossier decision contract is frozen; release hardening may fix defects, not add gates. |
+| New or changed scientific gate, reading semantics, policy | Allowed only with an ADR, a policy-version change (`python-credibility-v5` → new id), regression cases and a compatibility note. Result interpretation is retired and must not be reintroduced without a new scope ADR. | **Prohibited.** The dossier decision contract is frozen; release hardening may fix defects, not add gates. |
 | Security or correctness fix | Allowed; must not change the hash/anchor protocols silently. | Allowed; must not change canonical dossier bytes, frozen fixture expectations or migrated-record semantics. |
 | Change to a frozen contract identifier or shape | Requires a separate reviewed contract revision: new protocol id or schema/decision-contract version, ADR, migration note, new regression evidence. | Same. Editing fixtures or hashes to make a change pass is not a contract revision. |
 | Command-surface change | Keep one contract per command and document it in the README command table and [python-core.md](../../skills/ai-research-mentor/references/python-core.md). | Same; maintenance commands must keep their current output shapes or add a versioned replacement. |

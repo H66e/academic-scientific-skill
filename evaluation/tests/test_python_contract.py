@@ -22,6 +22,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "skills" / "ai-research-mentor" / "runtime"))
 
 from research_mentor.audit import rank_dossier, validate_dossier
+from research_mentor.cli import parser, run
 from research_mentor.contracts import PACKAGE_VERSION
 from research_mentor.ledger import Ledger, LedgerError, EVENT_ACTORS
 from research_mentor.judgment import Judgment
@@ -483,6 +484,82 @@ class ProjectionContractTests(unittest.TestCase):
             for event_type in event_types:
                 typed_roles[event_type] = roles
         self.assertEqual(typed_roles, EVENT_ACTORS)
+
+    def test_retired_result_commands_are_not_registered(self):
+        choices = next(action for action in parser()._actions if hasattr(action, "add_parser")).choices
+        for command in ("record-result", "reclassify-result", "invalidate-result", "results"):
+            with self.subTest(command=command):
+                self.assertNotIn(command, choices)
+        self.assertTrue({"assess", "decision", "finalize", "export-dossier", "verify-ledger"} <= set(choices),
+                        "the retained ledger command surface must stay registered")
+
+    def test_legacy_result_events_verify_and_stay_out_of_assessment(self):
+        """Soft retirement: old result events remain readable but change no verdict."""
+        self.judgment.upsert_candidate(candidate())
+        self.ledger.append("result.record", {
+            "id": "R-LEGACY", "run_id": "RUN-LEGACY", "candidate_id": "C-SYNTHETIC",
+            "candidate_version": 1, "kind": "scientific", "outcome": "contradicted",
+            "artifacts": ["SYNTHETIC-legacy-result.json"], "summary": "SYNTHETIC legacy contradiction",
+            "limitations": ["Legacy fixture; no experiment was run"], "affected_claims": [],
+        }, actor="model", trust="T2")
+        self.ledger.append("result.invalidate", {
+            "id": "RI-LEGACY", "run_id": "RUN-LEGACY", "candidate_id": "C-SYNTHETIC",
+            "candidate_version": 1, "result_id": "R-LEGACY", "reason": "SYNTHETIC legacy withdrawal",
+            "recorded_at": "2026-10-07T08:00:00Z",
+        }, actor="user", trust="T1")
+        self.assertTrue(self.ledger.verify()["valid"], "legacy result events must keep verifying")
+        self.assertTrue(ResearchCore(self.temporary.name).verify_artifacts()["valid"])
+        projected = self.judgment.export_dossier()
+        self.assertEqual((projected["schema_version"], projected["decision_contract_version"]), (3, 3))
+        self.assertEqual(len(projected["pilots"]), 1, "legacy projection is read-only compatibility")
+        self.assertEqual(len(projected["result_invalidations"]), 1)
+        self.assertEqual(projected["reviews"], [])
+        exported = run(parser().parse_args(["--project", self.temporary.name, "export-dossier"]))
+        self.assertTrue(exported.ok, exported.errors)
+        self.assertEqual(len(exported.data["pilots"]), 1, "the retained CLI still projects legacy results")
+        verified = run(parser().parse_args(["--project", self.temporary.name, "verify-ledger"]))
+        self.assertTrue(verified.ok, verified.errors)
+        assessed = self.judgment.assess("C-SYNTHETIC", "KILL", reason="SYNTHETIC legacy result must not decide",
+                                        kill_type="scientific_refutation")
+        self.assertEqual(assessed["machine_recommendation"], "HOLD", assessed["missing"])
+        self.assertNotIn("result_state", assessed)
+        self.assertEqual(assessed["legacy_result_events_ignored"], 2,
+                         "the retirement must stay visible in the assessment output")
+        self.assertTrue(any("legacy result" in warning.lower() for warning in assessed["warnings"]))
+        self.assertFalse(any("result" in gap.lower() for gap in assessed["missing"]),
+                         "no v5 assessment blocker may be derived from retired result events")
+        recorded = self.ledger.read()[-1]
+        self.assertEqual(recorded["type"], "review.record")
+        self.assertEqual(recorded["data"]["legacy_result_events_ignored"], 2,
+                         "the review record must persist the same visibility notice")
+        self.assertTrue(recorded["data"]["warnings"])
+        with tempfile.TemporaryDirectory(prefix="mentor-no-result-") as other:
+            bare = Ledger(other, clock=lambda: "2026-10-07T08:00:00Z")
+            Judgment(bare).upsert_candidate(candidate())
+            self.assertEqual(Judgment(bare).snapshot("C-SYNTHETIC"), self.judgment.snapshot("C-SYNTHETIC"),
+                             "the v5 snapshot digest excludes retired result events")
+
+    def test_legacy_result_events_are_visible_but_do_not_silently_flip_the_verdict(self):
+        self.bounded_workflow()
+        baseline = self.judgment.assess("C-SYNTHETIC", reason="SYNTHETIC baseline before legacy result")
+        self.assertEqual(baseline["machine_recommendation"], "GO", baseline["missing"])
+        self.assertEqual(baseline["legacy_result_events_ignored"], 0)
+        self.assertEqual(baseline["warnings"], [])
+        self.ledger.append("result.record", {
+            "id": "R-LEGACY-GO", "run_id": "RUN-LEGACY-GO", "candidate_id": "C-SYNTHETIC",
+            "candidate_version": 1, "kind": "scientific", "outcome": "contradicted",
+            "artifacts": ["SYNTHETIC-legacy-result.json"], "summary": "SYNTHETIC legacy contradiction",
+            "limitations": ["Legacy fixture; no experiment was run"], "affected_claims": [],
+        }, actor="model", trust="T2")
+        assessed = self.judgment.assess("C-SYNTHETIC", reason="SYNTHETIC retired result is not evidence")
+        self.assertEqual(assessed["legacy_result_events_ignored"], 1)
+        self.assertTrue(any("legacy result" in warning.lower() for warning in assessed["warnings"]))
+        self.assertFalse(any("legacy result" in gap.lower() for gap in assessed["missing"]),
+                         "the retirement notice must never become a blocking gap")
+        self.assertEqual(assessed["machine_recommendation"], baseline["machine_recommendation"],
+                         "retired result events must not flip a verdict in either direction")
+        self.assertEqual(assessed["warnings"], self.ledger.read()[-1]["data"]["warnings"],
+                         "the recorded review keeps the same visible notice")
 
 
 class TransportDeadlineTests(unittest.TestCase):
