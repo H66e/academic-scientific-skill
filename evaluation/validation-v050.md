@@ -16,7 +16,7 @@
 | `python -B evaluation/run-python-tests.py` | **291 tests，OK，skipped=1** | 合成语料与注入协议；不是科研效果证明 |
 | `check-skill` | valid；47 条技能内链接、107 行入口 | 结构/链接检查 |
 | `check-examples` | valid；GO/GO/HOLD 三个合成示例 | 示例为虚构数据 |
-| `check-python-only` | valid；133 个文件 | 只排除语言/清单 |
+| `check-python-only` | valid；134 个文件（含被忽略的本地 dist 时本机计数为 135） | 只排除语言/清单 |
 | `package` | 51 个文件、677,386 字节、SHA-256 `22604650…` | 发布包构建产物，不入 Git |
 | `check-package` | valid，`deterministic: true`：两次独立构建逐字节一致 | 确定性不等于科学正确性 |
 
@@ -29,7 +29,7 @@
 
 ## CI
 
-同一提交在 GitHub Actions 的 6 个矩阵作业（Ubuntu/Windows × Python 3.10/3.12/3.14）全部成功；构建与校验步骤按上方本地命令执行，发布包另存为运行产物（run 记录附于 Release 说明）。
+同一提交在 GitHub Actions 的 6 个矩阵作业（Ubuntu/Windows × Python 3.10/3.12/3.14）全部成功（[run 记录](https://github.com/H66e/academic-scientific-skill/actions/runs/40451083334)）；构建与校验步骤按上方本地命令执行，发布包另存为运行产物。
 
 ## 未覆盖范围
 
