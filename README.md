@@ -4,14 +4,14 @@
 
 **AI Research Mentor**：帮助 AI / ML 科研做四件事——找研究方向、查新（有没有人做过、最近的在做什么）、判断一个方向值不值得投入、写论文/综述/开题。文献检索、全文核验和证据记录服务于这四件事。适用于 Codex，也可由其他支持 `SKILL.md` 的宿主按需读取。
 
-当前版本 **0.7.0**（[v0.7.0 Release](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.7.0)，[全部发布](https://github.com/H66e/academic-scientific-skill/releases)）。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本 **0.8.0**（[v0.8.0 Release](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.8.0)，[全部发布](https://github.com/H66e/academic-scientific-skill/releases)）。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
-**0.7.0 增加“方向 → 完整研究报告”工作流与先澄清协议。** 0.6.0 是自进化维护版本：写作模板纳入受控进化、回执验收更严。 0.5.0 收窄范围（结果解释退役、写作扩到完整初稿）；0.4.0 是 Python-only 重建后的第一个发布，0.3.0 是最后的 Node 实现版本。不同版本的包不同，版本号不能互相指代。本仓库是发布源码：发布包由源码确定性构建、不再提交到 Git，tag 与 GitHub Release 指向构建该包的提交，流程见[发布与版本](#发布与版本)。Codex 安装目录是运行时拷贝，只有显式同步后才会更新，源码提交不会自动进入安装副本。
+**0.8.0 改为“回答三件事、默认不给 GO/HOLD/KILL 标签”。** 0.7.0 增加“方向 → 完整研究报告”工作流与先澄清协议。 0.6.0 是自进化维护版本：写作模板纳入受控进化、回执验收更严。 0.5.0 收窄范围（结果解释退役、写作扩到完整初稿）；0.4.0 是 Python-only 重建后的第一个发布，0.3.0 是最后的 Node 实现版本。不同版本的包不同，版本号不能互相指代。本仓库是发布源码：发布包由源码确定性构建、不再提交到 Git，tag 与 GitHub Release 指向构建该包的提交，流程见[发布与版本](#发布与版本)。Codex 安装目录是运行时拷贝，只有显式同步后才会更新，源码提交不会自动进入安装副本。
 
 | 范围 | 当前状态 |
 | --- | --- |
 | 找方向、查新、gap 检查 | 已实现；记录真实检索、版本、阅读范围与证据定位 |
-| 判断方向值不值得做 | 已实现；GO / HOLD / KILL + 依据、风险与下一步最小验证 |
+| 判断方向值不值得做 | 已实现；回答“值不值得、差异在哪、现在能否验证”，给依据、风险与下一步最小验证；默认不输出 GO/HOLD/KILL 标签 |
 | 论文、综述、开题写作 | 0.5.0 提升为一等任务；可从真实来源产出完整初稿，模板见 `templates/`，投稿前必须人工核验 |
 | 方向 → 完整研究报告 | 0.7.0 新增：先澄清目标/约束/证据/交付，再按报告模板产出可讨论、可执行的完整报告 |
 | 实验结果解释（六种状态、结果纠正/失效） | 0.5.0 起退役；旧账本结果事件只读保留、不参与判定，见 [ADR 0010](docs/decisions/0010-scope-refocus-0.5.0.md) |
@@ -61,6 +61,13 @@ Python 运行时目前包含两套并列且都受支持的获取/审计界面，
 
 两套栈的 paper ID、块/偏移模型和默认隐私分类并不等价；跨栈复制 ID 或偏移没有意义，具体差异与代码位置见合同映射。命令归属依据 [python-core.md](skills/ai-research-mentor/references/python-core.md) 与 [ADR 0009](docs/decisions/0009-acquisition-direction-and-payload-admission.md)。
 
+## 0.8.0 的变化与兼容性
+
+- **不再默认给标签**：面向用户的报告、决策卡和对话只回答三件事——值不值得研究、相对最近工作的差异、当前约束下能否做有意义的验证——再给决定性依据、最强反方、未知、下一步与改变判断的判据。不默认输出 GO/HOLD/KILL，也不用“做/等/放弃”代替论证。
+- **内部状态仍存在**：Python 账本、dossier 合同、排序与人工决定绑定继续使用 GO/HOLD/KILL 作为机器状态；只有用户明确要求对接账本/合同字段时才出现，并标明它是记录状态，不是研究结论。
+- **报告模板**：新增“当前判断与下一步”节，报告结构改为三问 + 证据 + 下一步 + 判据；设计见 [ADR 0013](docs/decisions/0013-no-go-hold-kill-labels.md)。
+- **兼容**：运行时、schema、`python-credibility-v5` 与全部门控行为不变；旧报告中的标签可保留为历史，新报告默认不再产生。
+
 ## 0.7.0 的变化与兼容性
 
 - **方向 → 完整研究报告**：新增 [报告模板](skills/ai-research-mentor/templates/report.md)。用户给出方向后可产出包含输入假设、近邻定位、可证伪假设与判据、实验设计、统计与启动实验、预期结果与失败分析、计划分工、风险与结论的完整报告，而不是一段问答或文献清单。
@@ -92,7 +99,7 @@ Python 运行时目前包含两套并列且都受支持的获取/审计界面，
 - 实际来源工具：Crossref 查询、DOI/arXiv 身份核验，以及有预算边界的 HTML/PDF 获取；取得内容后再由宿主实读与核验。
 - 研究缺口：对照已知条件、缺失知识、最强替代解释和已有绕行方案，用真实反向检索及判别测试检查 gap。
 - 科研产出：轻量决策/gap 卡、近邻比较、开题、研究提案、综述，以及基于真实来源的论文完整初稿；未执行实验写成计划，未核验引用不进正文。
-- 选题评估：逐候选查新，检查强基线、前置条件、资源、指标与反证方法，给出 GO / HOLD / KILL 及依据。
+- 选题评估：逐候选查新，检查强基线、前置条件、资源、指标与反证方法，回答三件事（值不值得、差异在哪、现在能否验证）及依据、风险与下一步；默认不给 GO/HOLD/KILL 标签。
 - 类型适配：支持经验、理论、测量、数据集和复现研究，不强制固定候选数量或两周训练计划。
 - 持续记录：dossier 按候选实际依赖计算评审指纹，ledger 使用科学输入的保守快照；两种流程都可使用 Python。单独记录排序权重，保存有适用条件和重访条件的历史判断。
 - 受控自优化：从实际流程失误提出小改动，在独立副本与冻结用例上验证，明确改善且科研原则不退化才保留。
@@ -125,7 +132,7 @@ Copy-Item -LiteralPath '.\skills\ai-research-mentor' -Destination $researchSkill
 
 ## 发布与版本
 
-`VERSION` 是版本真源；`evaluation/tests/test_version_consistency.py` 核对 `pyproject.toml`、`research_mentor.__version__`、README 当前版本行与 CHANGELOG 小节。当前发布是 [v0.7.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.7.0)（研究报告与澄清），历史发布是 [v0.6.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.6.0)（自进化模板纳管）、[v0.5.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.5.0)（范围收窄）、[v0.4.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.4.0)（Python-only 重建）、[v0.3.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.3.0)（最后的 Node 实现），见[全部发布](https://github.com/H66e/academic-scientific-skill/releases)。不同版本对应不同的包，不能用同一版本号互相指代；tag 一旦推送即不可变。发布流程：
+`VERSION` 是版本真源；`evaluation/tests/test_version_consistency.py` 核对 `pyproject.toml`、`research_mentor.__version__`、README 当前版本行与 CHANGELOG 小节。当前发布是 [v0.8.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.8.0)（三问代替标签），历史发布是 [v0.7.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.7.0)（研究报告与澄清）、[v0.6.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.6.0)（自进化模板纳管）、[v0.5.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.5.0)（范围收窄）、[v0.4.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.4.0)（Python-only 重建）、[v0.3.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.3.0)（最后的 Node 实现），见[全部发布](https://github.com/H66e/academic-scientific-skill/releases)。不同版本对应不同的包，不能用同一版本号互相指代；tag 一旦推送即不可变。发布流程：
 
 ```text
 python -B evaluation/run-python-tests.py
@@ -213,7 +220,7 @@ python -B evaluation/skill_tools.py package
 python -B evaluation/skill_tools.py check-package
 ```
 
-以上测试与维护命令只需要 Python。测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；冻结协议用例保留迁移前的实际观察值，新增原生测试检查当前实现。0.4.0 新增的回归覆盖包括出站隐私分类（含 `https://` 被误判为本地路径的修复）、严格 CLI 参数、失败 envelope、17 类账本事件 payload 准入、`source.fetch` 回执与 IR 重放（[`test_privacy_policy.py`](evaluation/tests/test_privacy_policy.py)、[`test_cli_strict.py`](evaluation/tests/test_cli_strict.py)、[`test_ledger_payloads.py`](evaluation/tests/test_ledger_payloads.py)、[`test_verification_metadata.py`](evaluation/tests/test_verification_metadata.py)）。0.5.0 新增/更新的回归覆盖包括：旧账本结果事件只读兼容与 legacy_result_events_ignored 提示、v5 判定不读取结果、四个结果命令未注册、写作模板与技能内链接检查（0.5.0 本地 291 tests，OK，1 skip，见 [validation-v050.md](evaluation/validation-v050.md)）。0.6.0 新增/更新的回归覆盖包括：模板改动强制 `writing_template_guardrails` 检查、`check-templates` 正反例、`better`/`worse` 必须有不同输出哈希。0.7.0 新增/更新的回归覆盖包括：报告模板与澄清协议纳入结构检查、四份模板护栏检查、报告/澄清文件进入自进化白名单（本轮本地 **296 tests，OK，1 skip**，见 [validation-v070.md](evaluation/validation-v070.md)）。ZIP 使用确定性文件顺序和时间戳；`check-package` 先复算一次源码构建，若本地已用 `package` 生成发布包则再逐字节比较两次构建（确定性检查）。CI 在 Windows/Linux × Python 3.10 / 3.12 / 3.14 的 6 个作业中运行全量测试、结构检查、构建发布包并保存为运行产物；某个历史配置存在不代表当前提交已通过，实际矩阵结果以仓库 Actions 记录为准。迁移验收见 [`evaluation/validation-python-core.md`](evaluation/validation-python-core.md)，0.7.0 发布验收见 [`evaluation/validation-v070.md`](evaluation/validation-v070.md)，0.6.0 发布验收见 [`evaluation/validation-v060.md`](evaluation/validation-v060.md)，0.5.0 发布验收见 [`evaluation/validation-v050.md`](evaluation/validation-v050.md)，0.4.0 发布验收见 [`evaluation/validation-v040.md`](evaluation/validation-v040.md)，发行版历史验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)。
+以上测试与维护命令只需要 Python。测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；冻结协议用例保留迁移前的实际观察值，新增原生测试检查当前实现。0.4.0 新增的回归覆盖包括出站隐私分类（含 `https://` 被误判为本地路径的修复）、严格 CLI 参数、失败 envelope、17 类账本事件 payload 准入、`source.fetch` 回执与 IR 重放（[`test_privacy_policy.py`](evaluation/tests/test_privacy_policy.py)、[`test_cli_strict.py`](evaluation/tests/test_cli_strict.py)、[`test_ledger_payloads.py`](evaluation/tests/test_ledger_payloads.py)、[`test_verification_metadata.py`](evaluation/tests/test_verification_metadata.py)）。0.5.0 新增/更新的回归覆盖包括：旧账本结果事件只读兼容与 legacy_result_events_ignored 提示、v5 判定不读取结果、四个结果命令未注册、写作模板与技能内链接检查（0.5.0 本地 291 tests，OK，1 skip，见 [validation-v050.md](evaluation/validation-v050.md)）。0.6.0 新增/更新的回归覆盖包括：模板改动强制 `writing_template_guardrails` 检查、`check-templates` 正反例、`better`/`worse` 必须有不同输出哈希。0.7.0 新增/更新的回归覆盖包括：报告模板与澄清协议纳入结构检查、四份模板护栏检查、报告/澄清文件进入自进化白名单。0.8.0 的改动是用户面向表达：报告模板“当前判断与下一步”不含 GO/HOLD/KILL 标签，`evaluation.md` 把三者标为账本内部状态，`python-credibility-v5` 与全部门控不变（本轮本地 **296 tests，OK，1 skip**，见 [validation-v080.md](evaluation/validation-v080.md)）。ZIP 使用确定性文件顺序和时间戳；`check-package` 先复算一次源码构建，若本地已用 `package` 生成发布包则再逐字节比较两次构建（确定性检查）。CI 在 Windows/Linux × Python 3.10 / 3.12 / 3.14 的 6 个作业中运行全量测试、结构检查、构建发布包并保存为运行产物；某个历史配置存在不代表当前提交已通过，实际矩阵结果以仓库 Actions 记录为准。迁移验收见 [`evaluation/validation-python-core.md`](evaluation/validation-python-core.md)，0.8.0 发布验收见 [`evaluation/validation-v080.md`](evaluation/validation-v080.md)，0.7.0 发布验收见 [`evaluation/validation-v070.md`](evaluation/validation-v070.md)，0.6.0 发布验收见 [`evaluation/validation-v060.md`](evaluation/validation-v060.md)，0.5.0 发布验收见 [`evaluation/validation-v050.md`](evaluation/validation-v050.md)，0.4.0 发布验收见 [`evaluation/validation-v040.md`](evaluation/validation-v040.md)，发行版历史验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)。
 
 自动测试与原离线案例使用合成资料；[真实论文有限语料试用与评估协议](evaluation/real-world/README.md) 单独记录来源、实际答复和未测范围。真实科研评估应记录原始检索和输出、近邻发现、引用忠实性、过度断言、误淘汰和下一步建议质量；尚未完成的评估不作为性能证明。历史回测以当时可得信息判断决策，不把后来的实验失败等同于当时应该 KILL。
 
