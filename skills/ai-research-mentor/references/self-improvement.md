@@ -62,7 +62,7 @@ suite.json 含 schema_version=1、max_attempts、allowed_paths、execution_confi
 
 每个 case_result 必需：case_id、execution（executed/dry_run）、verdict（better/tie/worse/unclear）、hard_constraints_pass 布尔、reason、baseline_output={file,hash}、candidate_output={file,hash}。每个冻结用例恰好一条结果；完整输出必须在本轮目录内且指纹匹配。干跑、缺失、未知和自审均不成为 KEEP。verdict 为 better 或 worse 时，baseline_output 与 candidate_output 的哈希必须不同；两份输出完全相同说明没有可观察差异，只能记 tie 或重新执行。
 
-KEEP 的必要条件：评估仍绑定当前三组指纹；正式目录仍等于基线；候选没有改保护文件；必需检查通过且有匹配产物；改动涉及写作模板时，`writing_template_guardrails` 检查也必须通过并绑定当前指纹；全部用例实际执行、硬条件通过且不退化；至少一个 target 明确 better，且 better/worse 都有可观察的输出差异。改变测试、候选或输出后旧回执失效。REJECT 表示已观察到违规变更或退化；HOLD 表示资料/验证不足、预算用尽或没有明确改善。
+KEEP 的必要条件：评估仍绑定当前三组指纹；正式目录仍等于基线；候选没有改保护文件；必需检查通过且有匹配产物；改动涉及写作模板时，`writing_template_guardrails` 检查也必须通过并绑定当前指纹；全部用例实际执行、硬条件通过且不退化；至少一个 target 出现与假设方向一致的可观察差异（记录为行为差异，不宣称科研质量改善），且 better/worse 都有可观察的输出差异。改变测试、候选或输出后旧回执失效。REJECT 表示已观察到违规变更或退化；HOLD 表示资料/验证不足、预算用尽或没有明确改善。
 
 工具只能检查文件和记录是否一致，不能证明回执诚实、模型独立、测试未被用于改写，或科研质量实际提升。宿主须保留真实调用记录与来源并审核判断。不要把 KEEP 写成普遍效果保证。
 

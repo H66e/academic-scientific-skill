@@ -359,7 +359,7 @@ def check_templates(root=SKILL):
         "paper.md": ("禁止编造", "TODO(需来源)", "[PLANNED:", "[OBSERVED:"),
         "survey.md": ("禁止编造", "TODO(需来源)", "检索协议", "覆盖边界"),
         "proposal.md": ("禁止编造", "TODO(需来源)", "事实 / 假设 / 计划 / 风险"),
-        "report.md": ("禁止编造", "TODO(需来源)", "研究问题", "实验设计", "风险", "report-tier"),
+        "report.md": ("禁止编造", "TODO(需来源)", "研究问题", "实验设计", "风险", "report-tier", "ledger:"),
     }
     errors = []
     root = Path(root)

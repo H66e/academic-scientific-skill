@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.0
+
+2026-10-27. 0.9.0 复审后的第二轮大改：核验状态改为账本派生，报告等级变成交付合同。设计见 [ADR 0015](docs/decisions/0015-ledger-derived-draft-contracts.md)。
+
+- `check-draft` 不再接受“已核验/已读全文”自填字符串：非 concept 等级的参考文献条目必须写 `ledger:<source-or-evidence-id>`，且必须带 `--ledger <project>`；只有账本中 user/T1、scope=section/full_text 的有效 `reading.confirm` 才算核验。修掉 `unverified` 被子串误判为 verified 的真 bug。
+- 等级变成章节合同：concept_memo 禁止任何编号引用、参考文献、实验设计、统计、预算、结果，必须有可见“概念备忘录 + 未核验”横幅；evidence_review / preregistration / research_plan 各有必需与禁止章节。
+- 增加对抗检查：`[2,3]`/全角/脚注/作者-年份/DOI/URL/arXiv 等引用形态、`unverified` 子串、汉字紧邻标签、setext/HTML/加粗标题、参考文献后藏正文、量化效应断言、完成态断言、交通灯 emoji。
+- 报告模板改为四级轮廓，只保留所选等级；删除模板里预写的“作者已核对/AI 未生成未核验引用”等未发生陈述。
+- 清理残留：问题数统一为“2–3 个阻塞问题，最多 4 个”；venue 缺失时内容可写但格式标待用户提供；删除 `"decision": "HOLD"` 示例；修正安装后脚本路径；README 验收链接改为最新。
+- effect-protocol 改为三项 co-primary（不存在的引用率、不支持的引用率、近邻召回、可执行性中的三项），去掉 composite 权重与决策冲突；仍未执行。
+
 ## 0.9.0
 
 2026-10-27. 两位严厉评委（Fable 5.1 / Opus 5.5）评审后的大改。设计见 [ADR 0014](docs/decisions/0014-major-revision-after-review.md)。
