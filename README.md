@@ -4,15 +4,16 @@
 
 **AI Research Mentor**：帮助 AI / ML 科研做四件事——找研究方向、查新（有没有人做过、最近的在做什么）、判断一个方向值不值得投入、写论文/综述/开题。文献检索、全文核验和证据记录服务于这四件事。适用于 Codex，也可由其他支持 `SKILL.md` 的宿主按需读取。
 
-当前版本 **0.6.0**（[v0.6.0 Release](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.6.0)，[全部发布](https://github.com/H66e/academic-scientific-skill/releases)）。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本 **0.7.0**（[v0.7.0 Release](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.7.0)，[全部发布](https://github.com/H66e/academic-scientific-skill/releases)）。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
-**0.6.0 是自进化维护版本：写作模板纳入受控进化，回执验收更严。** 0.5.0 收窄范围（结果解释退役、写作扩到完整初稿）；0.4.0 是 Python-only 重建后的第一个发布，0.3.0 是最后的 Node 实现版本。不同版本的包不同，版本号不能互相指代。本仓库是发布源码：发布包由源码确定性构建、不再提交到 Git，tag 与 GitHub Release 指向构建该包的提交，流程见[发布与版本](#发布与版本)。Codex 安装目录是运行时拷贝，只有显式同步后才会更新，源码提交不会自动进入安装副本。
+**0.7.0 增加“方向 → 完整研究报告”工作流与先澄清协议。** 0.6.0 是自进化维护版本：写作模板纳入受控进化、回执验收更严。 0.5.0 收窄范围（结果解释退役、写作扩到完整初稿）；0.4.0 是 Python-only 重建后的第一个发布，0.3.0 是最后的 Node 实现版本。不同版本的包不同，版本号不能互相指代。本仓库是发布源码：发布包由源码确定性构建、不再提交到 Git，tag 与 GitHub Release 指向构建该包的提交，流程见[发布与版本](#发布与版本)。Codex 安装目录是运行时拷贝，只有显式同步后才会更新，源码提交不会自动进入安装副本。
 
 | 范围 | 当前状态 |
 | --- | --- |
 | 找方向、查新、gap 检查 | 已实现；记录真实检索、版本、阅读范围与证据定位 |
 | 判断方向值不值得做 | 已实现；GO / HOLD / KILL + 依据、风险与下一步最小验证 |
 | 论文、综述、开题写作 | 0.5.0 提升为一等任务；可从真实来源产出完整初稿，模板见 `templates/`，投稿前必须人工核验 |
+| 方向 → 完整研究报告 | 0.7.0 新增：先澄清目标/约束/证据/交付，再按报告模板产出可讨论、可执行的完整报告 |
 | 实验结果解释（六种状态、结果纠正/失效） | 0.5.0 起退役；旧账本结果事件只读保留、不参与判定，见 [ADR 0010](docs/decisions/0010-scope-refocus-0.5.0.md) |
 | 旧 dossier 审计、迁移、独立评审回执与排序 | 维护期只读合同，保留原有数据合同 |
 | PDF 正文提取、自动实验日志解析 | 尚未实现；宿主取得正文并实际阅读后再记录 |
@@ -59,6 +60,13 @@ Python 运行时目前包含两套并列且都受支持的获取/审计界面，
 | `evolution_guard.py snapshot/hash/checks-hash/check` | dossier/reference（维护期） | 自优化验收记录，只读 |
 
 两套栈的 paper ID、块/偏移模型和默认隐私分类并不等价；跨栈复制 ID 或偏移没有意义，具体差异与代码位置见合同映射。命令归属依据 [python-core.md](skills/ai-research-mentor/references/python-core.md) 与 [ADR 0009](docs/decisions/0009-acquisition-direction-and-payload-admission.md)。
+
+## 0.7.0 的变化与兼容性
+
+- **方向 → 完整研究报告**：新增 [报告模板](skills/ai-research-mentor/templates/report.md)。用户给出方向后可产出包含输入假设、近邻定位、可证伪假设与判据、实验设计、统计与启动实验、预期结果与失败分析、计划分工、风险与结论的完整报告，而不是一段问答或文献清单。
+- **先澄清**：新增 [澄清协议](skills/ai-research-mentor/references/clarification.md)。方向类报告先问 3–5 个高杠杆问题（目标与用途、硬约束、证据现状、成功标准与风险偏好、交付形式），给默认假设并回述意图；用户说“先出草稿”时按显式假设推进。
+- **检查与自进化**：报告模板与澄清协议纳入技能结构检查、模板护栏检查与固定可改白名单；报告模板改动仍需 `writing_template_guardrails` 通过。
+- **兼容**：运行时、账本、dossier 与 `python-credibility-v5` 判定不变；报告仍是待人工核验的草稿，不承诺引用真实、新颖性、可行性或录用；文件集合变化后旧包哈希与安装副本需重新同步。
 
 ## 0.6.0 的变化与兼容性
 
@@ -117,7 +125,7 @@ Copy-Item -LiteralPath '.\skills\ai-research-mentor' -Destination $researchSkill
 
 ## 发布与版本
 
-`VERSION` 是版本真源；`evaluation/tests/test_version_consistency.py` 核对 `pyproject.toml`、`research_mentor.__version__`、README 当前版本行与 CHANGELOG 小节。当前发布是 [v0.5.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.5.0)（范围收窄），历史发布是 [v0.4.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.4.0)（Python-only 重建）、[v0.3.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.3.0)（最后的 Node 实现），见[全部发布](https://github.com/H66e/academic-scientific-skill/releases)。不同版本对应不同的包，不能用同一版本号互相指代；tag 一旦推送即不可变。发布流程：
+`VERSION` 是版本真源；`evaluation/tests/test_version_consistency.py` 核对 `pyproject.toml`、`research_mentor.__version__`、README 当前版本行与 CHANGELOG 小节。当前发布是 [v0.7.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.7.0)（研究报告与澄清），历史发布是 [v0.6.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.6.0)（自进化模板纳管）、[v0.5.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.5.0)（范围收窄）、[v0.4.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.4.0)（Python-only 重建）、[v0.3.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.3.0)（最后的 Node 实现），见[全部发布](https://github.com/H66e/academic-scientific-skill/releases)。不同版本对应不同的包，不能用同一版本号互相指代；tag 一旦推送即不可变。发布流程：
 
 ```text
 python -B evaluation/run-python-tests.py
@@ -205,7 +213,7 @@ python -B evaluation/skill_tools.py package
 python -B evaluation/skill_tools.py check-package
 ```
 
-以上测试与维护命令只需要 Python。测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；冻结协议用例保留迁移前的实际观察值，新增原生测试检查当前实现。0.4.0 新增的回归覆盖包括出站隐私分类（含 `https://` 被误判为本地路径的修复）、严格 CLI 参数、失败 envelope、17 类账本事件 payload 准入、`source.fetch` 回执与 IR 重放（[`test_privacy_policy.py`](evaluation/tests/test_privacy_policy.py)、[`test_cli_strict.py`](evaluation/tests/test_cli_strict.py)、[`test_ledger_payloads.py`](evaluation/tests/test_ledger_payloads.py)、[`test_verification_metadata.py`](evaluation/tests/test_verification_metadata.py)）。0.5.0 新增/更新的回归覆盖包括：旧账本结果事件只读兼容与 legacy_result_events_ignored 提示、v5 判定不读取结果、四个结果命令未注册、写作模板与技能内链接检查（0.5.0 本地 291 tests，OK，1 skip，见 [validation-v050.md](evaluation/validation-v050.md)）。0.6.0 新增/更新的回归覆盖包括：模板改动强制 `writing_template_guardrails` 检查、`check-templates` 正反例、`better`/`worse` 必须有不同输出哈希（本轮本地 **295 tests，OK，1 skip**，见 [validation-v060.md](evaluation/validation-v060.md)）。ZIP 使用确定性文件顺序和时间戳；`check-package` 先复算一次源码构建，若本地已用 `package` 生成发布包则再逐字节比较两次构建（确定性检查）。CI 在 Windows/Linux × Python 3.10 / 3.12 / 3.14 的 6 个作业中运行全量测试、结构检查、构建发布包并保存为运行产物；某个历史配置存在不代表当前提交已通过，实际矩阵结果以仓库 Actions 记录为准。迁移验收见 [`evaluation/validation-python-core.md`](evaluation/validation-python-core.md)，0.6.0 发布验收见 [`evaluation/validation-v060.md`](evaluation/validation-v060.md)，0.5.0 发布验收见 [`evaluation/validation-v050.md`](evaluation/validation-v050.md)，0.4.0 发布验收见 [`evaluation/validation-v040.md`](evaluation/validation-v040.md)，发行版历史验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)。
+以上测试与维护命令只需要 Python。测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；冻结协议用例保留迁移前的实际观察值，新增原生测试检查当前实现。0.4.0 新增的回归覆盖包括出站隐私分类（含 `https://` 被误判为本地路径的修复）、严格 CLI 参数、失败 envelope、17 类账本事件 payload 准入、`source.fetch` 回执与 IR 重放（[`test_privacy_policy.py`](evaluation/tests/test_privacy_policy.py)、[`test_cli_strict.py`](evaluation/tests/test_cli_strict.py)、[`test_ledger_payloads.py`](evaluation/tests/test_ledger_payloads.py)、[`test_verification_metadata.py`](evaluation/tests/test_verification_metadata.py)）。0.5.0 新增/更新的回归覆盖包括：旧账本结果事件只读兼容与 legacy_result_events_ignored 提示、v5 判定不读取结果、四个结果命令未注册、写作模板与技能内链接检查（0.5.0 本地 291 tests，OK，1 skip，见 [validation-v050.md](evaluation/validation-v050.md)）。0.6.0 新增/更新的回归覆盖包括：模板改动强制 `writing_template_guardrails` 检查、`check-templates` 正反例、`better`/`worse` 必须有不同输出哈希。0.7.0 新增/更新的回归覆盖包括：报告模板与澄清协议纳入结构检查、四份模板护栏检查、报告/澄清文件进入自进化白名单（本轮本地 **296 tests，OK，1 skip**，见 [validation-v070.md](evaluation/validation-v070.md)）。ZIP 使用确定性文件顺序和时间戳；`check-package` 先复算一次源码构建，若本地已用 `package` 生成发布包则再逐字节比较两次构建（确定性检查）。CI 在 Windows/Linux × Python 3.10 / 3.12 / 3.14 的 6 个作业中运行全量测试、结构检查、构建发布包并保存为运行产物；某个历史配置存在不代表当前提交已通过，实际矩阵结果以仓库 Actions 记录为准。迁移验收见 [`evaluation/validation-python-core.md`](evaluation/validation-python-core.md)，0.7.0 发布验收见 [`evaluation/validation-v070.md`](evaluation/validation-v070.md)，0.6.0 发布验收见 [`evaluation/validation-v060.md`](evaluation/validation-v060.md)，0.5.0 发布验收见 [`evaluation/validation-v050.md`](evaluation/validation-v050.md)，0.4.0 发布验收见 [`evaluation/validation-v040.md`](evaluation/validation-v040.md)，发行版历史验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)。
 
 自动测试与原离线案例使用合成资料；[真实论文有限语料试用与评估协议](evaluation/real-world/README.md) 单独记录来源、实际答复和未测范围。真实科研评估应记录原始检索和输出、近邻发现、引用忠实性、过度断言、误淘汰和下一步建议质量；尚未完成的评估不作为性能证明。历史回测以当时可得信息判断决策，不把后来的实验失败等同于当时应该 KILL。
 
@@ -219,7 +227,7 @@ python -B evaluation/skill_tools.py check-package
 保持科研证据门槛，用两版实际输出和独立迁移用例验收。
 ```
 
-普通使用先积累可追溯反馈；明确维护请求后在预算内运行“冻结基线 → 修改副本 → 实际对照 → 独立审查 → 保留或丢弃”。科研假设失败不是 skill 缺陷。全 tie、自审、干跑、缺迁移验证和科研原则退化均不会获准保留。自优化可改的固定白名单是 `SKILL.md`、literature/ideation/evaluation/research-outputs 四份细则和三个写作模板；运行时、脚本、schema、测试与评测规则仍是保护文件。改模板时回执必须附带 `writing_template_guardrails` 检查（由 `check-templates` 生成），且 `better` / `worse` 判定必须有可观察的基线/候选输出差异，否则只能记 tie 或重跑。
+普通使用先积累可追溯反馈；明确维护请求后在预算内运行“冻结基线 → 修改副本 → 实际对照 → 独立审查 → 保留或丢弃”。科研假设失败不是 skill 缺陷。全 tie、自审、干跑、缺迁移验证和科研原则退化均不会获准保留。自优化可改的固定白名单是 `SKILL.md`、literature/ideation/evaluation/research-outputs/clarification 五份细则和四个写作模板；运行时、脚本、schema、测试与评测规则仍是保护文件。改模板时回执必须附带 `writing_template_guardrails` 检查（由 `check-templates` 生成），且 `better` / `worse` 判定必须有可观察的基线/候选输出差异，否则只能记 tie 或重跑。
 
 按 [`self-improvement.md`](skills/ai-research-mentor/references/self-improvement.md) 保存本轮独立目录、两版内容、冻结用例、输出和评估回执。只读工具核验文件、检查日志和评估版本：
 
@@ -249,12 +257,14 @@ skills/ai-research-mentor/
 │   ├── python-core.md
 │   ├── fulltext.md
 │   ├── research-outputs.md
+│   ├── clarification.md
 │   ├── self-improvement.md
 │   └── design-basis.md
 ├── templates/
 │   ├── paper.md
 │   ├── survey.md
-│   └── proposal.md
+│   ├── proposal.md
+│   └── report.md
 ├── scripts/
 │   ├── research_mentor.py
 │   ├── research_audit.py

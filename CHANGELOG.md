@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0
+
+2026-10-27. 方向 → 完整研究报告工作流与先澄清协议。设计见 [ADR 0012](docs/decisions/0012-direction-to-report-workflow.md)。
+
+- 新增 `templates/report.md`：完整研究报告骨架，覆盖输入假设与范围、摘要、引言与近邻定位、问题定义与可证伪假设/判据、方法、实验设计（数据/划分、规模与成本、指标、基线、统计、启动实验/go-no-go）、预期结果与失败分析、计划与分工、风险、结论与参考文献。
+- 新增 `references/clarification.md`：方向类任务先做一轮 3–5 个高杠杆提问（目标与用途、硬约束、证据现状、成功标准与风险偏好、交付形式），给默认假设并做意图回述；用户要求先出草稿时按显式假设推进。
+- `SKILL.md` 增加方向 → 完整报告路由，写作边界与交付说明补充报告要求；`research-outputs.md` 增加报告结构、决策闭合、假设可证伪、近邻差异、证据/计划分离、成本可行性与失败路径检查。
+- 检查与自进化：`report.md` 与 `clarification.md` 纳入技能结构检查、模板护栏检查（`report.md` 需保留禁止编造、TODO(需来源)、研究问题、实验设计、风险标记）与固定可改白名单；报告模板改动仍必须通过 `writing_template_guardrails`。
+- 兼容：运行时、账本、dossier 与 `python-credibility-v5` 判定策略不变；报告仍是待人工核验的草稿，不承诺引用真实、新颖性、可行性或录用。文件集合变化后旧发布包哈希与安装副本需重新同步。
+
 ## 0.6.0
 
 2026-10-27. 自进化能力维护版本：写作模板纳入受控进化范围，并收紧验收回执逻辑。设计见 [ADR 0011](docs/decisions/0011-evolvable-templates-and-stricter-receipts.md)。
