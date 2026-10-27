@@ -1,0 +1,11 @@
+version: 2
+updates:
+  # Keep pinned GitHub Actions SHAs current. Dependabot understands the
+  # "<owner>/<repo>@<sha> # vX.Y.Z" pin form and updates both SHA and comment.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
