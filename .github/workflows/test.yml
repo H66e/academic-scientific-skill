@@ -39,6 +39,8 @@ jobs:
         run: python -B evaluation/skill_tools.py check-skill
       - name: Synthetic example checks
         run: python -B evaluation/skill_tools.py check-examples
+      - name: Writing template guardrail check
+        run: python -B evaluation/skill_tools.py check-templates
       - name: Build deterministic release package
         run: python -B evaluation/skill_tools.py package
       - name: Verify package against source and rebuild determinism

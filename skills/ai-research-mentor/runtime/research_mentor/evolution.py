@@ -2,7 +2,10 @@
 
 The guard never applies a candidate, launches a process, invokes Git, or
 makes requests.
-The fixed editable whitelist cannot be expanded by a submitted suite.
+The fixed editable whitelist cannot be expanded by a submitted suite. A change
+to a writing template additionally requires the frozen
+``writing_template_guardrails`` check, so templates can evolve only together
+with evidence that their anti-fabrication guardrails survive.
 """
 from __future__ import annotations
 
@@ -18,8 +21,12 @@ from typing import Any
 from .audit import canonical_stringify
 
 NOTICE = "Structural and recorded-evidence checks only: KEEP does not establish scientific quality, novelty, or correctness."
-EDITABLE = frozenset({"SKILL.md", *(f"references/{name}.md" for name in
-                                  ("literature", "ideation", "evaluation", "research-outputs"))})
+TEMPLATE_CHECK = "writing_template_guardrails"
+EDITABLE = frozenset({"SKILL.md",
+                      *(f"references/{name}.md" for name in
+                        ("literature", "ideation", "evaluation", "research-outputs")),
+                      *(f"templates/{name}.md" for name in
+                        ("paper", "survey", "proposal"))})
 REQUIRED_CHECKS = ("unit_regressions", "skill_structure", "protected_principles")
 SPLITS = ("target", "regression", "holdout")
 _MISSING = object()
@@ -344,6 +351,8 @@ def check_evolution(run: Any, run_dir: str | os.PathLike[str]) -> dict[str, Any]
         for name in REQUIRED_CHECKS:
             if _identity(name) not in names:
                 hold(f"missing required check: {name}")
+        if any(file.startswith("templates/") for file in changed_paths) and _identity(TEMPLATE_CHECK) not in names:
+            hold(f"missing required check: {TEMPLATE_CHECK} (a writing template changed)")
 
         receipt_ok, review = artifact(run.get("review"), "review", True)
         if not receipt_ok:
@@ -405,6 +414,9 @@ def check_evolution(run: Any, run_dir: str | os.PathLike[str]) -> dict[str, Any]
                 reject(f"hard constraint failed: {_display(identifier)}")
             if supported and row.get("verdict") == "worse":
                 reject(f"case regressed: {_display(identifier)}")
+            if supported and row.get("verdict") in ("better", "worse") \
+                    and (row.get("baseline_output") or {}).get("hash") == (row.get("candidate_output") or {}).get("hash"):
+                hold(f"verdict is not supported by different outputs: {_display(identifier)}")
             if (supported and row.get("hard_constraints_pass") is True and row.get("verdict") == "better"
                     and expected[_identity(identifier)].get("split") == "target"):
                 target_better = True

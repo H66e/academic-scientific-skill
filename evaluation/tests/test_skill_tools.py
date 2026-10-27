@@ -15,7 +15,7 @@ import zipfile
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "evaluation"))
-from skill_tools import build_package, read_package, source_files, verify_package, check_skill
+from skill_tools import build_package, read_package, source_files, verify_package, check_skill, check_templates
 
 
 class NativePackageTests(unittest.TestCase):
@@ -204,3 +204,26 @@ class NativeMaintenanceCommands(unittest.TestCase):
                     self.assertTrue(any(name in error for error in checked["errors"]))
                     with self.assertRaisesRegex(ValueError, "(?i)forbidden|python-only|python only"):
                         build_package(root)
+
+
+class WritingTemplateGuardrailTests(unittest.TestCase):
+    def test_current_templates_keep_their_guardrails(self):
+        result = check_templates(REPO / "skills" / "ai-research-mentor")
+        self.assertTrue(result["valid"], result["errors"])
+        self.assertEqual(result["templates"], ["paper.md", "proposal.md", "survey.md"])
+
+    def test_removed_marker_or_missing_template_is_reported(self):
+        with tempfile.TemporaryDirectory(prefix="mentor-template-guard-") as directory:
+            root = Path(directory) / "ai-research-mentor"
+            shutil.copytree(REPO / "skills" / "ai-research-mentor", root,
+                            ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"))
+            paper = root / "templates" / "paper.md"
+            paper.write_text(paper.read_text(encoding="utf-8").replace("禁止编造", "SYNTHETIC removed guardrail"),
+                             encoding="utf-8")
+            checked = check_templates(root)
+            self.assertFalse(checked["valid"])
+            self.assertTrue(any("paper.md" in error and "禁止编造" in error for error in checked["errors"]))
+            (root / "templates" / "survey.md").unlink()
+            checked = check_templates(root)
+            self.assertFalse(checked["valid"])
+            self.assertTrue(any("Missing templates/survey.md" in error for error in checked["errors"]))

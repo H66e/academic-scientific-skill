@@ -237,6 +237,36 @@ class EvolutionGuardTests(unittest.TestCase):
         f.seal_review()
         self.assertIn("change outside suite.allowed_paths: references/evaluation.md", self.check()["reasons"])
 
+    def test_template_change_requires_the_guardrail_check(self):
+        f = self.fixture
+        (f.candidate / "templates").mkdir()
+        (f.candidate / "templates" / "paper.md").write_bytes(b"SYNTHETIC template change\n")
+        f.suite["allowed_paths"] = ["SKILL.md", "templates/paper.md"]
+        f.run["suite"] = f.artifact("suite.json", f.suite)
+        f.run["candidate"]["hash"] = snapshot_skill(f.candidate)["hash"]
+        f.refresh_checks()
+        f.seal_review()
+        missing = self.check()
+        self.assertEqual(missing["decision"], "HOLD")
+        self.assertIn("missing required check: writing_template_guardrails", " ".join(missing["reasons"]))
+        f.run["checks"].append({"name": "writing_template_guardrails", "passed": True,
+                                "baseline_hash": f.run["baseline"]["hash"],
+                                "candidate_hash": f.run["candidate"]["hash"],
+                                "suite_hash": f.run["suite"]["hash"],
+                                "artifact": f.artifact("checks/templates.txt", b"SYNTHETIC template guard only\n")})
+        f.refresh_checks()
+        f.seal_review()
+        self.assertEqual(self.check()["decision"], "KEEP")
+
+    def test_better_or_worse_verdict_needs_a_different_output(self):
+        f = self.fixture
+        same = f.artifact("outputs/C1-identical.txt", b"SYNTHETIC identical output\n")
+        f.review["case_results"][0].update(baseline_output=same, candidate_output=same)
+        f.seal_review()
+        result = self.check()
+        self.assertEqual(result["decision"], "HOLD")
+        self.assertIn("not supported by different outputs", " ".join(result["reasons"]))
+
     def test_traversal_urls_control_characters_and_drive_relative_paths_hold_without_read(self):
         f = self.fixture
         for path in ("../outside.txt", "https://example.org/file", "C:outside.txt", "file\x00.txt", ""):

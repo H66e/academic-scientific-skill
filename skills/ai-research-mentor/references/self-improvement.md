@@ -14,7 +14,7 @@
 
 1. **记录问题。** 保存来源与实际输出的位置、错误机制、期望行为、适用条件和能反驳修改假设的例子。优先修影响决策的错误，不以提升写作评分为目标。分享或提交测试材料前去除未公开成果、个人信息和凭据。
 2. **冻结基线与评估。** 基线来自当前工作区，包含用户未提交改动；在用户工作区新建本轮目录，将完整 skill 复制到 baseline/ai-research-mentor 与 candidate/ai-research-mentor。保留独立的 suite.json，定义目标、回归、迁移三个类型用例及硬条件，固定模型/工具配置和预算。
-3. **修改副本。** 一次改动对应一项可检验的行为假设，可涉及多个必要文件。默认仅允许 SKILL.md 和 literature/ideation/evaluation/research-outputs 四份细则。不要修改测试、工具、data-contract、优化规则或评分标准来取得通过；这类接口升级需要单独的维护任务。
+3. **修改副本。** 一次改动对应一项可检验的行为假设，可涉及多个必要文件。默认仅允许 SKILL.md、literature/ideation/evaluation/research-outputs 四份细则，以及 templates/paper.md、templates/survey.md、templates/proposal.md 三个写作模板。改模板时必须同时提供 `writing_template_guardrails` 检查（`python -B evaluation/skill_tools.py check-templates` 生成），证明“禁止编造”、无来源占位符、计划/已观察或事实/假设/计划/风险结构仍在。不要修改测试、工具、data-contract、优化规则或评分标准来取得通过；这类接口升级需要单独的维护任务。
 4. **真实运行与独立比较。** 同一输入、工具范围和预算分别执行基线与候选，保存原始输出；用新上下文对两组输出复核，盲化 A/B 标识并平衡顺序。评估者只收到冻结的判据及原始材料，不透露希望哪版获胜。迁移用例不交给改写者用于设计补丁；执行前只暴露其 ID 与类型。无法隔离时说明限制，不能宣称独立保留测试。
 5. **验收后应用。** 固定脚本回归和元数据检查通过；目标失误有明确改善；回归与迁移用例不退化；证据和科学原则不被放松。运行 evolution_guard 的 check，只有 KEEP 可进入应用。应用前再次 snapshot 正式维护目录核对基线；目标有新改动时停止写入，保留补丁重新基线化。失败只丢弃自己的候选，不 reset、stash 或覆盖用户文件。
 
@@ -60,9 +60,9 @@ suite.json 含 schema_version=1、max_attempts、allowed_paths、execution_confi
 
 独立回执 JSON 含 kind（independent/self）、author_context、evaluator_context、baseline_hash、candidate_hash、suite_hash、checks_hash、case_results。checks-hash 命令为当时的检查状态和日志指纹生成 checks_hash；候选或测试改变后须重新执行检查，独立回执也不能复用。只有实际独立上下文才用 independent；两上下文标识不同。
 
-每个 case_result 必需：case_id、execution（executed/dry_run）、verdict（better/tie/worse/unclear）、hard_constraints_pass 布尔、reason、baseline_output={file,hash}、candidate_output={file,hash}。每个冻结用例恰好一条结果；完整输出必须在本轮目录内且指纹匹配。干跑、缺失、未知和自审均不成为 KEEP。
+每个 case_result 必需：case_id、execution（executed/dry_run）、verdict（better/tie/worse/unclear）、hard_constraints_pass 布尔、reason、baseline_output={file,hash}、candidate_output={file,hash}。每个冻结用例恰好一条结果；完整输出必须在本轮目录内且指纹匹配。干跑、缺失、未知和自审均不成为 KEEP。verdict 为 better 或 worse 时，baseline_output 与 candidate_output 的哈希必须不同；两份输出完全相同说明没有可观察差异，只能记 tie 或重新执行。
 
-KEEP 的必要条件：评估仍绑定当前三组指纹；正式目录仍等于基线；候选没有改保护文件；必需检查通过且有匹配产物；全部用例实际执行、硬条件通过且不退化；至少一个 target 明确 better。改变测试、候选或输出后旧回执失效。REJECT 表示已观察到违规变更或退化；HOLD 表示资料/验证不足、预算用尽或没有明确改善。
+KEEP 的必要条件：评估仍绑定当前三组指纹；正式目录仍等于基线；候选没有改保护文件；必需检查通过且有匹配产物；改动涉及写作模板时，`writing_template_guardrails` 检查也必须通过并绑定当前指纹；全部用例实际执行、硬条件通过且不退化；至少一个 target 明确 better，且 better/worse 都有可观察的输出差异。改变测试、候选或输出后旧回执失效。REJECT 表示已观察到违规变更或退化；HOLD 表示资料/验证不足、预算用尽或没有明确改善。
 
 工具只能检查文件和记录是否一致，不能证明回执诚实、模型独立、测试未被用于改写，或科研质量实际提升。宿主须保留真实调用记录与来源并审核判断。不要把 KEEP 写成普遍效果保证。
 

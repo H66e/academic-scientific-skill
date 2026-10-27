@@ -268,6 +268,7 @@ def check_skill(root=SKILL):
                  "runtime/research_mentor/strict_cli.py", "runtime/research_mentor/event_payloads.py"]
     required += [f"runtime/research_mentor/{name}.py" for name in ("core", "judgment", "audit", "sources", "outputs", "evolution")]
     required += [f"references/{name}.md" for name in ("data-contract", "literature", "ideation", "evaluation", "design-basis", "self-improvement", "retrieval-adapters", "fulltext", "research-outputs", "source-tools")]
+    required += [f"templates/{name}.md" for name in ("paper", "survey", "proposal")]
     required += [f"schemas/{name}.schema.json" for name in ("notes", "dossier", "ledger-event")]
     required += [f"tests/python/test_{name}.py" for name in ("core", "audit", "sources", "outputs", "evolution", "readings")]
     for name in required:
@@ -346,6 +347,34 @@ def check_skill(root=SKILL):
     return {"valid": not errors, "errors": errors, "local_links_checked": links, "skill_lines": len(source.split("\n")), "note": "Local metadata/reference checks; does not prove research quality."}
 
 
+def check_templates(root=SKILL):
+    """Verify writing templates keep their anti-fabrication structural markers.
+
+    This is a structural guardrail check, not a claim that generated drafts are
+    true, well cited or publishable. The markers are deliberately stable across
+    wording changes: they force every template to keep a do-not-fabricate header,
+    a source placeholder, and its planned-vs-observed or claim-type separation.
+    """
+    markers = {
+        "paper.md": ("禁止编造", "TODO(需来源)", "[PLANNED:", "[OBSERVED:"),
+        "survey.md": ("禁止编造", "TODO(需来源)", "检索协议", "覆盖边界"),
+        "proposal.md": ("禁止编造", "TODO(需来源)", "事实 / 假设 / 计划 / 风险"),
+    }
+    errors = []
+    root = Path(root)
+    for name in sorted(markers):
+        path = root / "templates" / name
+        if not path.is_file():
+            errors.append(f"Missing templates/{name}")
+            continue
+        text = path.read_text(encoding="utf-8")
+        for marker in markers[name]:
+            if marker not in text:
+                errors.append(f"templates/{name} lacks guardrail marker: {marker}")
+    return {"valid": not errors, "errors": errors, "templates": sorted(markers),
+            "note": "Template structure only; it does not verify citation truth or scientific quality."}
+
+
 def check_examples():
     from research_mentor.audit import validate_dossier, rank_dossier
     results = []
@@ -369,7 +398,7 @@ def main(argv=None):
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("check-python-only", "check-skill", "check-examples", "package", "check-package"))
+    parser.add_argument("command", choices=("check-python-only", "check-skill", "check-examples", "check-templates", "package", "check-package"))
     args = parser.parse_args(argv)
     try:
         if args.command == "check-python-only":
@@ -378,6 +407,8 @@ def main(argv=None):
             result = check_skill()
         elif args.command == "check-examples":
             result = check_examples()
+        elif args.command == "check-templates":
+            result = check_templates()
         elif args.command == "check-package":
             result = check_package(SKILL, package=PACKAGE, license_path=LICENSE)
         else:
