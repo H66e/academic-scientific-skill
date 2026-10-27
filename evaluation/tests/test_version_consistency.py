@@ -58,6 +58,21 @@ def changelog_section_versions(text):
 
 
 class VersionConsistencyTests(unittest.TestCase):
+    def test_readme_install_block_names_current_version(self):
+        declared = read_text("VERSION").strip()
+        readme = read_text("README.md")
+        start = readme.index("完整 skill 位于")
+        end = readme.index("压缩包内")
+        block = readme[start:end]
+        self.assertIn(f"releases/tag/v{declared}", block,
+                      "README install block must link the current release tag")
+        self.assertIn(f"ai-research-mentor-{declared}.zip", block,
+                      "README install block must name the current package")
+        self.assertNotIn("ai-research-mentor-0.5.0.zip", block,
+                         "stale install package in README install block")
+        self.assertNotIn("再安装 0.5.0", readme,
+                         "stale PowerShell install error message")
+
     def test_every_current_version_claim_equals_version_file(self):
         declared = read_text("VERSION").strip()
         self.assertRegex(declared, VERSION_PATTERN, "VERSION must be MAJOR.MINOR.PATCH")

@@ -1,6 +1,6 @@
 # 受控自优化
 
-仅用于改进本科研 skill；科研题目自身的评估仍使用 data-contract.md。借鉴 [Darwin Skill 的当前协议](https://github.com/alchaincyf/darwin-skill/blob/8a8b66258e3c45d6ae4aea39719468c6428fcb0a/SKILL.md)，独立实现版本绑定与验收工具，不依赖安装 Darwin。
+仅用于提示词/模板变更审计，不用于声称科研能力提升；科研题目自身的评估仍使用 data-contract.md。本协议只证明记录与结构一致，不证明科研质量、检索完备性或写作效果。借鉴 [Darwin Skill 的当前协议](https://github.com/alchaincyf/darwin-skill/blob/8a8b66258e3c45d6ae4aea39719468c6428fcb0a/SKILL.md)，独立实现版本绑定与验收工具，不依赖安装 Darwin。
 
 ## 触发、授权和停止
 

@@ -263,14 +263,14 @@ def check_skill(root=SKILL):
     if root.is_dir():
         errors.extend(check_python_only(root)["errors"])
     required = ["SKILL.md", "agents/openai.yaml", "references/python-core.md"]
-    required += [f"scripts/{name}.py" for name in ("research_audit", "research_sources", "research_outputs", "evolution_guard")]
+    required += [f"scripts/{name}.py" for name in ("research_audit", "research_sources", "research_outputs", "evolution_guard", "research_draft")]
     required += ["scripts/research_mentor.py", "runtime/research_mentor/tool_cli.py",
                  "runtime/research_mentor/strict_cli.py", "runtime/research_mentor/event_payloads.py"]
-    required += [f"runtime/research_mentor/{name}.py" for name in ("core", "judgment", "audit", "sources", "outputs", "evolution")]
+    required += [f"runtime/research_mentor/{name}.py" for name in ("core", "judgment", "audit", "sources", "outputs", "evolution", "draft")]
     required += [f"references/{name}.md" for name in ("data-contract", "literature", "ideation", "evaluation", "design-basis", "self-improvement", "retrieval-adapters", "fulltext", "research-outputs", "source-tools", "clarification")]
     required += [f"templates/{name}.md" for name in ("paper", "survey", "proposal", "report")]
     required += [f"schemas/{name}.schema.json" for name in ("notes", "dossier", "ledger-event")]
-    required += [f"tests/python/test_{name}.py" for name in ("core", "audit", "sources", "outputs", "evolution", "readings")]
+    required += [f"tests/python/test_{name}.py" for name in ("core", "audit", "sources", "outputs", "evolution", "readings", "draft")]
     for name in required:
         if not (root / name).is_file():
             errors.append(f"Missing {name}")
@@ -359,7 +359,7 @@ def check_templates(root=SKILL):
         "paper.md": ("禁止编造", "TODO(需来源)", "[PLANNED:", "[OBSERVED:"),
         "survey.md": ("禁止编造", "TODO(需来源)", "检索协议", "覆盖边界"),
         "proposal.md": ("禁止编造", "TODO(需来源)", "事实 / 假设 / 计划 / 风险"),
-        "report.md": ("禁止编造", "TODO(需来源)", "研究问题", "实验设计", "风险"),
+        "report.md": ("禁止编造", "TODO(需来源)", "研究问题", "实验设计", "风险", "report-tier"),
     }
     errors = []
     root = Path(root)
