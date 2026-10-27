@@ -210,7 +210,7 @@ class WritingTemplateGuardrailTests(unittest.TestCase):
     def test_current_templates_keep_their_guardrails(self):
         result = check_templates(REPO / "skills" / "ai-research-mentor")
         self.assertTrue(result["valid"], result["errors"])
-        self.assertEqual(result["templates"], ["paper.md", "proposal.md", "survey.md"])
+        self.assertEqual(result["templates"], ["paper.md", "proposal.md", "report.md", "survey.md"])
 
     def test_removed_marker_or_missing_template_is_reported(self):
         with tempfile.TemporaryDirectory(prefix="mentor-template-guard-") as directory:

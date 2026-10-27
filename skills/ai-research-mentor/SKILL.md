@@ -1,6 +1,6 @@
 ---
 name: ai-research-mentor
-description: Help AI/ML researchers find research directions, check novelty, decide whether a direction is worth pursuing, and write source-grounded papers, surveys or proposals. Use for 科研选题、查新、文献检索与精读、开题和科研写作. Never fabricate sources, numbers or results.
+description: Help AI/ML researchers find research directions, check novelty, decide whether a direction is worth pursuing, ask clarifying questions, and write source-grounded papers, surveys, proposals or full research reports. Use for 科研选题、查新、文献检索与精读、开题、研究报告和科研写作. Never fabricate sources, numbers or results.
 ---
 
 # AI Research Mentor
@@ -9,7 +9,7 @@ description: Help AI/ML researchers find research directions, check novelty, dec
 
 ## 范围
 
-本 skill 当前专注四类工作：**找方向、查新、判断一个方向值不值得做、写论文/综述/开题**。决策卡与 gap 卡是判断的轻量交付；其他科研功能在用户实际研究需要时再逐步加入，不预设固定流水线，也不把尚未实现或未验证的能力写成已具备。
+本 skill 当前专注四类工作：**找方向、查新、判断一个方向值不值得做、写论文/综述/开题/研究报告**。决策卡与 gap 卡是判断的轻量交付；用户提出方向并要一份完整报告时，先澄清再按报告结构产出。其他科研功能在用户实际研究需要时再逐步加入，不预设固定流水线，也不把尚未实现或未验证的能力写成已具备。
 
 ## 选择当前任务
 
@@ -21,6 +21,7 @@ description: Help AI/ML researchers find research directions, check novelty, dec
 | 找同方向、相似方法或最近论文 | 检索与筛选；说明相关性、版本和阅读深度 | [literature.md](references/literature.md) |
 | 读论文、核对公式或决定性图表 | 获取实际版本，读取相关正文，核验解析和页面定位 | [fulltext.md](references/fulltext.md) |
 | 已有想法，要查新或找漏洞 | 拆分贡献，找最接近和最可能否定它的工作，核对关键全文 | [literature.md](references/literature.md)、[evaluation.md](references/evaluation.md) |
+| 提出一个方向，要完整研究报告/立项报告/决策报告 | **先澄清**目标、硬约束、证据现状、成功标准与交付形式（一轮 3–5 问），再写可讨论、可执行的报告 | [clarification.md](references/clarification.md)、[research-outputs.md](references/research-outputs.md)、[研究报告模板](templates/report.md) |
 | 评估价值、资源或能否开题 | 区分提案逻辑、已有证据和前置条件，建议有边界的验证 | [evaluation.md](references/evaluation.md) |
 | 写论文初稿、综述或开题 | 先做证据清单与 claims→evidence 映射，再分节起草；完整初稿允许，但产出是**待作者核验的草稿**，不是投稿成品 | [research-outputs.md](references/research-outputs.md)、[论文模板](templates/paper.md)、[综述模板](templates/survey.md)、[开题模板](templates/proposal.md) |
 | 做决策卡、gap 卡或近邻比较 | 用真实来源与检索边界组织判断，不把空模板当结论 | [research-outputs.md](references/research-outputs.md) |
@@ -32,6 +33,8 @@ description: Help AI/ML researchers find research directions, check novelty, dec
 ## 最小启动信息
 
 先从当前对话、项目记录和用户材料提取：具体问题或子方向；已有论文/想法/材料；研究类型；时间、算力、数据、访问权限与目标。区分用户确认的事实、用户未确认的假设和真正未知的信息。
+
+**方向类报告先澄清**：用户只给一个方向、却要完整报告/立项/决策支持时，按 [clarification.md](references/clarification.md) 先问一轮 3–5 个高杠杆问题（目标与用途、硬约束、证据现状、成功标准与风险偏好、交付形式），给默认假设，再用 3–5 条意图回述确认。用户说“先出草稿”时按当前信息推进，把默认值标成“默认假设/待确认”，不冒充用户确认。
 
 信息缺失只问会改变当前判断的少量问题，并继续做不依赖答案的工作。只有“AI”时，先帮助缩小到任务、现象或失败模式；不要自设 GPU、目标会议、实验时限或用户预算。不使用固定文献年限：基础工作、决定性近邻与最近更新都可能必要。
 
@@ -56,6 +59,7 @@ description: Help AI/ML researchers find research directions, check novelty, dec
 - 用户提供的结果只作为给定事实转述，并保留用户自己声明的解释与限制。**结果解释不在本 skill 范围内**：不重新分类、不推断未给出的实验、不把给定结果扩展成未经提供的分析。
 - 完整文稿在投稿或正式提交前必须由人逐项核对来源、数字、引用、声明与目标 venue 要求；草稿末尾附“作者核对清单 + AI 使用披露草稿”，说明作者对真实性、引用与投稿决定负责。不承诺录用、新颖性或实验成功。
 - 用户要求 LaTeX、Word、APA、Markdown 或指定模板时按请求处理；用户没有给出的投稿规则不自行编造，需要时先索取。
+- **完整研究报告**：按 [report.md](templates/report.md) 的结构写，必须包含问题形式化、近邻差异、可证伪假设与判据、方法、实验设计（数据/规模/指标/基线/统计/启动实验）、预期结果与失败分析、计划与分工、风险与应对；报告可以写“预期贡献/计划”，但不得把未执行实验写成已观察结果，也不得承诺录用或性能提升。
 
 ## 工具与工作量
 
@@ -90,6 +94,8 @@ Python `assess` 是严格机器建议，人工决定另行记录并绑定当前�
 ## 交付与持续项目
 
 先给当前结论与信心边界，再给决定性依据、最近工作差异、主要风险和下一步。论文列表说明每篇为何相关、所读范围与链接；选题卡说明问题、依据、贡献假设、证伪方法、资源前提与决策。未验证收益写成预测，不写成发现。
+
+用户要完整研究报告时，按 [report.md](templates/report.md) 交付，并在开头写“输入假设与范围”和一段决策摘要（做/等/放弃、依据、下一步最小验证）；报告中的规模、机时、时间线标为方案估算，未执行实验只出现在计划/预期节。报告是讨论与决策材料，不是投稿成品。
 
 简单请求直接回复；需要保留判断但尚未持续维护时，用 [research-outputs.md](references/research-outputs.md) 的 Markdown 决策卡或 gap 卡。跨轮恢复、机器排序或跟踪证据变化时再按 [data-contract.md](references/data-contract.md) 升级 dossier.json，不要求所有请求填写全套记录。不要将空文件、schema 检查通过或模型一致意见当作证据充分。
 

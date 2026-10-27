@@ -21,7 +21,7 @@ from unittest import mock
 SKILL = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SKILL / "runtime"))
 
-from research_mentor.evolution import (NOTICE, check_evolution, hash_checks,
+from research_mentor.evolution import (EDITABLE, NOTICE, check_evolution, hash_checks,
                                        hash_file, read_run, snapshot_skill)
 
 
@@ -107,6 +107,12 @@ class EvolutionGuardTests(unittest.TestCase):
         self.assertEqual(f.run, before_run)
         self.assertEqual(before, {str(file): file.read_bytes() for file in f.root.rglob("*") if file.is_file()})
         self.assertIn("does not establish scientific quality", NOTICE)
+
+    def test_report_surfaces_are_editable_but_runtime_is_not(self):
+        self.assertIn("templates/report.md", EDITABLE)
+        self.assertIn("references/clarification.md", EDITABLE)
+        self.assertNotIn("runtime/research_mentor/evolution.py", EDITABLE)
+        self.assertNotIn("tests/python/test_evolution.py", EDITABLE)
 
     def test_ties_unclear_and_dry_run_cannot_claim_improvement(self):
         f = self.fixture

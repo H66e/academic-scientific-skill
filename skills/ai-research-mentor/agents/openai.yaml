@@ -1,6 +1,6 @@
 interface:
-  display_name: "AI 科研选题与写作助手"
-  short_description: "AI 科研选题、查新、价值判断与论文/综述/开题写作，保留来源与证据边界"
-  default_prompt: "使用 $ai-research-mentor 帮我找研究方向、查新并评估是否值得做，再按实际来源完成论文、综述或开题初稿。"
+  display_name: "AI 科研选题与研究报告助手"
+  short_description: "AI 科研选题、查新、价值判断、论文/综述/开题/研究报告写作，保留来源与证据边界"
+  default_prompt: "使用 $ai-research-mentor 帮我找研究方向、查新并判断是否值得做，再按真实来源完成论文、综述、开题或完整研究报告。"
 policy:
   allow_implicit_invocation: true

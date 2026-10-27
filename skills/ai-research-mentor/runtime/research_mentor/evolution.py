@@ -24,9 +24,9 @@ NOTICE = "Structural and recorded-evidence checks only: KEEP does not establish 
 TEMPLATE_CHECK = "writing_template_guardrails"
 EDITABLE = frozenset({"SKILL.md",
                       *(f"references/{name}.md" for name in
-                        ("literature", "ideation", "evaluation", "research-outputs")),
+                        ("literature", "ideation", "evaluation", "research-outputs", "clarification")),
                       *(f"templates/{name}.md" for name in
-                        ("paper", "survey", "proposal"))})
+                        ("paper", "survey", "proposal", "report"))})
 REQUIRED_CHECKS = ("unit_regressions", "skill_structure", "protected_principles")
 SPLITS = ("target", "regression", "holdout")
 _MISSING = object()
