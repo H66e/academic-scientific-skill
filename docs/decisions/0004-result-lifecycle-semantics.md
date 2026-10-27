@@ -1,10 +1,12 @@
 # ADR 0004: Result lifecycle and effective reading semantics
 
+**2026-10-27 scope retirement:** version 0.5.0 removes result interpretation from the skill and the ledger workflow (see [ADR 0010](0010-scope-refocus-0.5.0.md)); the dossier contract-3 result/pilot fields remain a read-only legacy contract in the maintenance stack. The specification and observations below are historical and are not rewritten.
+
 **2026-10-10 runtime retirement:** references below to the prior dossier runtime describe the specification and rollout stage. [ADR 0007](0007-python-only-toolchain.md) retires that implementation; native Python preserves the dossier contract, explicit review dependency projection and the language-neutral lifecycle clauses. No historical observation is restated as a new execution.
 
 ## Context
 
-The existing [Node contract](../../skills/ai-research-mentor/references/data-contract.md) blocks GO for a current-version scientific contradiction; the [feedback workflow](../../skills/ai-research-mentor/references/feedback.md) distinguishes failed execution, inconclusive tests and scientific outcomes. Python records evidence but has no result lifecycle. Classification correction, run invalidation and reading correction need explicit meanings before either runtime changes its judgments.
+The existing [Node contract](../../skills/ai-research-mentor/references/data-contract.md) blocks GO for a current-version scientific contradiction; the former feedback workflow (removed in 0.5.0; see [ADR 0010](0010-scope-refocus-0.5.0.md)) distinguished failed execution, inconclusive tests and scientific outcomes. Python records evidence but has no result lifecycle. Classification correction, run invalidation and reading correction need explicit meanings before either runtime changes its judgments.
 
 This ADR is the single language-neutral specification for that future work. It freezes semantics, not scientific-effectiveness claims. The current Node contract and Python judgment behavior remain authoritative until their corresponding implementation and migration steps ship.
 

@@ -7,8 +7,9 @@ claims, what is out of scope, and how to report a problem.
 
 ## Supported versions
 
-The current release is **0.4.0**. Security fixes are considered for the 0.4.x
-line only.
+The current release is **0.5.0**. Security fixes are considered for the 0.5.x
+line only. Version 0.4.x remains available for users who still need result
+logging, but it is no longer the supported security line.
 
 Version 0.3.0 is the last Node.js implementation and was retired under
 [ADR 0007](docs/decisions/0007-python-only-toolchain.md); it is not supported.

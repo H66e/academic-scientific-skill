@@ -1,5 +1,7 @@
 # ADR 0005: Policy-bound lifecycle rollout
 
+**2026-10-27 scope retirement:** ledger policy v4 is superseded by `python-credibility-v5`, which excludes result records from assessment and snapshots; result interpretation is out of scope for the skill from 0.5.0. The dossier contract-3 projection and its policy-bound review semantics remain unchanged in the maintenance stack. See [ADR 0010](0010-scope-refocus-0.5.0.md).
+
 **2026-10-10 runtime retirement:** [ADR 0007](0007-python-only-toolchain.md) retires the second implementation described below. Native Python keeps both the dossier contract-3 dependency projection and the ledger policy-v4 snapshot semantics. Their distinct hashing mechanisms and historical rollout observations remain unchanged.
 
 ## Context

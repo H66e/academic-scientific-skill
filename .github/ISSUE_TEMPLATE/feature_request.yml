@@ -13,9 +13,9 @@ body:
         The ledger stack owns new acquisition, evidence, reading, result and decision features. The
         dossier/reference stack is maintenance-only: **no new providers or scientific capabilities** are accepted there.
 
-        A request that changes a scientific gate, reading semantics, result lifecycle or the decision policy is not a
+        A request that changes a scientific gate, reading semantics, the decision policy or the scope of the skill is not a
         normal feature request. It needs a separate reviewed maintenance task with an ADR, a policy-version change
-        (`python-credibility-v4` or its successor) and regression evidence; open this form first to discuss it, but do
+        (`python-credibility-v5` or its successor) and regression evidence; open this form first to discuss it, but do
         not implement it as a drive-by change.
 
   - type: input
@@ -24,7 +24,7 @@ body:
       label: Affected contract or command
       description: |
         Name the contract your request touches, for example: ledger-json-v1, ledger-anchor-v1, text-normalized-v1,
-        python-credibility-v4, dossier schema 3 / decision contract 3, standalone acquisition JSON, packaging/release,
+        python-credibility-v5, dossier schema 3 / decision contract 3, standalone acquisition JSON, packaging/release,
         or a specific CLI command.
       placeholder: "ledger-json-v1 / research_mentor.py fetch"
     validations:

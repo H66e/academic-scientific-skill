@@ -2,22 +2,23 @@
 
 [![Validate skill and release package](https://github.com/H66e/academic-scientific-skill/actions/workflows/test.yml/badge.svg)](https://github.com/H66e/academic-scientific-skill/actions/workflows/test.yml)
 
-**AI Research Mentor**：重点帮助 AI / ML 科研的方向探索、brainstorm、选题评估与 gap 查找。文献检索、全文核验和研究材料整理服务于这些判断。适用于 Codex，也可由其他支持 `SKILL.md` 的宿主按需读取。
+**AI Research Mentor**：帮助 AI / ML 科研做四件事——找研究方向、查新（有没有人做过、最近的在做什么）、判断一个方向值不值得投入、写论文/综述/开题。文献检索、全文核验和证据记录服务于这四件事。适用于 Codex，也可由其他支持 `SKILL.md` 的宿主按需读取。
 
-当前版本 **0.4.0**（[v0.4.0 Release](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.4.0)，[全部发布](https://github.com/H66e/academic-scientific-skill/releases)）。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本 **0.5.0**（[v0.5.0 Release](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.5.0)，[全部发布](https://github.com/H66e/academic-scientific-skill/releases)）。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
-**0.4.0 是 Python-only 重建后的第一个发布；0.3.0 是最后的 Node 实现版本。** 两个版本的包不同，版本号不能互相指代。本仓库是发布源码：发布包由源码确定性构建、不再提交到 Git，tag 与 GitHub Release 指向构建该包的提交，流程见[发布与版本](#发布与版本)。Codex 安装目录是运行时拷贝，只有显式同步后才会更新，源码提交不会自动进入安装副本。
+**0.5.0 是范围收窄版本：结果解释退役，写作扩到完整初稿。** 0.4.0 是 Python-only 重建后的第一个发布，0.3.0 是最后的 Node 实现版本；不同版本的包不同，版本号不能互相指代。本仓库是发布源码：发布包由源码确定性构建、不再提交到 Git，tag 与 GitHub Release 指向构建该包的提交，流程见[发布与版本](#发布与版本)。Codex 安装目录是运行时拷贝，只有显式同步后才会更新，源码提交不会自动进入安装副本。
 
 | 范围 | 当前状态 |
 | --- | --- |
-| 新项目的 Python 证据与判断主流程 | 已实现；记录机器建议与实际人工决定，不自动执行实验 |
-| 旧 dossier 审计、迁移、独立评审回执与排序 | 已统一为原生 Python，保留原有数据合同 |
-| 决策卡、初步项目、BibTeX 与自优化验收 | 已统一为原生 Python |
-| Python ledger 与 dossier 的数据关系 | 可以投影导出，不是无损双向迁移，不转移旧批准 |
+| 找方向、查新、gap 检查 | 已实现；记录真实检索、版本、阅读范围与证据定位 |
+| 判断方向值不值得做 | 已实现；GO / HOLD / KILL + 依据、风险与下一步最小验证 |
+| 论文、综述、开题写作 | 0.5.0 提升为一等任务；可从真实来源产出完整初稿，模板见 `templates/`，投稿前必须人工核验 |
+| 实验结果解释（六种状态、结果纠正/失效） | 0.5.0 起退役；旧账本结果事件只读保留、不参与判定，见 [ADR 0010](docs/decisions/0010-scope-refocus-0.5.0.md) |
+| 旧 dossier 审计、迁移、独立评审回执与排序 | 维护期只读合同，保留原有数据合同 |
 | PDF 正文提取、自动实验日志解析 | 尚未实现；宿主取得正文并实际阅读后再记录 |
 | 真实选题、brainstorm 和 gap 质量 | 尚无效果证明；自动测试检查合同与回归，不证明科研价值 |
 
-完整命令与边界见 [Python 工作流](skills/ai-research-mentor/references/python-core.md)，实际执行结果见 [0.4.0 发布验收记录](evaluation/validation-v040.md) 与 [迁移验收记录](evaluation/validation-python-core.md)。
+完整命令与边界见 [Python 工作流](skills/ai-research-mentor/references/python-core.md) 与 [写作工作流](skills/ai-research-mentor/references/research-outputs.md)，实际执行结果见 [0.5.0 发布验收记录](evaluation/validation-v050.md) 与 [历史验收记录](evaluation/validation-v040.md)。
 
 ```text
 python -B skills/ai-research-mentor/scripts/research_mentor.py --project ../research-private/example doctor
@@ -27,18 +28,18 @@ python -B evaluation/run-python-tests.py
 
 外部检索默认阻止 private query；只有 public/deidentified 分类可发送。独立来源工具的 `search`、`verify` 与 `fulltext` 都会在出网前检查分类，`--sensitivity private` 以零请求阻断。上述路径是本地研究数据，不能发布或同步到安装源码中。CLI/API 使用同一 `runtime/research_mentor` 包，`pip install -e .` 可选；无需为 Skill 安装 pip 包。
 
-结果与阅读生命周期以 [ADR 0004](docs/decisions/0004-result-lifecycle-semantics.md) 为共同规范。`record-result/reclassify-result/invalidate-result/results` 保存真实声明、显式纠正与运行失效；schema 3 dossier 和 ledger 投影保留完整结果历史。`confirm-read` 累计资格，`retract-read` 显式撤回误报；两者都使旧评审过期。解除阻塞仍须重评，不能恢复旧 GO。各阶段实施状态与策略迁移见 [ADR 0005](docs/decisions/0005-policy-bound-lifecycle-rollout.md)。
+结果解释已从 0.5.0 起退役：不再提供结果分类、纠正或失效命令，账本里的旧结果事件保留只读、不参与判定（[ADR 0010](docs/decisions/0010-scope-refocus-0.5.0.md)）。阅读资格仍由 `confirm-read` 累计、`retract-read` 显式撤回；两者都使旧评审过期，解除阻塞仍须重评，不能恢复旧 GO。
 
-正式源码、发布包与安装副本的边界见 [工作区与版本治理说明](docs/WORKSPACE_GOVERNANCE.md)。当前发布版本是 0.4.0；如果本机 Codex 仍加载旧副本，需要显式同步，源码更新不会自动进入安装目录。
+正式源码、发布包与安装副本的边界见 [工作区与版本治理说明](docs/WORKSPACE_GOVERNANCE.md)。当前发布版本是 0.5.0；如果本机 Codex 仍加载旧副本，需要显式同步，源码更新不会自动进入安装目录。
 
-从具体研究问题出发，将已有证据、推断和待验证假设分开，帮助决定下一步值得投入什么；拿到实验结果之后，再判断这个结果实际支持了什么、哪些结论因此失效。它不会承诺新颖性、实验成功或论文录用。
+从具体研究问题出发，把已有证据、推断和待验证假设分开，帮助决定下一步值得投入什么；需要产出时再基于真实来源写论文、综述或开题。它不会承诺新颖性、实验成功或论文录用，也不替你解释实验结果。
 
 ## 双栈现状与命令归属
 
 Python 运行时目前包含两套并列且都受支持的获取/审计界面，使用不同的冻结数据合同，命令不能互相替代：
 
-- **ledger 栈**（`research_mentor.py --project ...`）拥有新的获取、证据、阅读、结果与决策能力，写入追加式 `ledger-json-v1` 账本，判定策略为 `python-credibility-v4`。
-- **dossier/reference 栈**（`research_audit.py`、`research_sources.py`、`research_outputs.py`、`evolution_guard.py`）服务已发布的 dossier schema 3 / decision contract 3 及独立来源、产出与维护用例；它是**维护期**界面，只做安全与正确性修复、合同兼容和冻结回归证据，不再新增 provider 或科学能力。
+- **ledger 栈**（`research_mentor.py --project ...`）拥有新的获取、证据、阅读、候选与决策能力，写入追加式 `ledger-json-v1` 账本，判定策略为 `python-credibility-v5`。
+- **dossier/reference 栈**（`research_audit.py`、`research_sources.py`、`research_outputs.py`、`evolution_guard.py`）服务已发布的 dossier schema 3 / decision contract 3 及独立来源、产出与维护用例；它是**维护期**界面，只做安全与正确性修复、合同兼容和冻结回归证据，不再新增 provider 或科学能力。它的结果/pilot 字段是旧合同，只读保留。
 
 合并两套解析/获取实现被有意推迟：dossier schema 3 / decision contract 3 与 `ledger-json-v1` 都已冻结，一次性合并会同时改动发布数据合同和回归基线，超出当前发布加固范围；合并前保留重复实现作为已记录的技术债。新功能应只进入 ledger 栈，不新增第三个界面。逐模块的合同归属、冻结项和已知分歧见[获取合同映射](docs/design/acquisition-contract-map.md)。
 
@@ -46,9 +47,9 @@ Python 运行时目前包含两套并列且都受支持的获取/审计界面，
 | --- | --- | --- |
 | `research_mentor.py --project ... init/doctor/status` | ledger | `ledger-json-v1` |
 | `research_mentor.py ... search/resolve/fetch/quote/show-source/confirm-source` | ledger | `ledger-json-v1`；出站分类门控 |
-| `research_mentor.py ... candidate/claim/link/coverage/next/assess` | ledger | `ledger-json-v1` + `python-credibility-v4` |
-| `research_mentor.py ... confirm-read/retract-read/record-result/reclassify-result/invalidate-result/results` | ledger | `ledger-json-v1` + `python-credibility-v4` |
-| `research_mentor.py ... decision/finalize/revoke` | ledger | `ledger-json-v1` + `python-credibility-v4` |
+| `research_mentor.py ... candidate/claim/link/coverage/next/assess` | ledger | `ledger-json-v1` + `python-credibility-v5` |
+| `research_mentor.py ... confirm-read/retract-read` | ledger | `ledger-json-v1` + `python-credibility-v5` |
+| `research_mentor.py ... decision/finalize/revoke` | ledger | `ledger-json-v1` + `python-credibility-v5` |
 | `research_mentor.py ... export-dossier` | ledger → dossier 投影 | 输出 schema 3 投影；不含证据关联与评审，不转移批准 |
 | `research_mentor.py ... verify-ledger/anchor-ledger/verify-artifacts` | ledger | `ledger-json-v1`、`ledger-anchor-v1`、`text-normalized-v1` 锚点 |
 | `research_mentor.py ... lint/recheck` | ledger | 已登记来源/检索的只读检查或重复查询 |
@@ -59,19 +60,15 @@ Python 运行时目前包含两套并列且都受支持的获取/审计界面，
 
 两套栈的 paper ID、块/偏移模型和默认隐私分类并不等价；跨栈复制 ID 或偏移没有意义，具体差异与代码位置见合同映射。命令归属依据 [python-core.md](skills/ai-research-mentor/references/python-core.md) 与 [ADR 0009](docs/decisions/0009-acquisition-direction-and-payload-admission.md)。
 
-## 0.4.0 的变化与兼容性
+## 0.5.0 的变化与兼容性
 
-- 实现：运行、测试、CI 与打包统一为 Python 3.10+ 标准库；0.3.0 的 Node 入口已按 [ADR 0007](docs/decisions/0007-python-only-toolchain.md) 退役，旧调用需改为 Python 入口。
-- 发布：0.4.0 的包只作为 Release 资产，仓库不再跟踪 `dist/`。升级时用新包整体替换技能目录，不要叠加两版文件。
-- 行为变化（有意的安全收紧）：
-  - `research_sources.py` 的 `verify` 与 `fulltext` 和 `search` 一样执行出站分类，`--sensitivity private` 阻断；
-  - 主 CLI 与工具 CLI 拒绝重复长选项与缩写（如 `--project A --project B`、`--proj`）；
-  - 意外运行错误返回标准 JSON envelope，不再打印 traceback；
-  - 账本对 17 类事件做 payload 准入校验，缺失必需字段的手写/极旧账本会在 `verify-ledger` 失败并需人工检查；
-  - `verify-artifacts` 重放 `source.fetch` 的回执与文档 IR 元数据。
-- 兼容：dossier schema 3 / decision contract 3、`ledger-json-v1` 与 `python-credibility-v4` 不变，已有 Python 账本正常验证；安装副本不会自动升级。
-- 架构：ledger 栈拥有新的获取与证据能力，dossier/reference 栈维护兼容，见 [ADR 0009](docs/decisions/0009-acquisition-direction-and-payload-admission.md)。
-- 未变：真实选题、gap 与写作质量仍未测量；PDF 抽取与实验日志解释仍未实现。
+- **范围收窄**：技能专精为“找方向、查新、判断值不值得做、写论文/综述/开题”；其他能力后续按研究需要再加。设计见 [ADR 0010](docs/decisions/0010-scope-refocus-0.5.0.md)。
+- **结果解释退役**：删除结果分类章节、试验/负结果路由、`feedback.md` 与 `record-result`/`reclassify-result`/`invalidate-result`/`results` 四个命令；判定不再读取结果，结果型 KILL 移除。旧账本中的 result 事件保留只读校验、不影响判定，旧评审因 policy 变化过期一次，需重评。
+- **写作一等化**：可以从真实来源产出论文、综述、开题的完整初稿，新增 [写作工作流](skills/ai-research-mentor/references/research-outputs.md) 与 `templates/` 模板；禁止编造引用、数字、实验、结果或 venue 规则，未执行实验必须标为计划，投稿前必须人工核验。
+- **兼容**：dossier schema 3 / decision contract 3 与其结果字段仍由维护栈只读支持；`ledger-json-v1` 与 17 类事件词表不变，旧账本可继续 `verify-ledger`/`verify-artifacts`；0.4.x 可作为仍需结果登记的旧版本保留。
+- **未变**：真实选题、gap 与写作质量仍未测量；PDF 抽取与实验日志解释仍未实现。
+
+0.4.0 及更早的行为变化（发布包不入 Git、隐私分类门禁、严格 CLI、失败 envelope、`source.fetch` 回执重放）继续有效，细节见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 能做什么
 
@@ -79,23 +76,22 @@ Python 运行时目前包含两套并列且都受支持的获取/审计界面，
 - 文献查找：记录实际检索、筛选理由、文献身份、版本、阅读范围和证据定位，区分基础工作、最近更新和技术上最接近的工作。
 - 实际来源工具：Crossref 查询、DOI/arXiv 身份核验，以及有预算边界的 HTML/PDF 获取；取得内容后再由宿主实读与核验。
 - 研究缺口：对照已知条件、缺失知识、最强替代解释和已有绕行方案，用真实反向检索及判别测试检查 gap。
-- 科研产出：轻量决策/gap 卡、近邻比较、开题、研究提案、综述及带来源草稿；论文结果以真实材料为依据。
+- 科研产出：轻量决策/gap 卡、近邻比较、开题、研究提案、综述，以及基于真实来源的论文完整初稿；未执行实验写成计划，未核验引用不进正文。
 - 选题评估：逐候选查新，检查强基线、前置条件、资源、指标与反证方法，给出 GO / HOLD / KILL 及依据。
 - 类型适配：支持经验、理论、测量、数据集和复现研究，不强制固定候选数量或两周训练计划。
-- 验证反馈：区分跑通、执行失败、支持、反驳、无结论和尚未运行；选题、约束或证据变化后重新评估。
-- 持续记录：dossier 按候选实际依赖计算评审指纹，ledger 使用全项目科学输入的保守快照；两种流程都可使用 Python。单独记录排序权重，保存有适用条件和重访条件的历史判断。
+- 持续记录：dossier 按候选实际依赖计算评审指纹，ledger 使用科学输入的保守快照；两种流程都可使用 Python。单独记录排序权重，保存有适用条件和重访条件的历史判断。
 - 受控自优化：从实际流程失误提出小改动，在独立副本与冻结用例上验证，明确改善且科研原则不退化才保留。
 
 ## 安装与使用
 
-完整 skill 位于 [`skills/ai-research-mentor`](skills/ai-research-mentor)。推荐从 [v0.4.0 Release](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.4.0) 下载 `ai-research-mentor-0.4.0.zip`，解压后得到 `ai-research-mentor/` 文件夹；也可以从源码构建：`python -B evaluation/skill_tools.py package` 生成 `dist/ai-research-mentor.zip`（不入 Git）。压缩包内的 `ai-research-mentor` 文件夹包含全部运行资源。
+完整 skill 位于 [`skills/ai-research-mentor`](skills/ai-research-mentor)。推荐从 [v0.5.0 Release](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.5.0) 下载 `ai-research-mentor-0.5.0.zip`，解压后得到 `ai-research-mentor/` 文件夹；也可以从源码构建：`python -B evaluation/skill_tools.py package` 生成 `dist/ai-research-mentor.zip`（不入 Git）。压缩包内的 `ai-research-mentor` 文件夹包含全部运行资源。
 
-Codex 用户将该文件夹放入用户技能目录，默认为 `~/.codex/skills/`。从 0.3.0 升级时先把旧目录移走或改名备份，避免两版文件混用；Windows PowerShell 的本地源码安装示例：
+Codex 用户将该文件夹放入用户技能目录，默认为 `~/.codex/skills/`。升级时先把旧目录移走或改名备份，避免两版文件混用；Windows PowerShell 的本地源码安装示例：
 
 ```powershell
 $researchSkills = Join-Path $env:USERPROFILE '.codex\skills'
 $researchTarget = Join-Path $researchSkills 'ai-research-mentor'
-if (Test-Path -LiteralPath $researchTarget) { throw '已有同名 skill，请先备份或移走现有版本再安装 0.4.0。' }
+if (Test-Path -LiteralPath $researchTarget) { throw '已有同名 skill，请先备份或移走现有版本再安装 0.5.0。' }
 New-Item -ItemType Directory -Path $researchSkills -Force | Out-Null
 Copy-Item -LiteralPath '.\skills\ai-research-mentor' -Destination $researchSkills -Recurse
 ```
@@ -108,13 +104,13 @@ Copy-Item -LiteralPath '.\skills\ai-research-mentor' -Destination $researchSkill
 我的已有材料和资源约束是：……
 ```
 
-也可以只请求找论文、评估一个想法或分析一次负结果，skill 会按任务加载相关细则。
+也可以只请求找论文、评估一个想法，或让它帮你起草论文、综述与开题，skill 会按任务加载相关细则。
 
 普通科研讨论不强制启用脚本、模型 API key 或研究代理框架。需要可复现工具时使用 Python 3.10+ 标准库来源工具，或宿主实际提供的搜索、PDF 和文献库能力。分别记录检索来源、全文访问、引用扩展和代码访问能力，以及实际覆盖和失败；离线时明确语料边界，不冒充完成外部查新。
 
 ## 发布与版本
 
-`VERSION` 是版本真源；`evaluation/tests/test_version_consistency.py` 核对 `pyproject.toml`、`research_mentor.__version__`、README 当前版本行与 CHANGELOG 小节。当前发布是 [v0.4.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.4.0)（Python-only），历史发布是 [v0.3.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.3.0)（最后的 Node 实现），见[全部发布](https://github.com/H66e/academic-scientific-skill/releases)。两者对应不同的包，不能用同一版本号互相指代；tag 一旦推送即不可变。发布流程：
+`VERSION` 是版本真源；`evaluation/tests/test_version_consistency.py` 核对 `pyproject.toml`、`research_mentor.__version__`、README 当前版本行与 CHANGELOG 小节。当前发布是 [v0.5.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.5.0)（范围收窄），历史发布是 [v0.4.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.4.0)（Python-only 重建）、[v0.3.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.3.0)（最后的 Node 实现），见[全部发布](https://github.com/H66e/academic-scientific-skill/releases)。不同版本对应不同的包，不能用同一版本号互相指代；tag 一旦推送即不可变。发布流程：
 
 ```text
 python -B evaluation/run-python-tests.py
@@ -124,11 +120,11 @@ python -B evaluation/skill_tools.py check-package
 
 `package` 从源码确定性构建 `dist/ai-research-mentor.zip`，该文件不入 Git（`dist/` 被忽略）；CI 在 6 个矩阵作业中构建并用 `check-package` 复算，GitHub Release 附加同一次构建的包。设计理由与替代方案见 [ADR 0008](docs/decisions/0008-release-identity-and-package-artifacts.md)。Codex 安装副本不由 CI 修改，同步是单独的显式动作。
 
-发布同时提供包与同名 `.sha256` 文件（如 `ai-research-mentor-0.4.0.zip.sha256`）。下载后先在本地重算并比对，而不是只信任文件名或下载页面：
+发布同时提供包与同名 `.sha256` 文件（如 `ai-research-mentor-0.5.0.zip.sha256`）。下载后先在本地重算并比对，而不是只信任文件名或下载页面：
 
 ```text
-sha256sum ai-research-mentor-0.4.0.zip                    # Linux/macOS
-Get-FileHash -Algorithm SHA256 -LiteralPath '.\ai-research-mentor-0.4.0.zip'   # Windows PowerShell
+sha256sum ai-research-mentor-0.5.0.zip                    # Linux/macOS
+Get-FileHash -Algorithm SHA256 -LiteralPath '.\ai-research-mentor-0.5.0.zip'   # Windows PowerShell
 ```
 
 把输出中的哈希值（`sha256sum` 输出第一列、PowerShell 的 `Hash` 字段）与 `.sha256` 文件中的哈希值比较，一致后再解压；`.sha256` 行内记录的是构建产物文件名（Release 资产或 CI 产物可能同名不同前缀），重命名下载文件不影响哈希比较。该文件由 CI 从同一次构建计算，但校验只说明下载文件与这个发布资产一致，不证明内容正确或安全，也不认证 Release 之外的副本；校验失败时重新下载，不要改用其他来源的同名文件。发布资产同时有 SHA-256 与 tag==VERSION 检查，见 [CONTRIBUTING.md](CONTRIBUTING.md#发布流程)。
@@ -201,7 +197,7 @@ python -B evaluation/skill_tools.py package
 python -B evaluation/skill_tools.py check-package
 ```
 
-以上测试与维护命令只需要 Python。测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；冻结协议用例保留迁移前的实际观察值，新增原生测试检查当前实现。0.4.0 新增的回归覆盖包括出站隐私分类（含 `https://` 被误判为本地路径的修复）、严格 CLI 参数、失败 envelope、17 类账本事件 payload 准入、`source.fetch` 回执与 IR 重放（[`test_privacy_policy.py`](evaluation/tests/test_privacy_policy.py)、[`test_cli_strict.py`](evaluation/tests/test_cli_strict.py)、[`test_ledger_payloads.py`](evaluation/tests/test_ledger_payloads.py)、[`test_verification_metadata.py`](evaluation/tests/test_verification_metadata.py)）。ZIP 使用确定性文件顺序和时间戳；`check-package` 先复算一次源码构建，若本地已用 `package` 生成发布包则再逐字节比较两次构建（确定性检查）。CI 在 Windows/Linux × Python 3.10 / 3.12 / 3.14 的 6 个作业中运行全量测试、结构检查、构建发布包并保存为运行产物；某个历史配置存在不代表当前提交已通过，实际矩阵结果以仓库 Actions 记录为准。迁移验收见 [`evaluation/validation-python-core.md`](evaluation/validation-python-core.md)，0.4.0 发布验收见 [`evaluation/validation-v040.md`](evaluation/validation-v040.md)，发行版历史验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)。
+以上测试与维护命令只需要 Python。测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；冻结协议用例保留迁移前的实际观察值，新增原生测试检查当前实现。0.4.0 新增的回归覆盖包括出站隐私分类（含 `https://` 被误判为本地路径的修复）、严格 CLI 参数、失败 envelope、17 类账本事件 payload 准入、`source.fetch` 回执与 IR 重放（[`test_privacy_policy.py`](evaluation/tests/test_privacy_policy.py)、[`test_cli_strict.py`](evaluation/tests/test_cli_strict.py)、[`test_ledger_payloads.py`](evaluation/tests/test_ledger_payloads.py)、[`test_verification_metadata.py`](evaluation/tests/test_verification_metadata.py)）。0.5.0 新增/更新的回归覆盖包括：旧账本结果事件只读兼容与 legacy_result_events_ignored 提示、v5 判定不读取结果、四个结果命令未注册、写作模板与技能内链接检查（本轮本地 **291 tests，OK，1 skip**，见 [validation-v050.md](evaluation/validation-v050.md)）。ZIP 使用确定性文件顺序和时间戳；`check-package` 先复算一次源码构建，若本地已用 `package` 生成发布包则再逐字节比较两次构建（确定性检查）。CI 在 Windows/Linux × Python 3.10 / 3.12 / 3.14 的 6 个作业中运行全量测试、结构检查、构建发布包并保存为运行产物；某个历史配置存在不代表当前提交已通过，实际矩阵结果以仓库 Actions 记录为准。迁移验收见 [`evaluation/validation-python-core.md`](evaluation/validation-python-core.md)，0.5.0 发布验收见 [`evaluation/validation-v050.md`](evaluation/validation-v050.md)，0.4.0 发布验收见 [`evaluation/validation-v040.md`](evaluation/validation-v040.md)，发行版历史验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)。
 
 自动测试与原离线案例使用合成资料；[真实论文有限语料试用与评估协议](evaluation/real-world/README.md) 单独记录来源、实际答复和未测范围。真实科研评估应记录原始检索和输出、近邻发现、引用忠实性、过度断言、误淘汰和下一步建议质量；尚未完成的评估不作为性能证明。历史回测以当时可得信息判断决策，不把后来的实验失败等同于当时应该 KILL。
 
@@ -239,7 +235,6 @@ skills/ai-research-mentor/
 │   ├── literature.md
 │   ├── ideation.md
 │   ├── evaluation.md
-│   ├── feedback.md
 │   ├── data-contract.md
 │   ├── retrieval-adapters.md
 │   ├── source-tools.md
@@ -248,6 +243,10 @@ skills/ai-research-mentor/
 │   ├── research-outputs.md
 │   ├── self-improvement.md
 │   └── design-basis.md
+├── templates/
+│   ├── paper.md
+│   ├── survey.md
+│   └── proposal.md
 ├── scripts/
 │   ├── research_mentor.py
 │   ├── research_audit.py
@@ -265,8 +264,7 @@ skills/ai-research-mentor/
     ├── python/test_sources.py
     ├── python/test_outputs.py
     ├── python/test_evolution.py
-    ├── python/test_readings.py
-    └── python/test_results.py
+    └── python/test_readings.py
 ```
 
 采用单入口、按需加载细则；文献工具与宿主解耦，不依赖其他 skill 的安装。设计参考了 ResearchStudio、Academic-Research-Agent-Skill、claude-scholar、ChineseResearchLaTeX、NoviScl/AI-Researcher、PaperQA、AstaBench 和 AutoSci 等项目，并保留各自的适用边界。对应来源与未采用的规则见 [`design-basis.md`](skills/ai-research-mentor/references/design-basis.md)。

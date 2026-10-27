@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0
+
+2026-10-27. 范围收窄版本：技能专精为“找方向、查新、判断值不值得做、写论文/综述/开题”，结果解释退役，写作扩到完整初稿。设计见 [ADR 0010](docs/decisions/0010-scope-refocus-0.5.0.md)。
+
+- 范围：`SKILL.md` 与技能入口改为四个任务；移除“结果分类与重评”整节、试验/负结果路由与 `feedback.md` 的全部引用；阅读生命周期（`confirm-read`/`retract-read`）、来源获取、锚点、claims、GO/HOLD/KILL 与人工决定绑定保持不变。
+- 结果解释软退役：删除 `record-result`、`reclassify-result`、`invalidate-result`、`results` 四个 CLI 命令及对应 `Judgment` 公共方法；账本 17 类事件词表（含 `result.record`/`result.invalidate`）与 payload 校验保留，旧账本仍可 `verify-ledger`/`verify-artifacts`，但结果不再参与判定、快照或 KILL。
+- 判定策略升为 `python-credibility-v5`：assess 不再读取结果状态；结果型 `scientific_refutation` KILL 移除，文献证据矛盾、duplicate/mechanism_equivalence 与已确认约束的 KILL 保留；快照摘要排除结果事件。既有评审因策略标识与快照变化而过期一次，需重评；工具不重写旧记录。
+- 写作一等化：`research-outputs.md` 扩为完整写作工作流（论文/综述/开题的结构、证据清单、分节起草、claims→evidence 映射、引用纪律、缺失结果的计划性写法、修改清单），新增 `templates/paper.md`、`templates/survey.md`、`templates/proposal.md`。允许基于真实来源的完整初稿；禁止编造引用、数字、实验、结果或 venue 规则，未执行实验必须标为计划，投稿前必须人工审。
+- 兼容：dossier 合同（schema 3 / decision contract 3）与其结果/pilot 字段仍由维护栈只读支持，不新增结果能力；仍需要结果登记的用途停留在 0.4.x。旧 0.4.x 的验收记录与 ADR 0004/0005 保留原观察值，只加退役说明。
+- 未变：真实选题、gap 与写作质量仍未测量；PDF 抽取、实验日志自动解释、ledger↔dossier 无损互转仍不在范围内。
+
 ## 0.4.0
 
 2026-10-26. 发布版本。0.3.0 是 Node 实现的最后一版（`v0.3.0` tag 回填在当时的 0.3.0 提交上）；本版是 Python-only 重建后的第一个发布，发布包由源码构建、不再入库，见 [ADR 0008](docs/decisions/0008-release-identity-and-package-artifacts.md)。
