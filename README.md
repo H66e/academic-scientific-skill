@@ -4,9 +4,9 @@
 
 **AI Research Mentor**：帮助 AI / ML 科研做四件事——找研究方向、查新（有没有人做过、最近的在做什么）、判断一个方向值不值得投入、写论文/综述/开题。文献检索、全文核验和证据记录服务于这四件事。适用于 Codex，也可由其他支持 `SKILL.md` 的宿主按需读取。
 
-当前版本 **0.5.0**（[v0.5.0 Release](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.5.0)，[全部发布](https://github.com/H66e/academic-scientific-skill/releases)）。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本 **0.6.0**（[v0.6.0 Release](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.6.0)，[全部发布](https://github.com/H66e/academic-scientific-skill/releases)）。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
-**0.5.0 是范围收窄版本：结果解释退役，写作扩到完整初稿。** 0.4.0 是 Python-only 重建后的第一个发布，0.3.0 是最后的 Node 实现版本；不同版本的包不同，版本号不能互相指代。本仓库是发布源码：发布包由源码确定性构建、不再提交到 Git，tag 与 GitHub Release 指向构建该包的提交，流程见[发布与版本](#发布与版本)。Codex 安装目录是运行时拷贝，只有显式同步后才会更新，源码提交不会自动进入安装副本。
+**0.6.0 是自进化维护版本：写作模板纳入受控进化，回执验收更严。** 0.5.0 收窄范围（结果解释退役、写作扩到完整初稿）；0.4.0 是 Python-only 重建后的第一个发布，0.3.0 是最后的 Node 实现版本。不同版本的包不同，版本号不能互相指代。本仓库是发布源码：发布包由源码确定性构建、不再提交到 Git，tag 与 GitHub Release 指向构建该包的提交，流程见[发布与版本](#发布与版本)。Codex 安装目录是运行时拷贝，只有显式同步后才会更新，源码提交不会自动进入安装副本。
 
 | 范围 | 当前状态 |
 | --- | --- |
@@ -59,6 +59,13 @@ Python 运行时目前包含两套并列且都受支持的获取/审计界面，
 | `evolution_guard.py snapshot/hash/checks-hash/check` | dossier/reference（维护期） | 自优化验收记录，只读 |
 
 两套栈的 paper ID、块/偏移模型和默认隐私分类并不等价；跨栈复制 ID 或偏移没有意义，具体差异与代码位置见合同映射。命令归属依据 [python-core.md](skills/ai-research-mentor/references/python-core.md) 与 [ADR 0009](docs/decisions/0009-acquisition-direction-and-payload-admission.md)。
+
+## 0.6.0 的变化与兼容性
+
+- **自进化范围**：固定可改白名单加入 `templates/paper.md`、`templates/survey.md`、`templates/proposal.md`；运行时、脚本、schema、测试、评测规则、data-contract 与自优化协议仍是保护文件，提交的 suite 不能扩大白名单。设计见 [ADR 0011](docs/decisions/0011-evolvable-templates-and-stricter-receipts.md)。
+- **模板护栏**：任何模板改动必须附带通过且绑定当前指纹的 `writing_template_guardrails` 检查（由 `check-templates` 生成）；它验证“禁止编造”、`TODO(需来源)`、计划/已观察或事实/假设/计划/风险结构仍在，CI 也会运行。
+- **回执逻辑收紧**：`better` / `worse` 必须对应不同的基线/候选输出哈希；两份输出完全相同只能记 `tie` 或重跑；独立评审、全部执行、硬条件、无退化、至少一个 target 改善等 KEEP 条件不变。
+- **兼容**：自进化仍只读、不自动应用、不自动推送；文件集合与检查契约变化后，旧维护轮次的 suite、快照与回执不能复用，需从 0.6.0 源码重新冻结基线。科研范围与 `python-credibility-v5` 判定策略不变。
 
 ## 0.5.0 的变化与兼容性
 
@@ -192,12 +199,13 @@ python -B skills/ai-research-mentor/scripts/research_audit.py migrate old-projec
 python -B evaluation/run-python-tests.py
 python -B evaluation/skill_tools.py check-skill
 python -B evaluation/skill_tools.py check-examples
+python -B evaluation/skill_tools.py check-templates
 python -B evaluation/skill_tools.py check-python-only
 python -B evaluation/skill_tools.py package
 python -B evaluation/skill_tools.py check-package
 ```
 
-以上测试与维护命令只需要 Python。测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；冻结协议用例保留迁移前的实际观察值，新增原生测试检查当前实现。0.4.0 新增的回归覆盖包括出站隐私分类（含 `https://` 被误判为本地路径的修复）、严格 CLI 参数、失败 envelope、17 类账本事件 payload 准入、`source.fetch` 回执与 IR 重放（[`test_privacy_policy.py`](evaluation/tests/test_privacy_policy.py)、[`test_cli_strict.py`](evaluation/tests/test_cli_strict.py)、[`test_ledger_payloads.py`](evaluation/tests/test_ledger_payloads.py)、[`test_verification_metadata.py`](evaluation/tests/test_verification_metadata.py)）。0.5.0 新增/更新的回归覆盖包括：旧账本结果事件只读兼容与 legacy_result_events_ignored 提示、v5 判定不读取结果、四个结果命令未注册、写作模板与技能内链接检查（本轮本地 **291 tests，OK，1 skip**，见 [validation-v050.md](evaluation/validation-v050.md)）。ZIP 使用确定性文件顺序和时间戳；`check-package` 先复算一次源码构建，若本地已用 `package` 生成发布包则再逐字节比较两次构建（确定性检查）。CI 在 Windows/Linux × Python 3.10 / 3.12 / 3.14 的 6 个作业中运行全量测试、结构检查、构建发布包并保存为运行产物；某个历史配置存在不代表当前提交已通过，实际矩阵结果以仓库 Actions 记录为准。迁移验收见 [`evaluation/validation-python-core.md`](evaluation/validation-python-core.md)，0.5.0 发布验收见 [`evaluation/validation-v050.md`](evaluation/validation-v050.md)，0.4.0 发布验收见 [`evaluation/validation-v040.md`](evaluation/validation-v040.md)，发行版历史验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)。
+以上测试与维护命令只需要 Python。测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；冻结协议用例保留迁移前的实际观察值，新增原生测试检查当前实现。0.4.0 新增的回归覆盖包括出站隐私分类（含 `https://` 被误判为本地路径的修复）、严格 CLI 参数、失败 envelope、17 类账本事件 payload 准入、`source.fetch` 回执与 IR 重放（[`test_privacy_policy.py`](evaluation/tests/test_privacy_policy.py)、[`test_cli_strict.py`](evaluation/tests/test_cli_strict.py)、[`test_ledger_payloads.py`](evaluation/tests/test_ledger_payloads.py)、[`test_verification_metadata.py`](evaluation/tests/test_verification_metadata.py)）。0.5.0 新增/更新的回归覆盖包括：旧账本结果事件只读兼容与 legacy_result_events_ignored 提示、v5 判定不读取结果、四个结果命令未注册、写作模板与技能内链接检查（0.5.0 本地 291 tests，OK，1 skip，见 [validation-v050.md](evaluation/validation-v050.md)）。0.6.0 新增/更新的回归覆盖包括：模板改动强制 `writing_template_guardrails` 检查、`check-templates` 正反例、`better`/`worse` 必须有不同输出哈希（本轮本地 **295 tests，OK，1 skip**，见 [validation-v060.md](evaluation/validation-v060.md)）。ZIP 使用确定性文件顺序和时间戳；`check-package` 先复算一次源码构建，若本地已用 `package` 生成发布包则再逐字节比较两次构建（确定性检查）。CI 在 Windows/Linux × Python 3.10 / 3.12 / 3.14 的 6 个作业中运行全量测试、结构检查、构建发布包并保存为运行产物；某个历史配置存在不代表当前提交已通过，实际矩阵结果以仓库 Actions 记录为准。迁移验收见 [`evaluation/validation-python-core.md`](evaluation/validation-python-core.md)，0.6.0 发布验收见 [`evaluation/validation-v060.md`](evaluation/validation-v060.md)，0.5.0 发布验收见 [`evaluation/validation-v050.md`](evaluation/validation-v050.md)，0.4.0 发布验收见 [`evaluation/validation-v040.md`](evaluation/validation-v040.md)，发行版历史验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)。
 
 自动测试与原离线案例使用合成资料；[真实论文有限语料试用与评估协议](evaluation/real-world/README.md) 单独记录来源、实际答复和未测范围。真实科研评估应记录原始检索和输出、近邻发现、引用忠实性、过度断言、误淘汰和下一步建议质量；尚未完成的评估不作为性能证明。历史回测以当时可得信息判断决策，不把后来的实验失败等同于当时应该 KILL。
 
@@ -211,7 +219,7 @@ python -B evaluation/skill_tools.py check-package
 保持科研证据门槛，用两版实际输出和独立迁移用例验收。
 ```
 
-普通使用先积累可追溯反馈；明确维护请求后在预算内运行“冻结基线 → 修改副本 → 实际对照 → 独立审查 → 保留或丢弃”。科研假设失败不是 skill 缺陷。全 tie、自审、干跑、缺迁移验证和科研原则退化均不会获准保留。
+普通使用先积累可追溯反馈；明确维护请求后在预算内运行“冻结基线 → 修改副本 → 实际对照 → 独立审查 → 保留或丢弃”。科研假设失败不是 skill 缺陷。全 tie、自审、干跑、缺迁移验证和科研原则退化均不会获准保留。自优化可改的固定白名单是 `SKILL.md`、literature/ideation/evaluation/research-outputs 四份细则和三个写作模板；运行时、脚本、schema、测试与评测规则仍是保护文件。改模板时回执必须附带 `writing_template_guardrails` 检查（由 `check-templates` 生成），且 `better` / `worse` 判定必须有可观察的基线/候选输出差异，否则只能记 tie 或重跑。
 
 按 [`self-improvement.md`](skills/ai-research-mentor/references/self-improvement.md) 保存本轮独立目录、两版内容、冻结用例、输出和评估回执。只读工具核验文件、检查日志和评估版本：
 

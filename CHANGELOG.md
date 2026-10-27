@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0
+
+2026-10-27. 自进化能力维护版本：写作模板纳入受控进化范围，并收紧验收回执逻辑。设计见 [ADR 0011](docs/decisions/0011-evolvable-templates-and-stricter-receipts.md)。
+
+- 可改范围：固定白名单在 SKILL.md 与 literature/ideation/evaluation/research-outputs 四份细则之外，加入 `templates/paper.md`、`templates/survey.md`、`templates/proposal.md`；运行时、脚本、schema、测试、评测规则、data-contract 与自优化协议仍是保护文件，提交的 suite 不能扩大白名单。
+- 模板护栏：任何 `templates/` 改动都必须附带通过且绑定当前基线/候选/suite 指纹的 `writing_template_guardrails` 检查；该检查由新增的 `python -B evaluation/skill_tools.py check-templates` 生成，验证“禁止编造”、`TODO(需来源)`、计划/已观察或事实/假设/计划/风险结构；CI 也会运行该检查。
+- 回执逻辑：`better` / `worse` 判定必须对应不同的基线/候选输出哈希；两份输出完全相同只能记 `tie` 或重跑，不能据此 KEEP；其余 KEEP 条件（独立评审、全部执行、硬条件、无退化、至少一个 target 改善）不变。
+- 兼容：自进化仍只读、不自动应用、不自动推送；改变文件集合与检查契约后，旧维护轮的 suite、快照与回执不能复用，需从 0.6.0 源码重新冻结基线。skill 的科研范围与判定策略不变（仍是 0.5.0 的四类任务与 `python-credibility-v5`）。
+- 文档：self-improvement、README、CONTRIBUTING 与获取合同映射更新；新增 ADR 0011 与 `evaluation/validation-v060.md`。真实选题、查新与写作质量仍未测量。
+
 ## 0.5.0
 
 2026-10-27. 范围收窄版本：技能专精为“找方向、查新、判断值不值得做、写论文/综述/开题”，结果解释退役，写作扩到完整初稿。设计见 [ADR 0010](docs/decisions/0010-scope-refocus-0.5.0.md)。
