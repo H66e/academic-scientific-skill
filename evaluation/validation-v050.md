@@ -29,7 +29,7 @@
 
 ## CI
 
-同一提交在 GitHub Actions 的 6 个矩阵作业（Ubuntu/Windows × Python 3.10/3.12/3.14）全部成功（[run 记录](https://github.com/H66e/academic-scientific-skill/actions/runs/40452434407)）；构建与校验步骤按上方本地命令执行，发布包另存为运行产物。
+发布提交在 main（[run 40452628287](https://github.com/H66e/academic-scientific-skill/actions/runs/40452628287)）与 0.5.0 tag（[run 40452809196](https://github.com/H66e/academic-scientific-skill/actions/runs/40452809196)）各运行 6 个矩阵作业（Ubuntu/Windows × Python 3.10/3.12/3.14），全部成功，其中 tag 运行还通过 tag==VERSION 检查；构建与校验步骤按上方本地命令执行，发布包另存为运行产物。
 
 ## 未覆盖范围
 
