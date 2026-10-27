@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0
+
+2026-10-27. 用户面向判断不再默认输出 GO/HOLD/KILL 标签。设计见 [ADR 0013](docs/decisions/0013-no-go-hold-kill-labels.md)。
+
+- `SKILL.md` 的“判断与决策”改为只回答三件事：值不值得研究、相对最近工作的差异、在当前约束下能否进行有意义的验证；再给决定性依据、最强反方、未知、下一步与改变判断的判据。默认不输出 GO/HOLD/KILL，也不用“做/等/放弃”代替论证。
+- 报告模板新增“当前判断与下一步”节，明确不写标签；`research-outputs.md` 的报告结构与质量检查、轻量决策卡说明同步改为三问 + 下一步。
+- `evaluation.md` 把 GO/HOLD/KILL 明确标注为 **账本内部状态**：Python 账本、dossier 合同、排序与人工决定绑定继续使用；只有用户明确要求对接账本/合同字段时才出现，并说明它不是面向人的结论。
+- 运行时、schema、`python-credibility-v5` 判定与全部门控行为不变；冻结示例与 dossier fixtures 保留原标签。改动属于 prompt/reference/template 层，报告变长但不再用标签替代论证。
+- 兼容：旧报告与新报告的证据边界相同；旧报告中的 HOLD/GO 标签可保留为历史，但新报告默认不再产生。
+
 ## 0.7.0
 
 2026-10-27. 方向 → 完整研究报告工作流与先澄清协议。设计见 [ADR 0012](docs/decisions/0012-direction-to-report-workflow.md)。
