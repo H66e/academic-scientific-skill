@@ -1,0 +1,80 @@
+name: Feature request
+description: Propose a new capability or a change to an existing command or contract.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This repository has two supported acquisition surfaces with separate frozen contracts, described in
+        [ADR 0009](https://github.com/H66e/academic-scientific-skill/blob/main/docs/decisions/0009-acquisition-direction-and-payload-admission.md)
+        and the [contract map](https://github.com/H66e/academic-scientific-skill/blob/main/docs/design/acquisition-contract-map.md).
+
+        The ledger stack owns new acquisition, evidence, reading, result and decision features. The
+        dossier/reference stack is maintenance-only: **no new providers or scientific capabilities** are accepted there.
+
+        A request that changes a scientific gate, reading semantics, result lifecycle or the decision policy is not a
+        normal feature request. It needs a separate reviewed maintenance task with an ADR, a policy-version change
+        (`python-credibility-v4` or its successor) and regression evidence; open this form first to discuss it, but do
+        not implement it as a drive-by change.
+
+  - type: input
+    id: affected-contract
+    attributes:
+      label: Affected contract or command
+      description: |
+        Name the contract your request touches, for example: ledger-json-v1, ledger-anchor-v1, text-normalized-v1,
+        python-credibility-v4, dossier schema 3 / decision contract 3, standalone acquisition JSON, packaging/release,
+        or a specific CLI command.
+      placeholder: "ledger-json-v1 / research_mentor.py fetch"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      description: Pick the stack the request belongs to. If it is unclear, say so in the problem statement.
+      options:
+        - Ledger stack (research_mentor.py)
+        - Dossier/reference stack (maintenance-only)
+        - Documentation and community files
+        - Packaging, release or CI
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What is currently missing or wrong? Describe the research or maintenance need, not only the proposed implementation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: What should the command or document do? Keep the scientific gates and frozen contracts explicit.
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: How it could be verified
+      description: Tests, regression cases, evaluation records or documentation checks that would show the change works. Do not propose editing frozen fixtures to pass.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints confirmation
+      options:
+        - label: I understand this project does not accept new providers or scientific capabilities in the maintenance-only dossier/reference stack.
+          required: true
+        - label: I understand a change to scientific gates, reading semantics, result lifecycle or the decision policy needs a separate reviewed maintenance task, not only this request.
+          required: true
+        - label: This request contains no private research material, credentials or unpublished ideas that must stay local.
+          required: true

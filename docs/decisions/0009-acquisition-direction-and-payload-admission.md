@@ -30,3 +30,16 @@ Naming one owning surface stops the duplication from growing while keeping the r
 - `Ledger.append` is still a low-level API, but no longer accepts payloads that consumers cannot read.
 - Reviewers have a documented direction for future acquisition work; the duplication stays a known cost until the deferred refactor.
 - Parser and CLI failures now surface as structured envelopes rather than tracebacks, but a structural pass still never proves scientific or provenance truth.
+
+## Implementation status (2026-10-27)
+
+The 17-event payload admission rule and the failure behavior above are implemented
+and covered by regression tests. The code merge between the two acquisition
+surfaces remains **deliberately deferred**: the ledger stack is the documented
+owner of new acquisition features, the dossier/reference stack stays
+maintenance-only, and both frozen data contracts continue to be served. The
+concrete module-to-contract map, change ownership and the known divergences
+(paper ID schemes, block/offset models, privacy defaults) are recorded in
+[docs/design/acquisition-contract-map.md](../design/acquisition-contract-map.md).
+No new provider or scientific capability is added to the maintenance-only stack
+under this decision.

@@ -33,6 +33,32 @@ python -B evaluation/run-python-tests.py
 
 从具体研究问题出发，将已有证据、推断和待验证假设分开，帮助决定下一步值得投入什么；拿到实验结果之后，再判断这个结果实际支持了什么、哪些结论因此失效。它不会承诺新颖性、实验成功或论文录用。
 
+## 双栈现状与命令归属
+
+Python 运行时目前包含两套并列且都受支持的获取/审计界面，使用不同的冻结数据合同，命令不能互相替代：
+
+- **ledger 栈**（`research_mentor.py --project ...`）拥有新的获取、证据、阅读、结果与决策能力，写入追加式 `ledger-json-v1` 账本，判定策略为 `python-credibility-v4`。
+- **dossier/reference 栈**（`research_audit.py`、`research_sources.py`、`research_outputs.py`、`evolution_guard.py`）服务已发布的 dossier schema 3 / decision contract 3 及独立来源、产出与维护用例；它是**维护期**界面，只做安全与正确性修复、合同兼容和冻结回归证据，不再新增 provider 或科学能力。
+
+合并两套解析/获取实现被有意推迟：dossier schema 3 / decision contract 3 与 `ledger-json-v1` 都已冻结，一次性合并会同时改动发布数据合同和回归基线，超出当前发布加固范围；合并前保留重复实现作为已记录的技术债。新功能应只进入 ledger 栈，不新增第三个界面。逐模块的合同归属、冻结项和已知分歧见[获取合同映射](docs/design/acquisition-contract-map.md)。
+
+| 命令 | 栈 | 依赖/写入的合同 |
+| --- | --- | --- |
+| `research_mentor.py --project ... init/doctor/status` | ledger | `ledger-json-v1` |
+| `research_mentor.py ... search/resolve/fetch/quote/show-source/confirm-source` | ledger | `ledger-json-v1`；出站分类门控 |
+| `research_mentor.py ... candidate/claim/link/coverage/next/assess` | ledger | `ledger-json-v1` + `python-credibility-v4` |
+| `research_mentor.py ... confirm-read/retract-read/record-result/reclassify-result/invalidate-result/results` | ledger | `ledger-json-v1` + `python-credibility-v4` |
+| `research_mentor.py ... decision/finalize/revoke` | ledger | `ledger-json-v1` + `python-credibility-v4` |
+| `research_mentor.py ... export-dossier` | ledger → dossier 投影 | 输出 schema 3 投影；不含证据关联与评审，不转移批准 |
+| `research_mentor.py ... verify-ledger/anchor-ledger/verify-artifacts` | ledger | `ledger-json-v1`、`ledger-anchor-v1`、`text-normalized-v1` 锚点 |
+| `research_mentor.py ... lint/recheck` | ledger | 已登记来源/检索的只读检查或重复查询 |
+| `research_audit.py init/validate/migrate/fingerprint/rank/verify-receipts` | dossier/reference | dossier schema 3 / decision contract 3（指纹为 dossier canonical JSON） |
+| `research_sources.py search/verify/fulltext` | dossier/reference（独立工具） | 不写账本；出站分类门控 |
+| `research_outputs.py card/draft/bibtex` | dossier/reference（独立工具） | 提供的笔记/来源记录 |
+| `evolution_guard.py snapshot/hash/checks-hash/check` | dossier/reference（维护期） | 自优化验收记录，只读 |
+
+两套栈的 paper ID、块/偏移模型和默认隐私分类并不等价；跨栈复制 ID 或偏移没有意义，具体差异与代码位置见合同映射。命令归属依据 [python-core.md](skills/ai-research-mentor/references/python-core.md) 与 [ADR 0009](docs/decisions/0009-acquisition-direction-and-payload-admission.md)。
+
 ## 0.4.0 的变化与兼容性
 
 - 实现：运行、测试、CI 与打包统一为 Python 3.10+ 标准库；0.3.0 的 Node 入口已按 [ADR 0007](docs/decisions/0007-python-only-toolchain.md) 退役，旧调用需改为 Python 入口。
@@ -97,6 +123,15 @@ python -B evaluation/skill_tools.py check-package
 ```
 
 `package` 从源码确定性构建 `dist/ai-research-mentor.zip`，该文件不入 Git（`dist/` 被忽略）；CI 在 6 个矩阵作业中构建并用 `check-package` 复算，GitHub Release 附加同一次构建的包。设计理由与替代方案见 [ADR 0008](docs/decisions/0008-release-identity-and-package-artifacts.md)。Codex 安装副本不由 CI 修改，同步是单独的显式动作。
+
+发布同时提供包与同名 `.sha256` 文件（如 `ai-research-mentor-0.4.0.zip.sha256`）。下载后先在本地重算并比对，而不是只信任文件名或下载页面：
+
+```text
+sha256sum ai-research-mentor-0.4.0.zip                    # Linux/macOS
+Get-FileHash -Algorithm SHA256 -LiteralPath '.\ai-research-mentor-0.4.0.zip'   # Windows PowerShell
+```
+
+把输出中的哈希值（`sha256sum` 输出第一列、PowerShell 的 `Hash` 字段）与 `.sha256` 文件中的哈希值比较，一致后再解压；`.sha256` 行内记录的是构建产物文件名（Release 资产或 CI 产物可能同名不同前缀），重命名下载文件不影响哈希比较。该文件由 CI 从同一次构建计算，但校验只说明下载文件与这个发布资产一致，不证明内容正确或安全，也不认证 Release 之外的副本；校验失败时重新下载，不要改用其他来源的同名文件。发布资产同时有 SHA-256 与 tag==VERSION 检查，见 [CONTRIBUTING.md](CONTRIBUTING.md#发布流程)。
 
 ## 从实际来源到研究材料
 
@@ -236,4 +271,4 @@ skills/ai-research-mentor/
 
 采用单入口、按需加载细则；文献工具与宿主解耦，不依赖其他 skill 的安装。设计参考了 ResearchStudio、Academic-Research-Agent-Skill、claude-scholar、ChineseResearchLaTeX、NoviScl/AI-Researcher、PaperQA、AstaBench 和 AutoSci 等项目，并保留各自的适用边界。对应来源与未采用的规则见 [`design-basis.md`](skills/ai-research-mentor/references/design-basis.md)。
 
-维护说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。本项目采用 [MIT 许可证](LICENSE)，版权归 `H66e`；选择理由见 [ADR 0002](docs/decisions/0002-license-selection.md)。
+维护说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。安全问题不要开公开 issue，按 [SECURITY.md](SECURITY.md) 私下报告；支持版本、代码实际保证的边界和不处理的事项也在该文件。本项目采用 [MIT 许可证](LICENSE)，版权归 `H66e`；选择理由见 [ADR 0002](docs/decisions/0002-license-selection.md)。

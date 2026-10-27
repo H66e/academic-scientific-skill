@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability (private)
+    url: https://github.com/H66e/academic-scientific-skill/security/advisories/new
+    about: Do not open a public issue for security vulnerabilities. This opens a private security advisory.
+  - name: Security policy
+    url: https://github.com/H66e/academic-scientific-skill/blob/main/SECURITY.md
+    about: Supported versions, what the tool does and does not guarantee, and how to report a vulnerability.
+  - name: Contributing and release rules
+    url: https://github.com/H66e/academic-scientific-skill/blob/main/CONTRIBUTING.md
+    about: Required checks, contract compatibility, release assets and the review process.

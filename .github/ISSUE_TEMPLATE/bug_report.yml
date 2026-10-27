@@ -1,0 +1,78 @@
+name: Bug report
+description: Report a reproducible defect in the runtime, CLI, packaging or documentation.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a defect. Please read [SECURITY.md](https://github.com/H66e/academic-scientific-skill/blob/main/SECURITY.md) first:
+        security vulnerabilities must be reported through private vulnerability reporting, not this public form.
+
+        This is a local research tool. Do not paste private research material, unpublished ideas, personal data,
+        credentials or tokens, local absolute paths, or copies of real project ledgers/source artifacts.
+        Reproduce with synthetic or public material only.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Release version from VERSION, or the exact commit hash. Say whether this is an installed copy.
+      placeholder: "0.4.0, repository tree (or the exact commit)"
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system and Python version
+      description: Include the OS, architecture and the Python version used for the command.
+      placeholder: "Windows 11, Python 3.14.5; or Ubuntu 24.04, Python 3.12"
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact command and input
+      description: Paste the complete command, including arguments and any JSON input. Replace private values with synthetic placeholders.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect the tool to do, and why? Reference a documented contract or command if relevant.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Paste the JSON envelope, exit code or error output. Remove paths, tokens and private content first.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal synthetic reproduction
+      description: |
+        Steps that reproduce the defect with synthetic data. If the defect requires a ledger or dossier,
+        describe the synthetic event/data shape instead of attaching private records.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy and security confirmation
+      options:
+        - label: I used synthetic or public material only; this report contains no private research material, credentials, tokens, local absolute paths, or real project records.
+          required: true
+        - label: I read SECURITY.md and this report is not a security vulnerability; security issues go through private reporting.
+          required: true
