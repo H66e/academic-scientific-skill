@@ -3,7 +3,7 @@
 - 这是“方向 → 研究报告”的分级合同，不是一篇可以照抄的完整报告。先选等级，只保留该等级的章节，删除其他等级的轮廓。
 - 写作前读 ../references/clarification.md：先问 2–3 个会改变结论的问题；资源、时间、预算、数据权限、venue 规则未知就写“未知”，不设默认值。
 - 护栏（禁止编造；不是真实性保证）：引用、数字、数据集、实验、结果、venue 规则只能来自用户实际提供的材料，或实际获取并读过、记录了版本与阅读范围的来源。无来源数字写 TODO(需来源)；未执行的实验只进计划节；不要把假设写成事实。模板检查只证明结构/账本记录，不证明内容真实。
-- 交付前运行 `python -B scripts/research_draft.py <draft.md> --ledger <project>`；concept_memo 不需要 ledger，但禁止任何引用编号。
+- 交付前运行 `python -B scripts/research_draft.py <draft.md> --ledger <project>`；concept_memo 不需要 ledger，但禁止任何引用编号。**等级由账本推导**：当前账本只能推导到 `evidence_review`；`preregistration/research_plan` 暂不可交付，除非账本已升级出对应的预注册/计划事件。
 -->
 
 <!-- report-tier: concept_memo | evidence_review | preregistration | research_plan（只保留一个） -->
@@ -43,7 +43,7 @@
 
 [问题陈述、已知事实、关键未知、最强替代解释。]
 
-### 待核验线索（不要编号引用）
+### 待核验线索
 
 [只列标题/作者/年份/关键词和为什么值得查；不要写 [1]，不要写 DOI/URL/arXiv 编号，不要写“已读全文”。]
 

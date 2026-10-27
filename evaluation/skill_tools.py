@@ -266,7 +266,7 @@ def check_skill(root=SKILL):
     required += [f"scripts/{name}.py" for name in ("research_audit", "research_sources", "research_outputs", "evolution_guard", "research_draft")]
     required += ["scripts/research_mentor.py", "runtime/research_mentor/tool_cli.py",
                  "runtime/research_mentor/strict_cli.py", "runtime/research_mentor/event_payloads.py"]
-    required += [f"runtime/research_mentor/{name}.py" for name in ("core", "judgment", "audit", "sources", "outputs", "evolution", "draft")]
+    required += [f"runtime/research_mentor/{name}.py" for name in ("core", "judgment", "audit", "sources", "outputs", "evolution", "draft", "report_tier")]
     required += [f"references/{name}.md" for name in ("data-contract", "literature", "ideation", "evaluation", "design-basis", "self-improvement", "retrieval-adapters", "fulltext", "research-outputs", "source-tools", "clarification")]
     required += [f"templates/{name}.md" for name in ("paper", "survey", "proposal", "report")]
     required += [f"schemas/{name}.schema.json" for name in ("notes", "dossier", "ledger-event")]

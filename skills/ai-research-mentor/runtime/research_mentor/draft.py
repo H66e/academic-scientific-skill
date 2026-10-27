@@ -1,10 +1,10 @@
-"""Draft contracts for user-facing research reports.
+"""Tier-contract checks for research reports.
 
-This is a structural and ledger-consistency checker, not a truth checker. It
-enforces report tiers, section whitelists, citation forms, ledger-derived
-reading status, quantitative-claim placement and user-facing label bans. It
-cannot prove that a cited source supports a sentence, that numbers are correct,
-or that a report is scientifically good.
+The checker parses the document, derives the highest allowed tier from a
+verified local ledger, binds each citation to source identity/version/scope,
+and rejects result-like claims without a plan marker or verified citation. It
+cannot prove that a source supports a sentence, that numbers are correct, or
+that the report is scientifically good.
 """
 from __future__ import annotations
 
@@ -15,285 +15,300 @@ import sys
 import unicodedata
 from typing import Any
 
-TIERS = ("concept_memo", "evidence_review", "preregistration", "research_plan")
+from .report_tier import RANK, TIERS, derive_tier
+
 FRONT_TIER = re.compile(r"<!--\s*report-tier:\s*([a-z_]+)\s*-->")
+DOC_KIND = re.compile(r"<!--\s*doc-kind:\s*([a-z_]+)\s*-->")
 HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 CITATION = re.compile(r"\[(\d{1,3}(?:\s*[,，–-]\s*\d{1,3})*)\]")
-CITATION_OTHER = [
+OTHER_CITATIONS = [
     re.compile(r"\[\^[^\]]+\]"),
-    re.compile(r"\[[^\]]*\]\([^)]+\)"),
-    re.compile(r"\([A-Z][A-Za-z\-]+(?:\s+et\s+al\.?)?,?\s*\d{4}\)"),
+    re.compile(r"\[[A-Za-z][A-Za-z\-]+\s+\d{4}\]"),
+    re.compile(r"\([A-Z][A-Za-z\-]+(?:\s+et\s+al\.?)?\s*,?\s*\d{4}\)"),
+    re.compile(r"[A-Z][A-Za-z\-]+\s*\(\s*\d{4}\s*\)"),
     re.compile(r"\b10\.\d{4,9}/\S+"),
-    re.compile(r"\barXiv:\s*\d", re.I),
+    re.compile(r"\barXiv\s*:?\s*\d", re.I),
     re.compile(r"https?://"),
+    re.compile(r"arxiv\.org/abs/\S+", re.I),
     re.compile(r"［\d"),
 ]
 LABEL = re.compile(r"(?:^|[^A-Za-z])(?:GO|HOLD|KILL)(?![A-Za-z])", re.M)
 CJK_LABEL = re.compile(r"做\s*/\s*等\s*/\s*放弃")
 LIGHT_LABEL = re.compile(r"[🟢🟡🔴✅❌]")
 QUANT = re.compile(r"\d+(?:\.\d+)?\s*(?:%|pp|个百分点|倍)")
-EFFECT_VERB = re.compile(r"提升|提高|优于|下降|降低|超过|改善|gain|improve|outperform|reduce", re.I)
-COMPLETED_CLAIM = re.compile(r"已完成|已观察|观察到|结果表明|实验表明|we observed|results show|we found", re.I)
+EFFECT = re.compile(r"提升|提高|优于|下降|降低|超过|改善|gain|improve|outperform|reduce", re.I)
+COMPLETED = re.compile(r"实验表明|结果表明|我们观察到|we observed|results show|已完成(?:实验|训练|评测|测试|主实验)", re.I)
+PLANNED = re.compile(r"\[PLANNED:[^\]]*\]")
+TODO = "TODO(需来源)"
+PLAN_HEADING = re.compile(r"计划|预注册|实验设计|方法|规模|成本|风险|分析")
 
-TIER_RULES: dict[str, dict[str, Any]] = {
-    "concept_memo": {
-        "required": [("当前判断", "当前判断与下一步"), ("待核验", "待核验清单", "问题")],
-        "forbidden_headings": ["实验设计", "统计", "结果", "预算", "成本", "分工", "参考文献", "方法", "指标", "基线", "启动实验"],
-        "forbidden_body": [re.compile(r"实验设计|统计检验|p\s*[<=]|α\s*=|置信区间|预算|GPU|样本量|n\s*=", re.I)],
-        "allow_citations": False,
-        "allow_references": False,
-        "allow_quant": False,
-    },
-    "evidence_review": {
-        "required": [("当前判断",), ("证据", "近邻", "相关工作"), ("覆盖", "待核验")],
-        "forbidden_headings": ["实验设计", "统计", "结果", "计划", "分工", "预算", "启动实验", "预注册"],
-        "forbidden_body": [re.compile(r"实验设计|统计检验|p\s*[<=]|置信区间|样本量|n\s*=", re.I)],
-        "allow_citations": True,
-        "allow_references": True,
-        "allow_quant": False,
-    },
-    "preregistration": {
-        "required": [("当前判断",), ("假设", "问题"), ("判据", "分析计划"), ("数据",)],
-        "forbidden_headings": ["结果", "已观察", "已完成"],
-        "forbidden_body": [],
-        "allow_citations": True,
-        "allow_references": True,
-        "allow_quant": False,
-    },
-    "research_plan": {
-        "required": [("当前判断",), ("假设", "问题"), ("实验设计", "方法"), ("风险", "停止")],
-        "forbidden_headings": ["结果", "已观察", "已完成"],
-        "forbidden_body": [],
-        "allow_citations": True,
-        "allow_references": True,
-        "allow_quant": True,
-    },
+COMMON_HEADINGS = {"报告等级与范围"}
+ALLOWED: dict[str, set[str]] = {
+    "concept_memo": {"当前判断与下一步", "问题与未知", "待核验线索", "下一步"},
+    "evidence_review": {"当前判断与下一步", "证据、近邻与差异", "反例、冲突与替代解释",
+                        "覆盖边界与待核验清单", "参考文献"},
+    "preregistration": {"当前判断与下一步", "研究问题、假设与判据", "数据与划分",
+                        "分析计划与停止判据", "风险与替代解释", "参考文献"},
+    "research_plan": {"当前判断与下一步", "研究问题、假设与判据", "方法与实验设计",
+                      "规模、成本与资源", "计划与分工", "风险与继续/停止判据", "参考文献"},
 }
-PLAN_SECTION = re.compile(r"分析计划|规模|成本|预算|实验设计|方法|计划|风险")
+REQUIRED: dict[str, list[str]] = {
+    "concept_memo": ["当前判断与下一步", "待核验线索", "下一步"],
+    "evidence_review": ["当前判断与下一步", "证据、近邻与差异", "覆盖边界与待核验清单"],
+    "preregistration": ["当前判断与下一步", "研究问题、假设与判据", "分析计划与停止判据"],
+    "research_plan": ["当前判断与下一步", "研究问题、假设与判据", "方法与实验设计", "风险与继续/停止判据"],
+}
+CONCEPT_MAX = 4000
 
 
 def _norm(text: str) -> str:
     text = unicodedata.normalize("NFKC", text)
-    text = "".join(ch for ch in text if unicodedata.category(ch) != "Cf")
-    return re.sub(r"[ \t]+", " ", text)
+    return "".join(ch for ch in text if unicodedata.category(ch) != "Cf")
 
 
-def _strip_comments(text: str) -> str:
+def _visible(text: str) -> str:
     return HTML_COMMENT.sub("", text)
 
 
-def _split_references(lines: list[str]) -> tuple[list[str], list[str], int | None]:
-    for index, line in enumerate(lines):
-        if re.match(r"^(#{1,4})\s+(参考文献|References?)\s*$", line.strip(), re.I):
-            return lines[:index], lines[index:], index
-    return lines, [], None
+def _title(text: str) -> str:
+    text = _norm(text).strip()
+    return re.sub(r"^\d+(?:\.\d+)*\s+", "", text)
 
 
-def _headings(lines: list[str]) -> list[tuple[int, str, int]]:
-    result: list[tuple[int, str, int]] = []
+def _headings(lines: list[str]) -> list[tuple[str, int]]:
+    found: list[tuple[str, int]] = []
     for index, raw in enumerate(lines):
         line = raw.strip()
         atx = re.match(r"^(#{1,6})\s+(.+)$", line)
         if atx:
-            result.append((len(atx.group(1)), _norm(atx.group(2)), index))
+            found.append((_title(atx.group(2)), index))
             continue
         html = re.match(r"^<h([1-6])[^>]*>(.*?)</h\1>$", line, re.I)
         if html:
-            result.append((int(html.group(1)), _norm(re.sub(r"<[^>]+>", "", html.group(2))), index))
+            found.append((_title(re.sub(r"<[^>]+>", "", html.group(2))), index))
             continue
         bold = re.fullmatch(r"\*\*(.+?)\*\*", line)
         if bold and len(bold.group(1)) <= 40:
-            result.append((2, _norm(bold.group(1)), index))
+            found.append((_title(bold.group(1)), index))
             continue
         if index + 1 < len(lines) and re.fullmatch(r"=+|-+", lines[index + 1].strip()) and line:
-            result.append((1 if "=" in lines[index + 1] else 2, _norm(line), index))
-    return result
+            found.append((_title(line), index))
+    return found
 
 
-def _ref_entries(lines: list[str]) -> dict[str, str]:
-    entries: dict[str, str] = {}
+def _ref_section(lines: list[str]) -> tuple[list[str], list[str], int | None]:
+    for index, line in enumerate(lines):
+        if _title(re.sub(r"^#+\s*", "", line.strip())) in {"参考文献", "References"}:
+            return lines[:index], lines[index:], index
+    return lines, [], None
+
+
+def _ref_rows(lines: list[str]) -> dict[str, list[str]]:
+    rows: dict[str, list[str]] = {}
     for raw in lines:
         line = raw.strip()
         if not line.startswith("|"):
             continue
         cells = [cell.strip() for cell in line.strip("|").split("|")]
-        if len(cells) < 2:
-            continue
-        match = re.fullmatch(r"\[(\d{1,3})\]", cells[0])
-        if match:
-            entries[match.group(1)] = cells[-1] if len(cells) >= 3 else ""
-    for raw in lines:
-        match = re.match(r"^[-*]\s*\[(\d{1,3})\]\s*(.+)$", raw.strip())
-        if match and match.group(1) not in entries:
-            entries[match.group(1)] = raw.strip()
-    return entries
+        match = re.fullmatch(r"\[(\d{1,3})\]", cells[0]) if cells else None
+        if match and len(cells) == 5:
+            rows[match.group(1)] = cells[1:]
+    return rows
 
 
-def _ledger_verified(project: pathlib.Path) -> tuple[set[str], set[str]]:
-    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-    from research_mentor.ledger import Ledger
-    from research_mentor.readings import effective_readings
+def _token_jaccard(left: str, right: str) -> float:
+    a = set(re.findall(r"[\w\u4e00-\u9fff]+", unicodedata.normalize("NFKC", left).lower()))
+    b = set(re.findall(r"[\w\u4e00-\u9fff]+", unicodedata.normalize("NFKC", right).lower()))
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
 
-    events = Ledger(project).read()
-    anchors = {}
-    for event in events:
-        if event.get("type") == "evidence.anchor":
-            data = event.get("data", {})
-            key = data.get("id", event["id"])
-            anchors[key] = data
-    verified_anchors: set[str] = set()
-    verified_sources: set[str] = set()
-    for anchor_id, data in anchors.items():
-        confirmations = effective_readings(events, anchor_id)
-        if any(c.get("actor") == "user" and c.get("trust") == "T1"
-               and c.get("data", {}).get("scope") in {"section", "full_text"}
-               for c in confirmations):
-            verified_anchors.add(anchor_id)
-            if isinstance(data.get("source"), str):
-                verified_sources.add(data["source"])
-    return verified_anchors, verified_sources
+
+def _check_identity(identifier: str, title: str, view: dict, scope: str) -> list[str]:
+    errors = []
+    expected_doi = (view.get("doi") or "").lower() if isinstance(view.get("doi"), str) else ""
+    expected_arxiv = (view.get("arxiv") or "").lower() if isinstance(view.get("arxiv"), str) else ""
+    expected_title = view.get("title") or ""
+    ident = identifier.strip()
+    if ident.lower().startswith("doi:"):
+        if not expected_doi or ident[4:].strip().lower() != expected_doi:
+            errors.append("CITATION_IDENTITY_MISMATCH (DOI)")
+    elif ident.lower().startswith("arxiv:"):
+        actual = ident[6:].strip().lower()
+        if not expected_arxiv or actual != expected_arxiv:
+            errors.append("CITATION_IDENTITY_MISMATCH (arXiv/version)")
+    elif ident.lower().startswith("url:"):
+        if not view.get("url") or ident[6:].strip() != view["url"]:
+            errors.append("CITATION_IDENTITY_MISMATCH (URL)")
+    else:
+        errors.append("UNIDENTIFIABLE_CITATION (use doi:, arXiv: or url:)")
+    if expected_title and _token_jaccard(title, expected_title) < 0.8:
+        errors.append("CITATION_TITLE_MISMATCH")
+    scopes = [item for reading in view.get("readings", []) for item in reading.get("scopes", [])]
+    if scope == "full_text" and "full_text" not in scopes:
+        errors.append("CITATION_SCOPE_EXCEEDS_READING (full_text)")
+    if scope.startswith("section") and not ({"section", "full_text"} & set(scopes)):
+        errors.append("CITATION_SCOPE_EXCEEDS_READING (section)")
+    return errors
 
 
 def check_draft(path: str | pathlib.Path, ledger: str | pathlib.Path | None = None) -> dict[str, Any]:
     target = pathlib.Path(path)
     raw = target.read_text(encoding="utf-8")
     text = _norm(raw)
-    visible = _strip_comments(text)
-    front = FRONT_TIER.search(raw)
-    tier = front.group(1) if front else ""
-    lines = visible.splitlines()
-    body, references, ref_index = _split_references(lines)
-    body_text = "\n".join(body)
-    entries = _ref_entries(references)
-    headings = _headings(body)
-    headings_all = [title for _, title, _ in headings]
+    visible = _visible(text)
+    tiers = FRONT_TIER.findall(raw)
+    kind = DOC_KIND.search(raw)
     errors: list[str] = []
     warnings: list[str] = []
-
-    if not tier:
-        errors.append("missing <!-- report-tier: ... -->")
-    elif tier not in TIERS:
-        errors.append(f"unknown report-tier: {tier!r}")
+    if len(tiers) != 1:
+        errors.append("REPORT_TIER_MARKER must appear exactly once")
         tier = ""
+    else:
+        tier = tiers[0]
+        if tier not in TIERS:
+            errors.append(f"UNKNOWN_REPORT_TIER {tier!r}")
+            tier = ""
+    if kind and kind.group(1) != "report":
+        errors.append(f"UNSUPPORTED_DOC_KIND {kind.group(1)!r}; draft checker only supports reports")
 
-    rules = TIER_RULES.get(tier, {})
-    if rules:
-        for alternatives in rules["required"]:
-            if not any(any(alt in title for alt in alternatives) for title in headings_all):
-                errors.append("missing required section: " + " / ".join(alternatives))
-        for title in headings_all:
-            if any(word in title for word in rules["forbidden_headings"]):
-                errors.append(f"forbidden section for {tier}: {title}")
-        for pattern in rules["forbidden_body"]:
-            match = pattern.search(body_text)
-            if match:
-                errors.append(f"forbidden content for {tier}: {match.group(0)}")
-
+    lines = visible.splitlines()
+    body, refs, ref_index = _ref_section(lines)
+    headings = _headings(body)
+    if headings:
+        headings = headings[1:]  # first heading is the document title
+    titles = [title for title, _ in headings]
     if ref_index is not None:
-        for line in references[1:]:
-            if re.match(r"^(#{1,6})\s+", line.strip()):
-                errors.append("content heading appears after the reference section; references must be last")
+        for line in refs[1:]:
+            if line.strip() and not line.strip().startswith("|"):
+                errors.append("CONTENT_AFTER_REFERENCES")
                 break
+        extra = _headings(refs[1:])
+        if extra:
+            errors.append("CONTENT_AFTER_REFERENCES")
 
+    allowed = COMMON_HEADINGS | ALLOWED.get(tier, set())
+    for title in titles:
+        if title not in allowed:
+            errors.append(f"HEADING_NOT_ALLOWED {title!r}")
+    for needed in REQUIRED.get(tier, []):
+        if needed not in titles:
+            errors.append(f"MISSING_SECTION {needed!r}")
+
+    body_text = "\n".join(body)
     used: list[str] = []
     for match in CITATION.finditer(body_text):
         for part in re.split(r"[,，–-]", match.group(1)):
             if part.strip():
                 used.append(part.strip())
     used = sorted(set(used), key=int)
-    if rules and not rules.get("allow_citations", True):
-        if used:
-            errors.append("concept_memo must not contain numbered citations; list unverified leads without [n]")
-        if ref_index is not None:
-            errors.append("concept_memo must not contain a reference section")
-    for pattern in CITATION_OTHER:
+    for pattern in OTHER_CITATIONS:
         hit = pattern.search(body_text)
         if hit:
-            errors.append(f"unsupported citation form: {hit.group(0)[:40]}; use [n] + ledger IDs")
+            errors.append(f"UNSUPPORTED_CITATION_FORM {hit.group(0)[:40]!r}")
 
-    if rules and rules.get("allow_citations", True) and used:
-        missing = [key for key in used if key not in entries]
-        if missing:
-            errors.append("inline citations without entries: " + ", ".join(f"[{key}]" for key in missing))
+    projections = None
+    if tier == "concept_memo":
+        if used:
+            errors.append("CONCEPT_MEMO_CITATIONS_FORBIDDEN")
+        if ref_index is not None:
+            errors.append("CONCEPT_MEMO_REFERENCES_FORBIDDEN")
+        if len(re.sub(r"\s", "", visible)) > CONCEPT_MAX:
+            errors.append("CONCEPT_MEMO_TOO_LONG")
+    elif tier:
         if ledger is None:
-            errors.append("this tier requires --ledger <project>; self-declared verification is not accepted")
+            errors.append("LEDGER_REQUIRED")
         else:
             try:
-                anchors, sources = _ledger_verified(pathlib.Path(ledger))
+                projections = derive_tier(pathlib.Path(ledger))
             except Exception as exc:  # noqa: BLE001
-                errors.append(f"ledger verification failed: {exc}")
-                anchors, sources = set(), set()
-            for key in used:
-                status = entries.get(key, "")
-                match = re.fullmatch(r"ledger:(\S+)", status)
-                if not match:
-                    errors.append(f"reference [{key}] must use ledger:<source-or-evidence-id>, got {status!r}")
-                elif match.group(1) not in anchors and match.group(1) not in sources:
-                    errors.append(f"reference [{key}] not verified by a user/T1 section/full_text reading in the ledger")
-        if not entries:
-            errors.append("reference section exists but no [n] entries were parsed")
-        uncited = [key for key in entries if key not in used]
-        if uncited:
-            warnings.append("reference entries not used: " + ", ".join(f"[{key}]" for key in uncited))
-    elif rules and rules.get("allow_citations", True) and not used:
-        warnings.append("no citations; evidence_review/preregistration/research_plan should cite verified sources")
+                errors.append(f"LEDGER_VERIFICATION_FAILED {exc}")
+                projections = None
+            if projections:
+                if not projections["chain_ok"]:
+                    errors.append("LEDGER_CHAIN")
+                if not projections["artifacts_ok"]:
+                    errors.append("ARTIFACT_REPLAY")
+                if projections["chain_ok"] and projections["artifacts_ok"]:
+                    if RANK.get(tier, 99) > RANK.get(projections["derived_tier"], 0):
+                        errors.append(f"TIER_EXCEEDS_EVIDENCE declared={tier} derived={projections['derived_tier']}")
+                    elif RANK.get(tier, 99) < RANK.get(projections["derived_tier"], 0):
+                        warnings.append(f"DOWNGRADED declared={tier} derived={projections['derived_tier']}")
+        if not used:
+            errors.append("NO_VERIFIED_CITATIONS")
+        rows = _ref_rows(refs)
+        if len(rows) < 2:
+            errors.append("TOO_FEW_REFERENCE_ENTRIES")
+        seen_canonical = set()
+        for key in used:
+            row = rows.get(key)
+            if not row:
+                errors.append(f"CITATION_WITHOUT_ENTRY [{key}]")
+                continue
+            title, identifier, binding, scope = row
+            if not binding.startswith("ledger:"):
+                errors.append(f"CITATION_NOT_LEDGER_BOUND [{key}]")
+                continue
+            source_id = binding[7:].strip()
+            if projections:
+                source = source_id if source_id in projections["sources"] else projections["anchor_to_source"].get(source_id)
+                view = projections["sources"].get(source) if source else None
+                if not view or not view.get("readings"):
+                    errors.append(f"CITATION_NOT_VERIFIED [{key}]")
+                    continue
+                if view["canonical"] in seen_canonical:
+                    errors.append("DUPLICATE_SOURCE")
+                seen_canonical.add(view["canonical"])
+                errors.extend(f"{code} [{key}]" for code in _check_identity(identifier, title, view, scope))
+            else:
+                errors.append(f"CITATION_UNCHECKED [{key}]")
 
-    if LABEL.search(text):
-        errors.append("user-facing label GO/HOLD/KILL present; answer the three questions instead")
-    if CJK_LABEL.search(text):
-        errors.append("user-facing phrase 做/等/放弃 present; answer the three questions instead")
-    if LIGHT_LABEL.search(text):
-        errors.append("traffic-light/checkmark decision labels present")
+    # Labels (GO term/Gene Ontology are not decision labels).
+    label_text = re.sub(r"\bGO\s+(?:term|terms|enrichment|annotation|ontology|analysis)\b", "", text, flags=re.I)
+    label_text = re.sub(r"Gene Ontology", "", label_text, flags=re.I)
+    if LABEL.search(label_text):
+        errors.append("USER_FACING_LABEL")
+    if CJK_LABEL.search(label_text):
+        errors.append("USER_FACING_LABEL")
+    if LIGHT_LABEL.search(label_text):
+        errors.append("USER_FACING_LABEL")
 
-    if rules:
-        current = ""
-        for line in body:
-            heading = re.match(r"^#{1,6}\s+(.+)$", line.strip())
-            if heading:
-                current = _norm(heading.group(1))
-            if QUANT.search(line) and EFFECT_VERB.search(line) and not PLAN_SECTION.search(current):
-                if not rules.get("allow_quant", False) and "[PLANNED:" not in line:
-                    errors.append("quantitative effect claim outside a plan/scaling section needs [PLANNED:] or a verified citation")
-                elif not CITATION.search(line):
-                    warnings.append("quantitative effect claim without a citation or plan marker")
-            if COMPLETED_CLAIM.search(line) and tier != "research_plan":
-                errors.append(f"completed/observed claim is not allowed in {tier}")
-
-    if tier == "concept_memo":
-        head = visible[:4000]
-        if "概念备忘录" not in head or not any(marker in head for marker in ("未核验", "待核验", "未读全文")):
-            errors.append("concept_memo needs a visible 概念备忘录 + 未核验/待核验 banner")
-        if len(raw) > 12000:
-            errors.append("concept_memo is too long for a decision memo (>12000 characters); shorten or choose a higher tier")
-
-    if "当前判断与下一步" not in body_text:
-        warnings.append("missing '当前判断与下一步' section")
-
-    current = ""
+    # Effect/completed claims are line-local; no whole-section exemption.
     for line in body:
-        heading = re.match(r"^#{1,6}\s+(.+)$", line.strip())
-        if heading:
-            current = _norm(heading.group(1))
-        if "[PLANNED:" in line and re.search(r"摘要|Abstract|结果|Results|结论|Conclusion", current, re.I):
-            errors.append("planned material appears in a result/abstract/conclusion section")
+        if QUANT.search(line) and EFFECT.search(line):
+            if tier == "concept_memo":
+                errors.append("EFFECT_CLAIM_IN_CONCEPT_MEMO")
+            elif not PLANNED.search(line) and not CITATION.search(line):
+                errors.append("UNSUPPORTED_EFFECT_CLAIM")
+        if COMPLETED.search(line) and not CITATION.search(line):
+            errors.append("COMPLETED_CLAIM_WITHOUT_CITATION")
 
-    todo = body_text.count("TODO(需来源)")
+    todo = body_text.count(TODO)
     if todo:
         warnings.append(f"{todo} TODO(需来源) placeholders remain")
+    if ref_index is not None and tier != "concept_memo":
+        unused = [key for key in _ref_rows(refs) if key not in used]
+        if unused:
+            warnings.append("UNUSED_REFERENCE_ENTRIES " + ",".join(unused))
+    delivery_ready = not errors and todo == 0 and not any("UNUSED_REFERENCE" in warning for warning in warnings)
     return {
         "valid": not errors,
-        "delivery_ready": not errors and todo == 0,
-        "tier": tier,
+        "delivery_ready": delivery_ready,
+        "declared_tier": tier,
+        "derived_tier": projections["derived_tier"] if projections else None,
         "errors": errors,
         "warnings": warnings,
         "stats": {
             "citations_used": len(used),
-            "reference_entries": len(entries),
+            "reference_entries": len(_ref_rows(refs)),
+            "verified_citations": len(used) if projections and not errors else 0,
+            "distinct_sources": len({row[2] for row in _ref_rows(refs).values()}),
+            "chain_ok": projections["chain_ok"] if projections else None,
+            "artifacts_ok": projections["artifacts_ok"] if projections else None,
             "todo_placeholders": todo,
-            "verified_by_ledger": ledger is not None and bool(rules.get("allow_citations")),
-            "sections": headings_all,
         },
-        "note": "Structural/ledger-consistency checks only; not a truth check. It cannot prove source support, numbers, novelty or writing quality.",
+        "attestation": "user-attested readings; not authenticated",
+        "note": "Structure/ledger-consistency only; not a truth check. It cannot prove source support, numbers, novelty or writing quality.",
     }
 
 

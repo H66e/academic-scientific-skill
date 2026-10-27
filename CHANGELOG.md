@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.0
+
+2026-10-27. 按两位评委的修改规范实现：等级由账本推导、引用身份绑定、块解析修复。设计见 [ADR 0016](docs/decisions/0016-ledger-derived-tiers-and-identity.md)。
+
+- 新增 `report_tier.py`：从经过 `Ledger.verify()` 与 `ResearchCore.verify_artifacts()` 的账本推导允许等级；只有 user/T1、section/full_text 的有效阅读计数，至少 2 个 canonical 来源到 evidence_review。
+- 等级封顶：`ledger-json-v1` 没有预注册/计划事件，`preregistration`/`research_plan` 不能推导；声明更高等级失败。本版不伪造 higher tier。
+- `check-draft --ledger`：章节标题闭集；参考文献必须最后一节；五列引用（编号/标题/标识/ledger ID/范围）；引用身份、版本、范围与账本比对；同一 canonical 来源只能占一个编号。
+- 修复：无引用 research_plan 写“实验表明提升 15%”失败；参考文献后藏正文（ATX/setext/HTML/粗体）失败；`[PLANNED:` 只豁免同句；concept memo 同义标题失败；`GO term` 不误报；concept memo 上限为可见字符 4000。
+- 新增真实账本测试：`ResearchCore.fetch` + `quote` + human `confirm_read` 构造；不再 mock `_ledger_verified`/`effective_readings`。
+- 报告模板改为四级轮廓、五列引用与等级封顶说明；effect-protocol 仍未执行。
+
 ## 0.10.0
 
 2026-10-27. 0.9.0 复审后的第二轮大改：核验状态改为账本派生，报告等级变成交付合同。设计见 [ADR 0015](docs/decisions/0015-ledger-derived-draft-contracts.md)。

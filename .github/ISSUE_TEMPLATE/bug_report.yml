@@ -18,7 +18,7 @@ body:
     attributes:
       label: Version or commit
       description: Release version from VERSION, or the exact commit hash. Say whether this is an installed copy.
-      placeholder: "0.10.0, repository tree (or the exact commit)"
+      placeholder: "0.11.0, repository tree (or the exact commit)"
     validations:
       required: true
 

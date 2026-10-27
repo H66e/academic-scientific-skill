@@ -59,7 +59,7 @@ description: Help AI/ML researchers find research directions, check novelty, dec
 - 用户提供的结果只作为给定事实转述，并保留用户自己声明的解释与限制。**结果解释不在本 skill 范围内**：不重新分类、不推断未给出的实验、不把给定结果扩展成未经提供的分析。
 - 完整文稿在投稿或正式提交前必须由人逐项核对来源、数字、引用、声明与目标 venue 要求；草稿末尾附“作者核对清单 + AI 使用披露草稿”，说明作者对真实性、引用与投稿决定负责。不承诺录用、新颖性或实验成功。
 - 用户要求 LaTeX、Word、APA、Markdown 或指定模板时按请求处理；用户没有给出的投稿规则不自行编造，需要时先索取。
-- **完整研究报告**：按 [report.md](templates/report.md) 的等级写（concept_memo / evidence_review / preregistration / research_plan），只保留实际达到的等级与章节；没有核验来源与近邻就停在概念备忘录，不硬填实验设计。报告可以写“预期贡献/计划”，但不得把未执行实验写成已观察结果，也不得承诺录用或性能提升。
+- **完整研究报告**：按 [report.md](templates/report.md) 的等级写，只保留实际达到的等级与章节。等级由账本推导：没有核验来源与近邻就停在概念备忘录；当前账本事件只能推导到 evidence_review，preregistration/research_plan 需要后续账本事件，本版不假装可交付。报告可以写“预期贡献/计划”，但不得把未执行实验写成已观察结果，也不得承诺录用或性能提升。
 
 ## 工具与工作量
 
