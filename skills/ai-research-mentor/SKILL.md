@@ -20,7 +20,7 @@ description: Help AI/ML researchers find research directions, check novelty, dec
 | 只有宽泛方向、想找题目 | 定义问题范围，检索已有认识，提出少量有证据的候选 | [literature.md](references/literature.md)、[ideation.md](references/ideation.md) |
 | 找同方向、相似方法或最近论文 | 检索与筛选；说明相关性、版本和阅读深度 | [literature.md](references/literature.md) |
 | 读论文、核对公式或决定性图表 | 获取实际版本，读取相关正文，核验解析和页面定位 | [fulltext.md](references/fulltext.md) |
-| 已有想法，要查新或找漏洞 | 拆分贡献，找最接近和最可能否定它的工作，核对关键全文 | [literature.md](references/literature.md)、[evaluation.md](references/evaluation.md) |
+| 已有想法，要查新或找漏洞 | 拆分贡献，找最接近和最可能否定它的工作；高成本主张按深读门定 A/B/C，核对关键章节与翻转条件 | [literature.md](references/literature.md)、[evaluation.md](references/evaluation.md)、[deep-read-gate.md](references/deep-read-gate.md) |
 | 提出一个方向，要完整研究报告/立项报告/决策报告 | **先澄清**目标、硬约束、证据现状、成功标准与交付形式（先问 2–3 个阻塞问题，最多 4 个），再写可讨论、可执行的报告 | [clarification.md](references/clarification.md)、[research-outputs.md](references/research-outputs.md)、[研究报告模板](templates/report.md) |
 | 评估价值、资源或能否开题 | 区分提案逻辑、已有证据和前置条件，建议有边界的验证 | [evaluation.md](references/evaluation.md) |
 | 写论文初稿、综述或开题 | 先做证据清单与 claims→evidence 映射，再分节起草；完整初稿允许，但产出是**待作者核验的草稿**，不是投稿成品 | [research-outputs.md](references/research-outputs.md)、[论文模板](templates/paper.md)、[综述模板](templates/survey.md)、[开题模板](templates/proposal.md) |
@@ -44,6 +44,7 @@ description: Help AI/ML researchers find research directions, check novelty, dec
 
 - 关键判断保留论文身份、实际所读版本、阅读范围和内容定位；说明来源与当前候选哪个主张的关系，区分研究动机、反对已有方法与反对候选核心假设。区分作者明示的局限与研究者推断。
 - 摘要适合发现候选、筛掉明显不相关文献。决定性的机制等价、适用条件或研究缺口判断，阅读相应全文章节；拿不到时保留未确认项。
+- **高成本主张走深读门**：新颖性、缺口、机制等价、投入建议必须按 [deep-read-gate.md](references/deep-read-gate.md) 标 A/B/C；C 级只能写“暂定判断 + 翻转条件 + 最小核验动作”，不能写成正式结论。聊天中不硬阻断，报告定稿时检查。
 - 查新针对具体问题、机制、假设和结论；“方向里没有搜到”“换了数据集”“结合两种方法”都不能直接证明贡献。
 - 主动找最强近邻、反方证据、等价表述与朴素替代方案。用明确条件下的差异陈述解释新意，不按重合维度计数机械判定。
 - 空检索、工具失败、连接器覆盖降级和关键全文缺失降低可判定性。报告搜索边界，使用“在这些来源和条件下未发现”，保留 UNCLEAR/待确认。
@@ -54,7 +55,7 @@ description: Help AI/ML researchers find research directions, check novelty, dec
 允许交付论文、综述或开题的完整初稿，但只能使用用户实际提供、或经工具实际获取并读过的来源：
 
 - **绝不编造**引用条目、作者、年份、DOI/arXiv ID、数字、图表、实验结果、venue 规则或审稿意见。未执行的设计写成明确计划（“我们计划……”）并标注为计划；未获得的结果保留占位符，不写成观察发现。
-- **写作硬检查（check-draft）**：每个数字/统计量必须带来源与定位，或写成显式占位符（如 `TODO(需来源)`），禁止无来源数字；正文引用只能来自实际提供/获取并已记录版本与阅读范围的来源，未核验条目只进“待核验清单”；未执行的实验、未获得的结果只能出现在“计划/待验证”节，不能出现在结果、摘要或图表；venue 规则（页数、匿名、AI 披露等）只能由用户提供；缺失时可以继续写内容，但格式/投稿部分必须标“待用户提供”，不得声称符合某 venue。交付前在 skill 目录运行 `python -B scripts/research_draft.py <draft.md> [--ledger <project>]`：concept_memo 禁止任何引用编号；非概念等级必须用 `--ledger` 从账本派生 user/T1 的 section/full_text 阅读记录，自填“已核验”不算；同时检查章节白名单、标签、量化断言与 TODO。检查不通过不能称为完成稿。
+- **写作硬检查（check-draft）**：每个数字/统计量必须带来源与定位，或写成显式占位符（如 `TODO(需来源)`），禁止无来源数字；正文引用只能来自实际提供/获取并已记录版本与阅读范围的来源，未核验条目只进“待核验清单”；未执行的实验、未获得的结果只能出现在“计划/待验证”节，不能出现在结果、摘要或图表；venue 规则（页数、匿名、AI 披露等）只能由用户提供；缺失时可以继续写内容，但格式/投稿部分必须标“待用户提供”，不得声称符合某 venue。交付前在 skill 目录运行 `python -B scripts/research_draft.py <draft.md> [--ledger <project>]`：concept_memo 禁止任何引用编号；非概念等级必须用 `--ledger` 从账本派生 user/T1 的 section/full_text 阅读记录，自填“已核验”不算；同时检查章节白名单、标签、量化断言与 TODO；非概念报告还要求“近邻选择与深读记录”“主张—证据等级”表，C 级主张只能出现在“暂定判断（C 级）”节。检查不通过不能称为完成稿。
 - 每个关键判断保留来源身份、版本、阅读范围与定位；区分来源报告、跨来源推断与待验证的作者主张。摘要不足以支撑决定性判断时，回到全文相关章节。
 - 用户提供的结果只作为给定事实转述，并保留用户自己声明的解释与限制。**结果解释不在本 skill 范围内**：不重新分类、不推断未给出的实验、不把给定结果扩展成未经提供的分析。
 - 完整文稿在投稿或正式提交前必须由人逐项核对来源、数字、引用、声明与目标 venue 要求；草稿末尾附“作者核对清单 + AI 使用披露草稿”，说明作者对真实性、引用与投稿决定负责。不承诺录用、新颖性或实验成功。

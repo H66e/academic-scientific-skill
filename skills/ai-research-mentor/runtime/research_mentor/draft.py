@@ -44,19 +44,25 @@ PLAN_HEADING = re.compile(r"计划|预注册|实验设计|方法|规模|成本|�
 
 COMMON_HEADINGS = {"报告等级与范围"}
 ALLOWED: dict[str, set[str]] = {
-    "concept_memo": {"当前判断与下一步", "问题与未知", "待核验线索", "下一步"},
-    "evidence_review": {"当前判断与下一步", "证据、近邻与差异", "反例、冲突与替代解释",
+    "concept_memo": {"当前判断与下一步", "问题与未知", "待核验线索", "下一步", "暂定判断（C 级）"},
+    "evidence_review": {"当前判断与下一步", "近邻选择与深读记录", "主张—证据等级", "暂定判断（C 级）",
+                        "证据、近邻与差异", "反例、冲突与替代解释",
                         "覆盖边界与待核验清单", "参考文献"},
-    "preregistration": {"当前判断与下一步", "研究问题、假设与判据", "数据与划分",
-                        "分析计划与停止判据", "风险与替代解释", "参考文献"},
-    "research_plan": {"当前判断与下一步", "研究问题、假设与判据", "方法与实验设计",
-                      "规模、成本与资源", "计划与分工", "风险与继续/停止判据", "参考文献"},
+    "preregistration": {"当前判断与下一步", "近邻选择与深读记录", "主张—证据等级", "暂定判断（C 级）",
+                        "研究问题、假设与判据", "数据与划分", "分析计划与停止判据",
+                        "风险与替代解释", "参考文献"},
+    "research_plan": {"当前判断与下一步", "近邻选择与深读记录", "主张—证据等级", "暂定判断（C 级）",
+                      "研究问题、假设与判据", "方法与实验设计", "规模、成本与资源",
+                      "计划与分工", "风险与继续/停止判据", "参考文献"},
 }
 REQUIRED: dict[str, list[str]] = {
     "concept_memo": ["当前判断与下一步", "待核验线索", "下一步"],
-    "evidence_review": ["当前判断与下一步", "证据、近邻与差异", "覆盖边界与待核验清单"],
-    "preregistration": ["当前判断与下一步", "研究问题、假设与判据", "分析计划与停止判据"],
-    "research_plan": ["当前判断与下一步", "研究问题、假设与判据", "方法与实验设计", "风险与继续/停止判据"],
+    "evidence_review": ["当前判断与下一步", "近邻选择与深读记录", "主张—证据等级",
+                        "证据、近邻与差异", "覆盖边界与待核验清单"],
+    "preregistration": ["当前判断与下一步", "近邻选择与深读记录", "主张—证据等级",
+                        "研究问题、假设与判据", "分析计划与停止判据"],
+    "research_plan": ["当前判断与下一步", "近邻选择与深读记录", "主张—证据等级",
+                      "研究问题、假设与判据", "方法与实验设计", "风险与继续/停止判据"],
 }
 CONCEPT_MAX = 4000
 
@@ -152,6 +158,32 @@ def _check_identity(identifier: str, title: str, view: dict, scope: str) -> list
     return errors
 
 
+
+
+def _section_text(lines: list[str], title: str) -> str:
+    start = next((i for i, line in enumerate(lines) if _title(re.sub(r"^#+\s*", "", line.strip())) == title), None)
+    if start is None:
+        return ""
+    out = []
+    for line in lines[start + 1:]:
+        if re.match(r"^#{1,6}\s+", line.strip()):
+            break
+        out.append(line)
+    return "\n".join(out)
+
+
+def _claim_rows(text: str) -> list[list[str]]:
+    rows = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        if len(cells) >= 5 and cells[0] not in {"编号", "---"} and not cells[0].startswith("---"):
+            rows.append(cells[:5])
+    return rows
+
+
 def check_draft(path: str | pathlib.Path, ledger: str | pathlib.Path | None = None) -> dict[str, Any]:
     target = pathlib.Path(path)
     raw = target.read_text(encoding="utf-8")
@@ -161,6 +193,7 @@ def check_draft(path: str | pathlib.Path, ledger: str | pathlib.Path | None = No
     kind = DOC_KIND.search(raw)
     errors: list[str] = []
     warnings: list[str] = []
+    projections = None
     if len(tiers) != 1:
         errors.append("REPORT_TIER_MARKER must appear exactly once")
         tier = ""
@@ -178,6 +211,47 @@ def check_draft(path: str | pathlib.Path, ledger: str | pathlib.Path | None = No
     if headings:
         headings = headings[1:]  # first heading is the document title
     titles = [title for title, _ in headings]
+    if tier in {"evidence_review", "preregistration", "research_plan"}:
+        nearest = _section_text(body, "近邻选择与深读记录")
+        queries = len(re.findall(r"(?:检索式|query)", nearest, re.I))
+        if queries < 2:
+            errors.append("NEAREST_SELECTION_REQUIRES_TWO_QUERIES")
+        if nearest.count("|") < 3:
+            errors.append("NEAREST_SELECTION_TABLE_MISSING")
+        claims = _claim_rows(_section_text(body, "主张—证据等级"))
+        if not claims:
+            errors.append("CLAIM_EVIDENCE_TABLE_MISSING")
+        else:
+            graded = [row for row in claims if row[2] in {"A", "B"}]
+            if not graded:
+                errors.append("NO_A_OR_B_GRADE_CLAIM")
+            current = _section_text(body, "当前判断与下一步")
+            has_c = False
+            for row in claims:
+                grade = row[2]
+                if grade not in {"A", "B", "C"}:
+                    errors.append(f"INVALID_CLAIM_GRADE {grade!r}")
+                    continue
+                if grade == "C":
+                    has_c = True
+                    if not row[4].strip():
+                        errors.append("C_CLAIM_NEEDS_FLIP_CONDITION")
+                    if row[1][:20] and row[1][:20] in current:
+                        errors.append("C_CLAIM_STATED_IN_CURRENT_JUDGMENT")
+                else:
+                    if not row[3].startswith("ledger:"):
+                        errors.append("A_B_CLAIM_NOT_LEDGER_BOUND")
+                    elif projections:
+                        link = row[3][7:].strip()
+                        source = link if link in projections["sources"] else projections["anchor_to_source"].get(link)
+                        view = projections["sources"].get(source) if source else None
+                        if not view or not view.get("readings"):
+                            errors.append("A_B_CLAIM_NOT_VERIFIED")
+            if has_c:
+                c_text = _section_text(body, "暂定判断（C 级）")
+                if not c_text or "翻转条件" not in c_text or "最小核验" not in c_text:
+                    errors.append("C_CLAIM_SECTION_INCOMPLETE")
+
     if ref_index is not None:
         for line in refs[1:]:
             if line.strip() and not line.strip().startswith("|"):

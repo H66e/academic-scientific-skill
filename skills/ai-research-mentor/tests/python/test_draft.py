@@ -74,6 +74,21 @@ EVIDENCE = """# 研究报告
 
 两个已核验来源 [1,2]。
 
+## 近邻选择与深读记录
+
+- 检索式 1：mask refinement
+- 检索式 2：inpainting mask expansion
+
+| 近邻 | 为什么最接近 | 阅读状态 | 致命问题 | 答案 | 定位 |
+| --- | --- | --- | --- | --- | --- |
+| P1 | 动作集合相近 | full_text | 是否按成本选择动作 | 否 | §3 |
+
+## 主张—证据等级
+
+| 编号 | 主张 | 等级 | 依据 | 翻转条件 |
+| --- | --- | --- | --- | --- |
+| C1 | 与 P1 在动作集合上不同 | A | ledger:S1 | 若 P1 也按成本选择动作则不成立 |
+
 ## 证据、近邻与差异
 
 已有证据。
@@ -171,6 +186,20 @@ class DraftContractTests(unittest.TestCase):
         result = self.check(plan)
         self.assertFalse(result["valid"])
         self.assertTrue(any("NO_VERIFIED_CITATIONS" in error for error in result["errors"]))
+
+    def test_nearest_selection_requires_two_queries(self):
+        result = self.check(EVIDENCE.replace("- 检索式 2：inpainting mask expansion", ""), ledger="x")
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("NEAREST_SELECTION_REQUIRES_TWO_QUERIES" in error for error in result["errors"]))
+
+    def test_c_claim_must_be_provisional(self):
+        c_claim = EVIDENCE.replace(
+            "| C1 | 与 P1 在动作集合上不同 | A | ledger:S1 | 若 P1 也按成本选择动作则不成立 |",
+            "| C1 | 与 P1 在动作集合上不同 | C | 摘要级/未读 | 若 P1 也按成本选择动作则不成立 |",
+        )
+        result = self.check(c_claim, ledger="x")
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("C_CLAIM_SECTION_INCOMPLETE" in error for error in result["errors"]))
 
     def test_go_term_is_not_a_label(self):
         result = self.check(CONCEPT.replace("- 未知。", "- GO term enrichment 需要核对。"))
