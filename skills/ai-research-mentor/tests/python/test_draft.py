@@ -190,7 +190,7 @@ class DraftContractTests(unittest.TestCase):
     def test_nearest_selection_requires_two_queries(self):
         result = self.check(EVIDENCE.replace("- 检索式 2：inpainting mask expansion", ""), ledger="x")
         self.assertFalse(result["valid"])
-        self.assertTrue(any("NEAREST_SELECTION_REQUIRES_TWO_QUERIES" in error for error in result["errors"]))
+        self.assertTrue(any("NEAREST_SELECTION_REQUIRES_TWO_DISTINCT_QUERIES" in error for error in result["errors"]))
 
     def test_c_claim_must_be_provisional(self):
         c_claim = EVIDENCE.replace(
@@ -200,6 +200,22 @@ class DraftContractTests(unittest.TestCase):
         result = self.check(c_claim, ledger="x")
         self.assertFalse(result["valid"])
         self.assertTrue(any("C_CLAIM_SECTION_INCOMPLETE" in error for error in result["errors"]))
+
+    def test_a_or_b_claim_with_bad_ledger_fails(self):
+        result = self.check(EVIDENCE.replace("ledger:S1", "ledger:NOPE"), ledger="x")
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("A_B_CLAIM_NOT_VERIFIED" in error for error in result["errors"]))
+
+    def test_c_only_report_is_valid_if_provisional_section_is_complete(self):
+        c_only = EVIDENCE.replace(
+            "| C1 | 与 P1 在动作集合上不同 | A | ledger:S1 | 若 P1 也按成本选择动作则不成立 |",
+            "| C1 | 与 P1 在动作集合上不同 | C | 摘要级/未读 | 若 P1 也按成本选择动作则不成立 |",
+        ).replace(
+            "## 证据、近邻与差异",
+            "## 暂定判断（C 级）\n\n- 暂定判断：C1 倾向不同，置信低。\n- 翻转条件：若 P1 也按成本选择动作则不成立。\n- 最小核验：读 P1 §3。\n- 获取路径：arXiv。\n\n## 证据、近邻与差异",
+        )
+        result = self.check(c_only, ledger="x")
+        self.assertTrue(result["valid"], result["errors"])
 
     def test_go_term_is_not_a_label(self):
         result = self.check(CONCEPT.replace("- 未知。", "- GO term enrichment 需要核对。"))

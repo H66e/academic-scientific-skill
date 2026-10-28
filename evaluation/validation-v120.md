@@ -14,11 +14,11 @@
 
 | 检查 | 实际结果 | 边界 |
 | --- | --- | --- |
-| `python -B evaluation/run-python-tests.py` | **312 tests，OK，skipped=1** | 合成文本/本地账本；不是科研效果证明 |
+| `python -B evaluation/run-python-tests.py` | **314 tests，OK，skipped=1** | 合成文本/本地账本；不是科研效果证明 |
 | `check-skill` | valid；66 条技能内链接、112 行入口 | 结构/链接检查 |
 | `check-templates` | valid；paper/survey/proposal/report 四份模板 | 只验证结构标记 |
 | `check-python-only` | valid；157 个文件 | 只排除语言/清单 |
-| `package` | 58 个文件、740,278 字节、SHA-256 `6e78cccf…` | 发布包构建产物，不入 Git |
+| `package` | 58 个文件、743,506 字节、SHA-256 `702da9c8…` | 发布包构建产物，不入 Git |
 | `check-package` | valid，`deterministic: true` | 确定性不等于科学正确性 |
 
 ## 诚实边界

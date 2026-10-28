@@ -144,7 +144,7 @@ def _check_identity(identifier: str, title: str, view: dict, scope: str) -> list
         if not expected_arxiv or actual != expected_arxiv:
             errors.append("CITATION_IDENTITY_MISMATCH (arXiv/version)")
     elif ident.lower().startswith("url:"):
-        if not view.get("url") or ident[6:].strip() != view["url"]:
+        if not view.get("url") or ident[4:].strip() != view["url"]:
             errors.append("CITATION_IDENTITY_MISMATCH (URL)")
     else:
         errors.append("UNIDENTIFIABLE_CITATION (use doi:, arXiv: or url:)")
@@ -161,7 +161,7 @@ def _check_identity(identifier: str, title: str, view: dict, scope: str) -> list
 
 
 def _section_text(lines: list[str], title: str) -> str:
-    start = next((i for i, line in enumerate(lines) if _title(re.sub(r"^#+\s*", "", line.strip())) == title), None)
+    start = next((i for i, line in enumerate(lines) if _title(re.sub(r"^#+\s*", "", line.strip())) == _title(title)), None)
     if start is None:
         return ""
     out = []
@@ -207,24 +207,45 @@ def check_draft(path: str | pathlib.Path, ledger: str | pathlib.Path | None = No
 
     lines = visible.splitlines()
     body, refs, ref_index = _ref_section(lines)
+    body_text = "\n".join(body)
     headings = _headings(body)
     if headings:
         headings = headings[1:]  # first heading is the document title
     titles = [title for title, _ in headings]
+    if tier in {"evidence_review", "preregistration", "research_plan"} and ledger is not None and projections is None:
+        try:
+            projections = derive_tier(pathlib.Path(ledger))
+        except Exception:  # noqa: BLE001
+            projections = None
     if tier in {"evidence_review", "preregistration", "research_plan"}:
         nearest = _section_text(body, "近邻选择与深读记录")
-        queries = len(re.findall(r"(?:检索式|query)", nearest, re.I))
-        if queries < 2:
-            errors.append("NEAREST_SELECTION_REQUIRES_TWO_QUERIES")
-        if nearest.count("|") < 3:
+        query_values = []
+        for line in nearest.splitlines():
+            if re.search(r"检索式|query", line, re.I):
+                value = re.split(r"[:：]", line, maxsplit=1)[-1].strip() if re.search(r"[:：]", line) else ""
+                if value and "[" not in value:
+                    query_values.append(value)
+        if len(set(query_values)) < 2:
+            errors.append("NEAREST_SELECTION_REQUIRES_TWO_DISTINCT_QUERIES")
+        data_rows = []
+        for line in nearest.splitlines():
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")] if line.strip().startswith("|") else []
+            if len(cells) >= 6 and cells[0] not in {"近邻", "---"} and not cells[0].startswith("---"):
+                data_rows.append(cells)
+        if not data_rows:
             errors.append("NEAREST_SELECTION_TABLE_MISSING")
+        for row in data_rows:
+            if any("[" in cell for cell in row[2:]):
+                errors.append("NEAREST_SELECTION_PLACEHOLDERS_REMAIN")
+            if not row[3] or not row[4] or not row[5]:
+                errors.append("KILL_QUESTION_ANSWER_LOCATOR_REQUIRED")
         claims = _claim_rows(_section_text(body, "主张—证据等级"))
         if not claims:
             errors.append("CLAIM_EVIDENCE_TABLE_MISSING")
         else:
             graded = [row for row in claims if row[2] in {"A", "B"}]
             if not graded:
-                errors.append("NO_A_OR_B_GRADE_CLAIM")
+                warnings.append("NO_A_OR_B_GRADE_CLAIM (C-only report)")
             current = _section_text(body, "当前判断与下一步")
             has_c = False
             for row in claims:
@@ -232,25 +253,29 @@ def check_draft(path: str | pathlib.Path, ledger: str | pathlib.Path | None = No
                 if grade not in {"A", "B", "C"}:
                     errors.append(f"INVALID_CLAIM_GRADE {grade!r}")
                     continue
+                if not row[4].strip():
+                    errors.append("CLAIM_NEEDS_FLIP_CONDITION")
                 if grade == "C":
                     has_c = True
-                    if not row[4].strip():
-                        errors.append("C_CLAIM_NEEDS_FLIP_CONDITION")
-                    if row[1][:20] and row[1][:20] in current:
-                        errors.append("C_CLAIM_STATED_IN_CURRENT_JUDGMENT")
+                    outside = body_text.replace(_section_text(body, "暂定判断（C 级）"), "").replace(_section_text(body, "主张—证据等级"), "")
+                    if row[1][:20] and row[1][:20] in outside:
+                        errors.append("C_CLAIM_STATED_OUTSIDE_PROVISIONAL_SECTION")
                 else:
-                    if not row[3].startswith("ledger:"):
+                    if not row[3].strip("`").startswith("ledger:"):
                         errors.append("A_B_CLAIM_NOT_LEDGER_BOUND")
                     elif projections:
-                        link = row[3][7:].strip()
+                        link = row[3].strip("`")[7:].strip()
                         source = link if link in projections["sources"] else projections["anchor_to_source"].get(link)
                         view = projections["sources"].get(source) if source else None
                         if not view or not view.get("readings"):
                             errors.append("A_B_CLAIM_NOT_VERIFIED")
             if has_c:
                 c_text = _section_text(body, "暂定判断（C 级）")
-                if not c_text or "翻转条件" not in c_text or "最小核验" not in c_text:
+                if not c_text or "翻转条件" not in c_text or "最小核验" not in c_text or "获取路径" not in c_text:
                     errors.append("C_CLAIM_SECTION_INCOMPLETE")
+                for row in claims:
+                    if row[2] == "C" and row[0] not in c_text:
+                        errors.append(f"C_CLAIM_ID_MISSING_FROM_PROVISIONAL_SECTION {row[0]}")
 
     if ref_index is not None:
         for line in refs[1:]:
@@ -261,12 +286,12 @@ def check_draft(path: str | pathlib.Path, ledger: str | pathlib.Path | None = No
         if extra:
             errors.append("CONTENT_AFTER_REFERENCES")
 
-    allowed = COMMON_HEADINGS | ALLOWED.get(tier, set())
+    allowed = {_title(item) for item in (COMMON_HEADINGS | ALLOWED.get(tier, set()))}
     for title in titles:
-        if title not in allowed:
+        if _title(title) not in allowed:
             errors.append(f"HEADING_NOT_ALLOWED {title!r}")
     for needed in REQUIRED.get(tier, []):
-        if needed not in titles:
+        if _title(needed) not in titles:
             errors.append(f"MISSING_SECTION {needed!r}")
 
     body_text = "\n".join(body)
@@ -281,7 +306,6 @@ def check_draft(path: str | pathlib.Path, ledger: str | pathlib.Path | None = No
         if hit:
             errors.append(f"UNSUPPORTED_CITATION_FORM {hit.group(0)[:40]!r}")
 
-    projections = None
     if tier == "concept_memo":
         if used:
             errors.append("CONCEPT_MEMO_CITATIONS_FORBIDDEN")
@@ -293,11 +317,12 @@ def check_draft(path: str | pathlib.Path, ledger: str | pathlib.Path | None = No
         if ledger is None:
             errors.append("LEDGER_REQUIRED")
         else:
-            try:
-                projections = derive_tier(pathlib.Path(ledger))
-            except Exception as exc:  # noqa: BLE001
-                errors.append(f"LEDGER_VERIFICATION_FAILED {exc}")
-                projections = None
+            if projections is None:
+                try:
+                    projections = derive_tier(pathlib.Path(ledger))
+                except Exception as exc:  # noqa: BLE001
+                    errors.append(f"LEDGER_VERIFICATION_FAILED {exc}")
+                    projections = None
             if projections:
                 if not projections["chain_ok"]:
                     errors.append("LEDGER_CHAIN")
