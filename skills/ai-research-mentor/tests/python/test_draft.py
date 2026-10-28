@@ -76,18 +76,24 @@ EVIDENCE = """# 研究报告
 
 ## 近邻选择与深读记录
 
-- 检索式 1：mask refinement
-- 检索式 2：inpainting mask expansion
-
-| 近邻 | 为什么最接近 | 阅读状态 | 致命问题 | 答案 | 定位 |
-| --- | --- | --- | --- | --- | --- |
-| P1 | 动作集合相近 | full_text | 是否按成本选择动作 | 否 | §3 |
+```nearest-set-json
+{
+  "created_at": "2026-10-28",
+  "queries": ["mask refinement", "inpainting mask expansion"],
+  "candidates": [
+    {"id": "P1", "rationale": "动作集合相近", "status": "full_text", "reader": "model", "ledger": "ledger:E1", "locator": "§3",
+     "kill_questions": [{"q": "是否按成本选择动作", "answer": "否", "locator": "§3"}, {"q": "动作是否含收缩", "answer": "是", "locator": "§4"}]},
+    {"id": "P2", "rationale": "另一种掩码路线", "status": "section", "reader": "user", "ledger": "ledger:E2", "locator": "§2",
+     "kill_questions": [{"q": "是否比较净收益", "answer": "未读到", "locator": "§2"}, {"q": "是否等成本", "answer": "未读到", "locator": "§3"}]}
+  ]
+}
+```
 
 ## 主张—证据等级
 
 | 编号 | 主张 | 等级 | 依据 | 翻转条件 |
 | --- | --- | --- | --- | --- |
-| C1 | 与 P1 在动作集合上不同 | A | ledger:S1 | 若 P1 也按成本选择动作则不成立 |
+| C1 | 与 P1 在动作集合上不同 | A | ledger:E1 | 若 P1 也按成本选择动作则不成立 |
 
 ## 证据、近邻与差异
 
@@ -188,13 +194,13 @@ class DraftContractTests(unittest.TestCase):
         self.assertTrue(any("NO_VERIFIED_CITATIONS" in error for error in result["errors"]))
 
     def test_nearest_selection_requires_two_queries(self):
-        result = self.check(EVIDENCE.replace("- 检索式 2：inpainting mask expansion", ""), ledger="x")
+        result = self.check(EVIDENCE.replace('"queries": ["mask refinement", "inpainting mask expansion"]', '"queries": ["mask refinement"]'), ledger="x")
         self.assertFalse(result["valid"])
-        self.assertTrue(any("NEAREST_SELECTION_REQUIRES_TWO_DISTINCT_QUERIES" in error for error in result["errors"]))
+        self.assertTrue(any("NEAREST_SET_REQUIRES_TWO_DISTINCT_QUERIES" in error for error in result["errors"]))
 
     def test_c_claim_must_be_provisional(self):
         c_claim = EVIDENCE.replace(
-            "| C1 | 与 P1 在动作集合上不同 | A | ledger:S1 | 若 P1 也按成本选择动作则不成立 |",
+            "| C1 | 与 P1 在动作集合上不同 | A | ledger:E1 | 若 P1 也按成本选择动作则不成立 |",
             "| C1 | 与 P1 在动作集合上不同 | C | 摘要级/未读 | 若 P1 也按成本选择动作则不成立 |",
         )
         result = self.check(c_claim, ledger="x")
@@ -202,17 +208,17 @@ class DraftContractTests(unittest.TestCase):
         self.assertTrue(any("C_CLAIM_SECTION_INCOMPLETE" in error for error in result["errors"]))
 
     def test_a_or_b_claim_with_bad_ledger_fails(self):
-        result = self.check(EVIDENCE.replace("ledger:S1", "ledger:NOPE"), ledger="x")
+        result = self.check(EVIDENCE.replace("ledger:E1", "ledger:NOPE"), ledger="x")
         self.assertFalse(result["valid"])
         self.assertTrue(any("A_B_CLAIM_NOT_VERIFIED" in error for error in result["errors"]))
 
     def test_c_only_report_is_valid_if_provisional_section_is_complete(self):
         c_only = EVIDENCE.replace(
-            "| C1 | 与 P1 在动作集合上不同 | A | ledger:S1 | 若 P1 也按成本选择动作则不成立 |",
+            "| C1 | 与 P1 在动作集合上不同 | A | ledger:E1 | 若 P1 也按成本选择动作则不成立 |",
             "| C1 | 与 P1 在动作集合上不同 | C | 摘要级/未读 | 若 P1 也按成本选择动作则不成立 |",
         ).replace(
             "## 证据、近邻与差异",
-            "## 暂定判断（C 级）\n\n- 暂定判断：C1 倾向不同，置信低。\n- 翻转条件：若 P1 也按成本选择动作则不成立。\n- 最小核验：读 P1 §3。\n- 获取路径：arXiv。\n\n## 证据、近邻与差异",
+            "## 暂定判断（C 级）\n\n- 暂定判断：倾向不同 [C1]，置信低。\n- 翻转条件：若 P1 也按成本选择动作则不成立。\n- 最小核验：读 P1 §3。\n- 获取路径：arXiv。\n\n## 证据、近邻与差异",
         )
         result = self.check(c_only, ledger="x")
         self.assertTrue(result["valid"], result["errors"])

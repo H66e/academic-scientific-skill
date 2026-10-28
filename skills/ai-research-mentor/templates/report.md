@@ -57,17 +57,32 @@
 
 ### 当前判断与下一步
 
+> 高成本结论句末加主张编号，例如 [C1]；C 级只能以“倾向 + [C#]”出现在暂定节。
+
 [三问答案；证据不足处写未确认。]
 
 ### 近邻选择与深读记录
 
-- 检索式 1：[术语/数据库/时间范围]
-- 检索式 2：[另一种措辞或术语体系]
-- 候选与排序理由：[为什么它最接近；可能漏掉的近邻簇]
-
-| 近邻 | 为什么最接近 | 阅读状态 | 致命问题 | 答案 | 定位 |
-| --- | --- | --- | --- | --- | --- |
-| [P1] | [差异可能在哪] | [已读 section/full_text / 未读 / 无权限] | [若答案是 Y，当前主张不成立的问题] | [是/否/未读到] | [§/表/图] |
+```nearest-set-json
+{
+  "created_at": "YYYY-MM-DD",
+  "queries": ["检索式 1（术语/数据库）", "检索式 2（另一种措辞）"],
+  "candidates": [
+    {"id": "P1", "rationale": "为什么最接近；可能漏掉什么", "status": "full_text",
+     "reader": "model", "ledger": "ledger:E1", "locator": "§3.2",
+     "kill_questions": [
+       {"q": "若答案是 Y，哪个主张不成立？", "answer": "是/否/未读到", "locator": "§3.2"},
+       {"q": "第二个致命问题", "answer": "是/否/未读到", "locator": "§4 / Table 2"}
+     ]},
+    {"id": "P2", "rationale": "第二篇候选及理由", "status": "section",
+     "reader": "user", "ledger": "ledger:E2", "locator": "§2",
+     "kill_questions": [
+       {"q": "第二个候选的致命问题 1", "answer": "是/否/未读到", "locator": "§2"},
+       {"q": "第二个候选的致命问题 2", "answer": "是/否/未读到", "locator": "§3"}
+     ]}
+  ]
+}
+```
 
 ### 主张—证据等级
 
@@ -118,13 +133,26 @@
 
 ### 近邻选择与深读记录
 
-- 检索式 1：[术语/数据库/时间范围]
-- 检索式 2：[另一种措辞或术语体系]
-- 候选与排序理由：[为什么它最接近；可能漏掉的近邻簇]
-
-| 近邻 | 为什么最接近 | 阅读状态 | 致命问题 | 答案 | 定位 |
-| --- | --- | --- | --- | --- | --- |
-| [P1] | [差异可能在哪] | [已读 section/full_text / 未读 / 无权限] | [若答案是 Y，当前主张不成立的问题] | [是/否/未读到] | [§/表/图] |
+```nearest-set-json
+{
+  "created_at": "YYYY-MM-DD",
+  "queries": ["检索式 1（术语/数据库）", "检索式 2（另一种措辞）"],
+  "candidates": [
+    {"id": "P1", "rationale": "为什么最接近；可能漏掉什么", "status": "full_text",
+     "reader": "model", "ledger": "ledger:E1", "locator": "§3.2",
+     "kill_questions": [
+       {"q": "若答案是 Y，哪个主张不成立？", "answer": "是/否/未读到", "locator": "§3.2"},
+       {"q": "第二个致命问题", "answer": "是/否/未读到", "locator": "§4 / Table 2"}
+     ]},
+    {"id": "P2", "rationale": "第二篇候选及理由", "status": "section",
+     "reader": "user", "ledger": "ledger:E2", "locator": "§2",
+     "kill_questions": [
+       {"q": "第二个候选的致命问题 1", "answer": "是/否/未读到", "locator": "§2"},
+       {"q": "第二个候选的致命问题 2", "answer": "是/否/未读到", "locator": "§3"}
+     ]}
+  ]
+}
+```
 
 ### 主张—证据等级
 
@@ -173,13 +201,26 @@
 
 ### 近邻选择与深读记录
 
-- 检索式 1：[术语/数据库/时间范围]
-- 检索式 2：[另一种措辞或术语体系]
-- 候选与排序理由：[为什么它最接近；可能漏掉的近邻簇]
-
-| 近邻 | 为什么最接近 | 阅读状态 | 致命问题 | 答案 | 定位 |
-| --- | --- | --- | --- | --- | --- |
-| [P1] | [差异可能在哪] | [已读 section/full_text / 未读 / 无权限] | [若答案是 Y，当前主张不成立的问题] | [是/否/未读到] | [§/表/图] |
+```nearest-set-json
+{
+  "created_at": "YYYY-MM-DD",
+  "queries": ["检索式 1（术语/数据库）", "检索式 2（另一种措辞）"],
+  "candidates": [
+    {"id": "P1", "rationale": "为什么最接近；可能漏掉什么", "status": "full_text",
+     "reader": "model", "ledger": "ledger:E1", "locator": "§3.2",
+     "kill_questions": [
+       {"q": "若答案是 Y，哪个主张不成立？", "answer": "是/否/未读到", "locator": "§3.2"},
+       {"q": "第二个致命问题", "answer": "是/否/未读到", "locator": "§4 / Table 2"}
+     ]},
+    {"id": "P2", "rationale": "第二篇候选及理由", "status": "section",
+     "reader": "user", "ledger": "ledger:E2", "locator": "§2",
+     "kill_questions": [
+       {"q": "第二个候选的致命问题 1", "answer": "是/否/未读到", "locator": "§2"},
+       {"q": "第二个候选的致命问题 2", "answer": "是/否/未读到", "locator": "§3"}
+     ]}
+  ]
+}
+```
 
 ### 主张—证据等级
 

@@ -7,8 +7,8 @@ claims, what is out of scope, and how to report a problem.
 
 ## Supported versions
 
-The current release is **0.12.0**. Security fixes are considered for the 0.12.x
-line only. Version 0.11.x remains available for users who still need result
+The current release is **0.13.0**. Security fixes are considered for the 0.13.x
+line only. Version 0.12.x remains available for users who still need result
 logging, but it is no longer the supported security line.
 
 Version 0.3.0 is the last Node.js implementation and was retired under

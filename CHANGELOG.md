@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.13.0
+
+2026-10-28. 按 0.12.0 复审意见修复结构化近邻选择与主张绑定。设计见 [ADR 0018](docs/decisions/0018-structured-nearest-set-and-claim-ids.md)。
+
+- 近邻选择改为 `nearest-set-json` 结构块（created_at、两条不同检索式、两个候选、每候选 rationale/status/reader/ledger/locator/两个致命问题）；占位符/缺字段/非法状态失败，180 天 stale warning。
+- 当前判断每条 bullet 必须带 `[C#]`；C 级只能进“暂定判断（C 级）”，并带 claim ID、翻转条件、最小核验、获取路径；A/B 必须绑定 nearest-set 候选并映射到 user/T1 section/full_text 阅读。
+- 修复 0.12.0 复审发现的 projections 死代码、C 级 NFKC 键、反引号、URL 切片、C-only 误判、模板列数；补充 bad-ledger、C-only、distinct-query、C-section 测试。
+- 模型代读与缓存过期仍是规范级记录，不是自动执行；无效果证据。
+
 ## 0.12.0
 
 2026-10-28. 按两位评委对“近邻深读门”的六点建议实现。设计见 [ADR 0017](docs/decisions/0017-nearest-work-deep-read-gate.md)。

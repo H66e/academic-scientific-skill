@@ -8,6 +8,7 @@ that the report is scientifically good.
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 import pathlib
 import re
@@ -219,26 +220,59 @@ def check_draft(path: str | pathlib.Path, ledger: str | pathlib.Path | None = No
             projections = None
     if tier in {"evidence_review", "preregistration", "research_plan"}:
         nearest = _section_text(body, "近邻选择与深读记录")
-        query_values = []
-        for line in nearest.splitlines():
-            if re.search(r"检索式|query", line, re.I):
-                value = re.split(r"[:：]", line, maxsplit=1)[-1].strip() if re.search(r"[:：]", line) else ""
-                if value and "[" not in value:
-                    query_values.append(value)
-        if len(set(query_values)) < 2:
-            errors.append("NEAREST_SELECTION_REQUIRES_TWO_DISTINCT_QUERIES")
-        data_rows = []
-        for line in nearest.splitlines():
-            cells = [cell.strip() for cell in line.strip().strip("|").split("|")] if line.strip().startswith("|") else []
-            if len(cells) >= 6 and cells[0] not in {"近邻", "---"} and not cells[0].startswith("---"):
-                data_rows.append(cells)
-        if not data_rows:
-            errors.append("NEAREST_SELECTION_TABLE_MISSING")
-        for row in data_rows:
-            if any("[" in cell for cell in row[2:]):
-                errors.append("NEAREST_SELECTION_PLACEHOLDERS_REMAIN")
-            if not row[3] or not row[4] or not row[5]:
-                errors.append("KILL_QUESTION_ANSWER_LOCATOR_REQUIRED")
+        block = re.search(r"```nearest-set-json\s*(.*?)```", nearest, re.S)
+        candidate_ledgers = set()
+        if not block:
+            errors.append("NEAREST_SET_BLOCK_MISSING")
+        else:
+            try:
+                data = json.loads(block.group(1))
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"NEAREST_SET_JSON_INVALID {exc}")
+                data = {}
+            queries = data.get("queries")
+            if not isinstance(queries, list) or len({str(q).strip() for q in queries if str(q).strip()}) < 2:
+                errors.append("NEAREST_SET_REQUIRES_TWO_DISTINCT_QUERIES")
+            created = data.get("created_at")
+            if not isinstance(created, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", created):
+                errors.append("NEAREST_SET_CREATED_AT_REQUIRED")
+            else:
+                try:
+                    age = (dt.date.today() - dt.date.fromisoformat(created)).days
+                    if age > 180:
+                        warnings.append(f"NEAREST_SET_STALE {age} days")
+                except ValueError:
+                    errors.append("NEAREST_SET_CREATED_AT_INVALID")
+            candidates = data.get("candidates")
+            if not isinstance(candidates, list) or len(candidates) < 2:
+                errors.append("NEAREST_SET_REQUIRES_TWO_CANDIDATES")
+                candidates = candidates if isinstance(candidates, list) else []
+            for candidate in candidates:
+                if not isinstance(candidate, dict):
+                    errors.append("NEAREST_CANDIDATE_INVALID")
+                    continue
+                for field in ("id", "rationale", "status", "reader", "ledger", "locator"):
+                    if not isinstance(candidate.get(field), str) or not candidate[field].strip():
+                        errors.append(f"NEAREST_CANDIDATE_MISSING_{field.upper()}")
+                if candidate.get("status") not in {"full_text", "section", "abstract", "unseen"}:
+                    errors.append("NEAREST_CANDIDATE_INVALID_STATUS")
+                if candidate.get("reader") not in {"model", "user"}:
+                    errors.append("NEAREST_CANDIDATE_INVALID_READER")
+                ledger_id = candidate.get("ledger", "").strip()
+                if isinstance(ledger_id, str) and ledger_id.startswith("ledger:"):
+                    ledger_id = ledger_id[7:].strip()
+                if ledger_id:
+                    candidate_ledgers.add(ledger_id)
+                kill = candidate.get("kill_questions")
+                if not isinstance(kill, list) or len(kill) < 2:
+                    errors.append("NEAREST_CANDIDATE_NEEDS_TWO_KILL_QUESTIONS")
+                else:
+                    for question in kill:
+                        if not isinstance(question, dict) or not all(
+                                isinstance(question.get(key), str) and question[key].strip()
+                                for key in ("q", "answer", "locator")):
+                            errors.append("NEAREST_KILL_QUESTION_INCOMPLETE")
+
         claims = _claim_rows(_section_text(body, "主张—证据等级"))
         if not claims:
             errors.append("CLAIM_EVIDENCE_TABLE_MISSING")
@@ -247,35 +281,43 @@ def check_draft(path: str | pathlib.Path, ledger: str | pathlib.Path | None = No
             if not graded:
                 warnings.append("NO_A_OR_B_GRADE_CLAIM (C-only report)")
             current = _section_text(body, "当前判断与下一步")
-            has_c = False
+            current_ids = set(re.findall(r"\[(C\d+)\]", current))
+            c_ids = {row[0] for row in claims if row[2] == "C"}
+            for line in current.splitlines():
+                if re.match(r"\s*[-*]\s+", line) and not re.findall(r"\[(C\d+)\]", line):
+                    errors.append("CURRENT_JUDGMENT_CLAIM_ID_MISSING")
+            for line in current.splitlines():
+                for cid in re.findall(r"\[(C\d+)\]", line):
+                    if cid in c_ids:
+                        errors.append("C_CLAIM_STATED_IN_CURRENT_JUDGMENT")
             for row in claims:
-                grade = row[2]
-                if grade not in {"A", "B", "C"}:
-                    errors.append(f"INVALID_CLAIM_GRADE {grade!r}")
-                    continue
+                if row[2] in {"A", "B"} and row[0] not in current_ids:
+                    warnings.append(f"A_B_CLAIM_NOT_REFERENCED_IN_CURRENT {row[0]}")
                 if not row[4].strip():
                     errors.append("CLAIM_NEEDS_FLIP_CONDITION")
-                if grade == "C":
-                    has_c = True
-                    outside = body_text.replace(_section_text(body, "暂定判断（C 级）"), "").replace(_section_text(body, "主张—证据等级"), "")
-                    if row[1][:20] and row[1][:20] in outside:
-                        errors.append("C_CLAIM_STATED_OUTSIDE_PROVISIONAL_SECTION")
-                else:
-                    if not row[3].strip("`").startswith("ledger:"):
-                        errors.append("A_B_CLAIM_NOT_LEDGER_BOUND")
-                    elif projections:
-                        link = row[3].strip("`")[7:].strip()
-                        source = link if link in projections["sources"] else projections["anchor_to_source"].get(link)
-                        view = projections["sources"].get(source) if source else None
-                        if not view or not view.get("readings"):
-                            errors.append("A_B_CLAIM_NOT_VERIFIED")
-            if has_c:
+                if row[2] == "C":
+                    continue
+                if not row[3].strip("`").startswith("ledger:"):
+                    errors.append("A_B_CLAIM_NOT_LEDGER_BOUND")
+                    continue
+                link = row[3].strip("`")[7:].strip()
+                if link not in candidate_ledgers:
+                    errors.append("A_B_CLAIM_NOT_IN_NEAREST_SET")
+                source = (link if link in projections["sources"] else projections["anchor_to_source"].get(link)) if projections else None
+                view = projections["sources"].get(source) if projections and source else None
+                if not view or not view.get("readings"):
+                    errors.append("A_B_CLAIM_NOT_VERIFIED")
+            if c_ids:
                 c_text = _section_text(body, "暂定判断（C 级）")
                 if not c_text or "翻转条件" not in c_text or "最小核验" not in c_text or "获取路径" not in c_text:
                     errors.append("C_CLAIM_SECTION_INCOMPLETE")
-                for row in claims:
-                    if row[2] == "C" and row[0] not in c_text:
-                        errors.append(f"C_CLAIM_ID_MISSING_FROM_PROVISIONAL_SECTION {row[0]}")
+                for cid in c_ids:
+                    if f"[{cid}]" not in c_text:
+                        errors.append(f"C_CLAIM_ID_MISSING_FROM_PROVISIONAL_SECTION {cid}")
+                outside = body_text.replace(c_text, "").replace(_section_text(body, "主张—证据等级"), "")
+                for cid in c_ids:
+                    if f"[{cid}]" in outside:
+                        errors.append("C_CLAIM_STATED_OUTSIDE_PROVISIONAL_SECTION")
 
     if ref_index is not None:
         for line in refs[1:]:
