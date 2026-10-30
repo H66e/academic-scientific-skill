@@ -33,7 +33,7 @@ Python 新字段的修改应更新 [python-core.md](skills/ai-research-mentor/re
 1. 在 CHANGELOG 写清楚的发布小节，更新 `VERSION`、`pyproject.toml`、README 当前版本行，并补齐验收记录。
 2. 本地运行 `python -B evaluation/run-python-tests.py` 与 `check-skill`、`check-examples`、`check-python-only`、`package`、`check-package`。
 3. 提交并以该提交打 annotated tag（`v<VERSION>`）；tag 一旦推送即视为不可变，后续改动必须升版本。CI 在 tag 推送时额外核对 `GITHUB_REF_NAME` 等于 `v` 加 `VERSION` 内容，不一致即失败，因此打 tag 前先确认版本四处一致。
-4. 用该 tag 构建的同一个包创建 GitHub Release 并附加为 asset；发布资产同时附带该包的 `.sha256` 校验文件（如 `ai-research-mentor-0.13.0.zip.sha256`），由 CI 从同一次构建计算，CI 运行产物中的包应与之一致。README 的本地校验步骤只证明下载文件与该资产一致，不认证 Release 之外的副本。
+4. 用该 tag 构建的同一个包创建 GitHub Release 并附加为 asset；发布资产同时附带该包的 `.sha256` 校验文件（如 `ai-research-mentor-0.14.0.zip.sha256`），由 CI 从同一次构建计算，CI 运行产物中的包应与之一致。README 的本地校验步骤只证明下载文件与该资产一致，不认证 Release 之外的副本。
 5. 同步 Codex 安装副本是发布之后的单独显式动作，不由 CI 自动执行；同步前确认安装副本未被并发修改。
 
 自优化候选只能修改 [self-improvement.md](skills/ai-research-mentor/references/self-improvement.md) 允许的范围。接口、测试和验收规则变更应作为单独维护任务，不由待验候选自行放宽规则。

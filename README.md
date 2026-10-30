@@ -4,9 +4,9 @@
 
 **AI Research Mentor**：帮助 AI / ML 科研做四件事——找研究方向、查新（有没有人做过、最近的在做什么）、判断一个方向值不值得投入、写论文/综述/开题。文献检索、全文核验和证据记录服务于这四件事。适用于 Codex，也可由其他支持 `SKILL.md` 的宿主按需读取。
 
-当前版本 **0.13.0**（[v0.13.0 Release](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.13.0)，[全部发布](https://github.com/H66e/academic-scientific-skill/releases)）。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本 **0.14.0**（[v0.14.0 Release](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.14.0)，[全部发布](https://github.com/H66e/academic-scientific-skill/releases)）。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
-**0.13.0 把近邻选择改成结构化 JSON，并要求正文主张带 `[C#]` 编号。** 0.12.0 增加近邻深读门：高成本主张按 A/B/C 分级，C 级只能写暂定判断。 0.11.0 让等级由账本推导，并绑定引用身份/版本/范围。 0.10.0 把核验状态改为账本派生，并把报告等级变成交付合同。 0.9.0 是两位评委评审后的大改：报告分级、check-draft、删除资源默认值与标签残留。 0.8.0 改为“回答三件事、默认不给 GO/HOLD/KILL 标签”。 0.7.0 增加“方向 → 完整研究报告”工作流与先澄清协议。 0.6.0 是自进化维护版本：写作模板纳入受控进化、回执验收更严。 0.5.0 收窄范围（结果解释退役、写作扩到完整初稿）；0.4.0 是 Python-only 重建后的第一个发布，0.3.0 是最后的 Node 实现版本。不同版本的包不同，版本号不能互相指代。本仓库是发布源码：发布包由源码确定性构建、不再提交到 Git，tag 与 GitHub Release 指向构建该包的提交，流程见[发布与版本](#发布与版本)。Codex 安装目录是运行时拷贝，只有显式同步后才会更新，源码提交不会自动进入安装副本。
+**0.14.0 把近邻候选、主张、阅读和暂定判断绑定成一个可检查的报告合同，并修复 0.13.0 复审发现的“照抄模板也能通过”问题。** 0.13.0 把近邻选择改成结构化 JSON，并要求正文主张带 `[C#]` 编号。 0.12.0 增加近邻深读门：高成本主张按 A/B/C 分级，C 级只能写暂定判断。 0.11.0 让等级由账本推导，并绑定引用身份/版本/范围。 0.10.0 把核验状态改为账本派生，并把报告等级变成交付合同。 0.9.0 是两位评委评审后的大改：报告分级、check-draft、删除资源默认值与标签残留。 0.8.0 改为“回答三件事、默认不给 GO/HOLD/KILL 标签”。 0.7.0 增加“方向 → 完整研究报告”工作流与先澄清协议。 0.6.0 是自进化维护版本：写作模板纳入受控进化、回执验收更严。 0.5.0 收窄范围（结果解释退役、写作扩到完整初稿）；0.4.0 是 Python-only 重建后的第一个发布，0.3.0 是最后的 Node 实现版本。不同版本的包不同，版本号不能互相指代。本仓库是发布源码：发布包由源码确定性构建、不再提交到 Git，tag 与 GitHub Release 指向构建该包的提交，流程见[发布与版本](#发布与版本)。Codex 安装目录是运行时拷贝，只有显式同步后才会更新，源码提交不会自动进入安装副本。
 
 | 范围 | 当前状态 |
 | --- | --- |
@@ -31,7 +31,7 @@ python -B evaluation/run-python-tests.py
 
 结果解释已从 0.5.0 起退役：不再提供结果分类、纠正或失效命令，账本里的旧结果事件保留只读、不参与判定（[ADR 0010](docs/decisions/0010-scope-refocus-0.5.0.md)）。阅读资格仍由 `confirm-read` 累计、`retract-read` 显式撤回；两者都使旧评审过期，解除阻塞仍须重评，不能恢复旧 GO。
 
-正式源码、发布包与安装副本的边界见 [工作区与版本治理说明](docs/WORKSPACE_GOVERNANCE.md)。当前发布版本是 0.13.0；如果本机 Codex 仍加载旧副本，需要显式同步，源码更新不会自动进入安装目录。
+正式源码、发布包与安装副本的边界见 [工作区与版本治理说明](docs/WORKSPACE_GOVERNANCE.md)。当前发布版本是 0.14.0；如果本机 Codex 仍加载旧副本，需要显式同步，源码更新不会自动进入安装目录。
 
 从具体研究问题出发，把已有证据、推断和待验证假设分开，帮助决定下一步值得投入什么；需要产出时再基于真实来源写论文、综述或开题。它不会承诺新颖性、实验成功或论文录用，也不替你解释实验结果。
 
@@ -60,6 +60,18 @@ Python 运行时目前包含两套并列且都受支持的获取/审计界面，
 | `evolution_guard.py snapshot/hash/checks-hash/check` | dossier/reference（维护期） | 提示词/模板变更审计记录，只读 |
 
 两套栈的 paper ID、块/偏移模型和默认隐私分类并不等价；跨栈复制 ID 或偏移没有意义，具体差异与代码位置见合同映射。命令归属依据 [python-core.md](skills/ai-research-mentor/references/python-core.md) 与 [ADR 0009](docs/decisions/0009-acquisition-direction-and-payload-admission.md)。
+
+## 0.14.0 的变化与兼容性
+
+- **候选—主张—阅读强绑定**：`nearest-set-json` 升级为 v2（`schema`、`created_at`、两条不同检索式、至少两个候选、`uncovered`）；候选必须有唯一 `P#`、标题、理由、状态、reader、唯一 `ledger:` 绑定和真实定位；`section`/`full_text` 状态不得超出账本实际阅读范围；致命问题答案只接受“是/否/未读到”。
+- **六列主张表**：编号、主张、等级、近邻、依据、翻转条件；A/B 必须绑定近邻候选及其账本、且每个候选至少两个已答“是/否”的致命问题；A 级必须覆盖全部已读近邻、未读近邻进 `uncovered`，并禁止“首次/全新”式绝对措辞。
+- **正文 claim-ID 合同**：“当前判断与下一步”的段落/列表项都必须带 `[C#]`（下一步/行动/核验动作/获取路径类计划单元除外）；C 级只允许 `倾向……（见 [C#]）` 的限定形式；其他章节的硬判断词若无 ID 会失败（启发式边界）。
+- **暂定判断结构块**：C 级主张改由 `provisional-json` v1 记录，逐条含倾向、翻转条件、获取路径和必须复述最近邻致命问题的 `check`；缺失/改写/伪造候选失败。
+- **引用与健壮性**：引用表单元格允许反引号，阅读范围只接受 `full_text` 或 `section:<定位>`；JSON 类型错误返回错误而不是崩溃；近邻集超过 180 天除 warning 外还会阻止 `delivery_ready`。
+- **模板**：报告模板改为“各等级章节 + 一份共享机器可读附录”，消除三处重复 JSON 块；文档、SKILL 摘要、验证记录与检查器同步到同一合同。
+- **二次复审加固**：候选账本归一化到 source 后去重；已读候选/`section:` 引用定位与账本阅读定位一致；`abstract/unseen` 与“未读到”允许定位“无”；当前判断的引用块、H1 与计划块参与扫描；全文机器块唯一；`provisional` 候选/问题/locator 三方绑定；新增真实账本端到端正例测试。
+- **三次复审加固**：已答“是/否”的致命问题 locator 必须与账本阅读定位同类型、同数字前缀匹配（`§2` 不再能匹配 `Table 2`）；已读候选缺真实阅读定位失败；C 级主张必须绑定候选且 `provisional` 候选必须属于该集合；H1 也拒绝绝对新颖措辞；测试固定日期，真实账本端到端正例覆盖完整 `check_draft`。
+- **兼容**：0.13.0 的 `nearest-set-json`（无 schema/标题/唯一性/阅读范围校验）、五列主张表和 bullet-only claim ID 的旧报告会失败；没有自动迁移，因为缺失绑定无法推断。账本、dossier 与 `python-credibility-v5` 判定不变；模型代读仍只是声明，不构成本地认证；仍无效果证据。
 
 ## 0.13.0 的变化与兼容性
 
@@ -143,14 +155,14 @@ Python 运行时目前包含两套并列且都受支持的获取/审计界面，
 
 ## 安装与使用
 
-完整 skill 位于 [`skills/ai-research-mentor`](skills/ai-research-mentor)。推荐从 [v0.13.0 Release](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.13.0) 下载 `ai-research-mentor-0.13.0.zip`，解压后得到 `ai-research-mentor/` 文件夹；也可以从源码构建：`python -B evaluation/skill_tools.py package` 生成 `dist/ai-research-mentor.zip`（不入 Git）。压缩包内的 `ai-research-mentor` 文件夹包含全部运行资源。
+完整 skill 位于 [`skills/ai-research-mentor`](skills/ai-research-mentor)。推荐从 [v0.14.0 Release](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.14.0) 下载 `ai-research-mentor-0.14.0.zip`，解压后得到 `ai-research-mentor/` 文件夹；也可以从源码构建：`python -B evaluation/skill_tools.py package` 生成 `dist/ai-research-mentor.zip`（不入 Git）。压缩包内的 `ai-research-mentor` 文件夹包含全部运行资源。
 
 Codex 用户将该文件夹放入用户技能目录，默认为 `~/.codex/skills/`。升级时先把旧目录移走或改名备份，避免两版文件混用；Windows PowerShell 的本地源码安装示例：
 
 ```powershell
 $researchSkills = Join-Path $env:USERPROFILE '.codex\skills'
 $researchTarget = Join-Path $researchSkills 'ai-research-mentor'
-if (Test-Path -LiteralPath $researchTarget) { throw '已有同名 skill，请先备份或移走现有版本再安装 0.13.0。' }
+if (Test-Path -LiteralPath $researchTarget) { throw '已有同名 skill，请先备份或移走现有版本再安装 0.14.0。' }
 New-Item -ItemType Directory -Path $researchSkills -Force | Out-Null
 Copy-Item -LiteralPath '.\skills\ai-research-mentor' -Destination $researchSkills -Recurse
 ```
@@ -169,7 +181,7 @@ Copy-Item -LiteralPath '.\skills\ai-research-mentor' -Destination $researchSkill
 
 ## 发布与版本
 
-`VERSION` 是版本真源；`evaluation/tests/test_version_consistency.py` 核对 `pyproject.toml`、`research_mentor.__version__`、README 当前版本行与 CHANGELOG 小节。当前发布是 [v0.13.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.13.0)（结构化近邻集与主张 ID），历史发布是 [v0.12.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.12.0)（近邻深读门），历史发布是 [v0.11.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.11.0)（等级推导与身份绑定），历史发布是 [v0.10.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.10.0)（账本派生核验与等级合同），历史发布是 [v0.9.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.9.0)（报告分级与 check-draft），历史发布是 [v0.8.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.8.0)（三问代替标签），历史发布是 [v0.7.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.7.0)（研究报告与澄清）、[v0.6.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.6.0)（自进化模板纳管）、[v0.5.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.5.0)（范围收窄）、[v0.4.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.4.0)（Python-only 重建）、[v0.3.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.3.0)（最后的 Node 实现），见[全部发布](https://github.com/H66e/academic-scientific-skill/releases)。不同版本对应不同的包，不能用同一版本号互相指代；tag 一旦推送即不可变。发布流程：
+`VERSION` 是版本真源；`evaluation/tests/test_version_consistency.py` 核对 `pyproject.toml`、`research_mentor.__version__`、README 当前版本行与 CHANGELOG 小节。当前发布是 [v0.14.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.14.0)（候选/主张/暂定判断合同），历史发布是 [v0.13.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.13.0)（结构化近邻集与主张 ID），历史发布是 [v0.12.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.12.0)（近邻深读门），历史发布是 [v0.11.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.11.0)（等级推导与身份绑定），历史发布是 [v0.10.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.10.0)（账本派生核验与等级合同），历史发布是 [v0.9.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.9.0)（报告分级与 check-draft），历史发布是 [v0.8.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.8.0)（三问代替标签），历史发布是 [v0.7.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.7.0)（研究报告与澄清）、[v0.6.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.6.0)（自进化模板纳管）、[v0.5.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.5.0)（范围收窄）、[v0.4.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.4.0)（Python-only 重建）、[v0.3.0](https://github.com/H66e/academic-scientific-skill/releases/tag/v0.3.0)（最后的 Node 实现），见[全部发布](https://github.com/H66e/academic-scientific-skill/releases)。不同版本对应不同的包，不能用同一版本号互相指代；tag 一旦推送即不可变。发布流程：
 
 ```text
 python -B evaluation/run-python-tests.py
@@ -179,11 +191,11 @@ python -B evaluation/skill_tools.py check-package
 
 `package` 从源码确定性构建 `dist/ai-research-mentor.zip`，该文件不入 Git（`dist/` 被忽略）；CI 在 6 个矩阵作业中构建并用 `check-package` 复算，GitHub Release 附加同一次构建的包。设计理由与替代方案见 [ADR 0008](docs/decisions/0008-release-identity-and-package-artifacts.md)。Codex 安装副本不由 CI 修改，同步是单独的显式动作。
 
-发布同时提供包与同名 `.sha256` 文件（如 `ai-research-mentor-0.13.0.zip.sha256`）。下载后先在本地重算并比对，而不是只信任文件名或下载页面：
+发布同时提供包与同名 `.sha256` 文件（如 `ai-research-mentor-0.14.0.zip.sha256`）。下载后先在本地重算并比对，而不是只信任文件名或下载页面：
 
 ```text
-sha256sum ai-research-mentor-0.13.0.zip                    # Linux/macOS
-Get-FileHash -Algorithm SHA256 -LiteralPath '.\ai-research-mentor-0.13.0.zip'   # Windows PowerShell
+sha256sum ai-research-mentor-0.14.0.zip                    # Linux/macOS
+Get-FileHash -Algorithm SHA256 -LiteralPath '.\ai-research-mentor-0.14.0.zip'   # Windows PowerShell
 ```
 
 把输出中的哈希值（`sha256sum` 输出第一列、PowerShell 的 `Hash` 字段）与 `.sha256` 文件中的哈希值比较，一致后再解压；`.sha256` 行内记录的是构建产物文件名（Release 资产或 CI 产物可能同名不同前缀），重命名下载文件不影响哈希比较。该文件由 CI 从同一次构建计算，但校验只说明下载文件与这个发布资产一致，不证明内容正确或安全，也不认证 Release 之外的副本；校验失败时重新下载，不要改用其他来源的同名文件。发布资产同时有 SHA-256 与 tag==VERSION 检查，见 [CONTRIBUTING.md](CONTRIBUTING.md#发布流程)。
@@ -258,7 +270,7 @@ python -B evaluation/skill_tools.py package
 python -B evaluation/skill_tools.py check-package
 ```
 
-以上测试与维护命令只需要 Python。测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；冻结协议用例保留迁移前的实际观察值，新增原生测试检查当前实现。0.4.0 新增的回归覆盖包括出站隐私分类（含 `https://` 被误判为本地路径的修复）、严格 CLI 参数、失败 envelope、17 类账本事件 payload 准入、`source.fetch` 回执与 IR 重放（[`test_privacy_policy.py`](evaluation/tests/test_privacy_policy.py)、[`test_cli_strict.py`](evaluation/tests/test_cli_strict.py)、[`test_ledger_payloads.py`](evaluation/tests/test_ledger_payloads.py)、[`test_verification_metadata.py`](evaluation/tests/test_verification_metadata.py)）。0.5.0 新增/更新的回归覆盖包括：旧账本结果事件只读兼容与 legacy_result_events_ignored 提示、v5 判定不读取结果、四个结果命令未注册、写作模板与技能内链接检查（0.5.0 本地 291 tests，OK，1 skip，见 [validation-v050.md](evaluation/validation-v050.md)）。0.6.0 新增/更新的回归覆盖包括：模板改动强制 `writing_template_guardrails` 检查、`check-templates` 正反例、`better`/`worse` 必须有不同输出哈希。0.7.0 新增/更新的回归覆盖包括：报告模板与澄清协议纳入结构检查、四份模板护栏检查、报告/澄清文件进入自进化白名单。0.8.0 将三者标为账本内部状态；0.9.0 新增报告分级与 check-draft；0.10.0 把核验改为账本派生；0.11.0 让等级由账本推导、绑定引用身份；0.12.0 增加主张级近邻深读门；0.13.0 改为结构化近邻集与正文主张 ID，并明确未执行效果评测（本轮本地 **314 tests，OK，1 skip**，见 [validation-v130.md](evaluation/validation-v130.md)）。ZIP 使用确定性文件顺序和时间戳；`check-package` 先复算一次源码构建，若本地已用 `package` 生成发布包则再逐字节比较两次构建（确定性检查）。CI 在 Windows/Linux × Python 3.10 / 3.12 / 3.14 的 6 个作业中运行全量测试、结构检查、构建发布包并保存为运行产物；某个历史配置存在不代表当前提交已通过，实际矩阵结果以仓库 Actions 记录为准。迁移验收见 [`evaluation/validation-python-core.md`](evaluation/validation-python-core.md)，0.12.0 发布验收见 [`evaluation/validation-v120.md`](evaluation/validation-v120.md)，0.11.0 发布验收见 [`evaluation/validation-v110.md`](evaluation/validation-v110.md)，0.10.0 发布验收见 [`evaluation/validation-v100.md`](evaluation/validation-v100.md)，0.9.0 发布验收见 [`evaluation/validation-v090.md`](evaluation/validation-v090.md)，0.8.0 发布验收见 [`evaluation/validation-v080.md`](evaluation/validation-v080.md)，0.7.0 发布验收见 [`evaluation/validation-v070.md`](evaluation/validation-v070.md)，0.6.0 发布验收见 [`evaluation/validation-v060.md`](evaluation/validation-v060.md)，0.5.0 发布验收见 [`evaluation/validation-v050.md`](evaluation/validation-v050.md)，0.4.0 发布验收见 [`evaluation/validation-v040.md`](evaluation/validation-v040.md)，发行版历史验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)。
+以上测试与维护命令只需要 Python。测试入口包含科研审计、来源协议、研究产出、Darwin 自优化验收及发布包测试；冻结协议用例保留迁移前的实际观察值，新增原生测试检查当前实现。0.4.0 新增的回归覆盖包括出站隐私分类（含 `https://` 被误判为本地路径的修复）、严格 CLI 参数、失败 envelope、17 类账本事件 payload 准入、`source.fetch` 回执与 IR 重放（[`test_privacy_policy.py`](evaluation/tests/test_privacy_policy.py)、[`test_cli_strict.py`](evaluation/tests/test_cli_strict.py)、[`test_ledger_payloads.py`](evaluation/tests/test_ledger_payloads.py)、[`test_verification_metadata.py`](evaluation/tests/test_verification_metadata.py)）。0.5.0 新增/更新的回归覆盖包括：旧账本结果事件只读兼容与 legacy_result_events_ignored 提示、v5 判定不读取结果、四个结果命令未注册、写作模板与技能内链接检查（0.5.0 本地 291 tests，OK，1 skip，见 [validation-v050.md](evaluation/validation-v050.md)）。0.6.0 新增/更新的回归覆盖包括：模板改动强制 `writing_template_guardrails` 检查、`check-templates` 正反例、`better`/`worse` 必须有不同输出哈希。0.7.0 新增/更新的回归覆盖包括：报告模板与澄清协议纳入结构检查、四份模板护栏检查、报告/澄清文件进入自进化白名单。0.8.0 将三者标为账本内部状态；0.9.0 新增报告分级与 check-draft；0.10.0 把核验改为账本派生；0.11.0 让等级由账本推导、绑定引用身份；0.12.0 增加主张级近邻深读门；0.13.0 改为结构化近邻集与正文主张 ID；0.14.0 把候选、主张、阅读与暂定判断绑定成可检查合同（本轮本地 **359 tests，OK，1 skip**，见 [validation-v140.md](evaluation/validation-v140.md)）。ZIP 使用确定性文件顺序和时间戳；`check-package` 先复算一次源码构建，若本地已用 `package` 生成发布包则再逐字节比较两次构建（确定性检查）。CI 在 Windows/Linux × Python 3.10 / 3.12 / 3.14 的 6 个作业中运行全量测试、结构检查、构建发布包并保存为运行产物；某个历史配置存在不代表当前提交已通过，实际矩阵结果以仓库 Actions 记录为准。迁移验收见 [`evaluation/validation-python-core.md`](evaluation/validation-python-core.md)，0.13.0 发布验收见 [`evaluation/validation-v130.md`](evaluation/validation-v130.md)，0.12.0 发布验收见 [`evaluation/validation-v120.md`](evaluation/validation-v120.md)，0.11.0 发布验收见 [`evaluation/validation-v110.md`](evaluation/validation-v110.md)，0.10.0 发布验收见 [`evaluation/validation-v100.md`](evaluation/validation-v100.md)，0.9.0 发布验收见 [`evaluation/validation-v090.md`](evaluation/validation-v090.md)，0.8.0 发布验收见 [`evaluation/validation-v080.md`](evaluation/validation-v080.md)，0.7.0 发布验收见 [`evaluation/validation-v070.md`](evaluation/validation-v070.md)，0.6.0 发布验收见 [`evaluation/validation-v060.md`](evaluation/validation-v060.md)，0.5.0 发布验收见 [`evaluation/validation-v050.md`](evaluation/validation-v050.md)，0.4.0 发布验收见 [`evaluation/validation-v040.md`](evaluation/validation-v040.md)，发行版历史验收见 [`evaluation/validation-v030.md`](evaluation/validation-v030.md)。
 
 自动测试与原离线案例使用合成资料；[真实论文有限语料试用与评估协议](evaluation/real-world/README.md) 单独记录来源、实际答复和未测范围。真实科研评估应记录原始检索和输出、近邻发现、引用忠实性、过度断言、误淘汰和下一步建议质量；尚未完成的评估不作为性能证明。历史回测以当时可得信息判断决策，不把后来的实验失败等同于当时应该 KILL。
 
