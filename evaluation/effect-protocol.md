@@ -33,7 +33,7 @@ Even a favorable pilot result is a **signal for a larger study**, not an effecti
 
 | Field | Frozen value |
 | --- | --- |
-| Version | `0.14.0` |
+| Version | `0.14.0` (frozen commit) |
 | Commit | `efc6a0f9fbc20e83f4fe17a515653b0760613673` (`efc6a0f`) |
 | Package | `dist/ai-research-mentor.zip` built from that commit |
 | Package SHA-256 | `21db3bca28ee4b27c086e69092f8444d8c653df864269fd29281c06c291a7195` |
@@ -41,6 +41,8 @@ Even a favorable pilot result is a **signal for a larger study**, not an effecti
 | Gold-bank commitment | `ceabe71b1da3944d05ad9c1aa02ebf0fe3800feb205a04b3f7360213a884ac47` |
 
 The package and commit are verified before the first run and after the last. A mismatch, a dirty skill tree, or an unreviewed post-freeze skill commit means the treatment is not the frozen baseline; stop and do not run.
+
+The repository may contain a later documentation patch that carries this pack; that does not change the treatment. Build and verify the package from a clean worktree at tag `v0.14.0` / commit `efc6a0f`. A package built from a later commit has a different hash and is not the frozen baseline. Keep the pilot instruments from the pack tree, but give arm A only the v0.14.0 skill/package.
 
 ---
 
@@ -70,7 +72,7 @@ C controls for the report format: if A beats B but not C, the gain may come from
 ### 3.3 Runs
 
 - **One scored run per task per arm.** This is a pilot; it does not estimate decoding variance. A larger study should add repeated runs.
-- All runs for a task use the same model snapshot, tools, caps, and day/window. Arm order is randomized with a recorded seed; each run uses a fresh session and no cross-arm context.
+- All runs for a task use the same model snapshot, tools, caps, and day/window. The full bank should be completed in one contiguous run window; if it must span days, the model/tool snapshot and configuration remain identical, and any drift stops the pilot. Arm order is randomized with a recorded seed; each run uses a fresh session and no cross-arm context.
 - Fixed decoding settings are recorded where the host exposes them. If the host does not expose them, record that fact; do not pretend they were fixed.
 - The operator may not help with content, clarify the task, or retry because an output is weak. An infrastructure failure may be retried once with the same configuration; the retry is logged.
 - Missing output, request log, manifest, or hash for any task/arm is a logistics stop, not a missing-data convenience.

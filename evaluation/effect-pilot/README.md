@@ -31,31 +31,46 @@ The treatment is the v0.14.0 skill package as released at:
 
 | Field | Frozen value |
 | --- | --- |
-| Version | `0.14.0` (`VERSION`) |
+| Version | `0.14.0` (`VERSION` at the frozen commit) |
 | Commit (short) | `efc6a0f` |
 | Commit (full) | `efc6a0f9fbc20e83f4fe17a515653b0760613673` |
-| Package | `dist/ai-research-mentor.zip` (build product, not committed) |
+| Package | `dist/ai-research-mentor.zip` built at `efc6a0f` (build product, not committed; not the artifact of a later docs branch) |
 | Package size | 809,089 bytes, 58 files |
 | Package SHA-256 | `21db3bca28ee4b27c086e69092f8444d8c653df864269fd29281c06c291a7195` |
 | Task-bank file SHA-256 | `841ffa362b79a6568c94afdb5bd9078b34f97e4cc28cc4d5d23f458b27c87b86` |
 | Gold-bank commitment | `ceabe71b1da3944d05ad9c1aa02ebf0fe3800feb205a04b3f7360213a884ac47` |
 
+**Working-tree note.** This pack may be committed on a later documentation branch (for example, the 0.14.1 docs patch). That does not change the treatment. The pilot must use a clean worktree at tag `v0.14.0` / commit `efc6a0f`, not the later docs tree:
+
+```powershell
+git worktree add ..\effect-pilot-v0140 v0.14.0
+cd ..\effect-pilot-v0140
+git status --porcelain
+# must be empty
+
+python -B evaluation/skill_tools.py package
+Get-FileHash dist/ai-research-mentor.zip -Algorithm SHA256
+# must print 21DB3BCA28EE4B27C086E69092F8444D8C653DF864269FD29281C06C291A7195
+```
+
+A fresh clone checked out at the tag is equivalent. Keep the pilot instruments from the pack tree, but give arm A only the v0.14.0 skill/package. A package built from a later commit has a different hash and is not the frozen baseline; do not use it.
+
 Verify before and after the run:
 
 ```powershell
+# in the clean v0.14.0 worktree
 git rev-parse HEAD
 # must print efc6a0f9fbc20e83f4fe17a515653b0760613673
 
 git status --porcelain
-# must be empty except for the frozen pilot pack
+# must be empty; the skill tree is unchanged
 
-python -B evaluation/skill_tools.py package
 python -B evaluation/skill_tools.py check-package
 Get-FileHash dist/ai-research-mentor.zip -Algorithm SHA256
 # must print 21DB3BCA28EE4B27C086E69092F8444D8C653DF864269FD29281C06C291A7195
 ```
 
-`dist/` is ignored; if the package is missing, build it from the frozen commit. A hash mismatch means the baseline is not the frozen baseline: stop and do not run.
+`dist/` is ignored; if the package is missing, build it from the frozen commit. A hash mismatch means the baseline is not the frozen baseline: stop and do not run. `check-package` run in a later docs tree verifies that tree's package, not the pilot's baseline.
 
 `run-python-tests.py` and `check-python-only` are repository-integrity checks. Passing them is **not** effect evidence.
 
@@ -84,11 +99,11 @@ Follow the steps in order. Each step has a stop condition; do not skip a failed 
 
 ### Step 0 — Verify the freeze
 
-- Confirm the commit, clean tree, package size/hash, task-bank hash, and gold-bank commitment in section 2.
-- Run `python -B evaluation/run-python-tests.py` and `python -B evaluation/skill_tools.py check-python-only`; record the output. These are integrity checks, not results.
+- In the clean v0.14.0 worktree, confirm the commit, clean skill tree, package size/hash, and section 2 baseline values.
+- In the pack tree, confirm the task-bank file SHA-256 and gold-bank commitment. Run `python -B evaluation/run-python-tests.py` (including `test_effect_pilot.py`) and `python -B evaluation/skill_tools.py check-python-only`; record the output. These are integrity checks, not results.
 - Record the verification output in the local run log.
 
-**Stop if:** the commit or package hash differs, the tree contains unreviewed changes to the skill, or a check fails.
+**Stop if:** the baseline commit or package hash differs, the skill tree has unreviewed changes, the docs-tree package is being used as the baseline, or a check fails.
 
 ### Step 1 — Bind roles and declare conflicts
 
@@ -100,7 +115,7 @@ Follow the steps in order. Each step has a stop condition; do not skip a failed 
 
 ### Step 2 — Seal the task bank
 
-- Providers read their prompts and confirm that each one describes a real decision. Replace any rejected task **before** sealing; a replacement changes the bank version.
+- Providers read their prompts and confirm that each one describes a real decision. Replace any rejected task **before** sealing; a replacement changes the bank version, the task-bank SHA-256, and the gold-bank commitment, so update the frozen record and re-freeze before the first run. Never silently use a different bank.
 - Verify every gold title and identifier resolves to the intended public source. Recompute the per-task hashes and the gold-bank commitment.
 - Record the task-bank file SHA-256 and mark the bank `EP-TB-01-FROZEN` in the local log.
 - Lock the full gold key in the local key store. Reviewers receive only the per-task scoring key in the blind form.
@@ -119,7 +134,7 @@ Follow the steps in order. Each step has a stop condition; do not skip a failed 
 ### Step 4 — Run the three arms
 
 - Pre-generate the arm order per task with a recorded random seed; use a separate fresh session for each run and do not reuse context across arms.
-- Run all arms for a task on the same day/window, with the same model snapshot and tools.
+- Run all arms for a task on the same day/window, with the same model snapshot and tools. Keep the same frozen model/tool configuration across the whole bank; any drift stops the pilot.
 - The operator may not help with content or clarify the task. If the model asks, it must state an assumption and continue.
 - On an infrastructure failure only, retry once with the same configuration and model; log the retry. Do not retry because the content is weak.
 - Immediately capture the raw output, request log, manifest, token usage, timestamps, and SHA-256 hashes.

@@ -59,6 +59,7 @@ If any box is unchecked, **stop**: record the item and notify the operator. A su
 | Gold ID | `G-EP-____` |
 | Title | [exact title] |
 | Identifier | [DOI / arXiv / URL] |
+| Common name / method label | [e.g. LoRA, GQA, Chinchilla; copy the name used in the expected outcome] |
 | Why decisive | [operator inserts the frozen reason] |
 | Known duplicate? | `yes` / `no` |
 | Expected acceptable outcome | [operator inserts the frozen expected outcome] |
@@ -94,7 +95,7 @@ Naming a different, merely adjacent work is `0`. Naming the gold but giving no d
 
 **Definition.** A citation is **fabricated** when the cited work does not exist: its identifier (DOI/arXiv/URL) does not resolve, and an exact title/author/year search finds no matching source. A real work cited for a claim it does not support is **not** fabricated; it is S2 unsupported. An identifier typo is not fabricated if the title/author/year identifies the real work; record it as an identifier error.
 
-**Procedure.** Use the artifact's reference table as the machine-readable source. Extract every distinct cited work and its identifier. Resolve each identifier; if it fails, check the exact title/author/year. Attach the extraction/resolution output or record the command and date. Inspect every distinct cited work, not a sample.
+**Procedure.** Use the artifact's reference table as the machine-readable source. Extract every distinct cited work and its identifier. Resolve each identifier; if it fails, check the exact title/author/year. Attach the extraction/resolution output or record the command and date. Inspect every distinct cited work, not a sample. The analyst's extraction/resolution script and output are retained with the analysis; this form records the result.
 
 | # | Citation as written | Identifier | Resolution | Fabricated? | Note |
 | --- | --- | --- | --- | --- | --- |
