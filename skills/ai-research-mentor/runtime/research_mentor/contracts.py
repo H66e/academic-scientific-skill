@@ -5,7 +5,7 @@ from typing import Any
 
 # Mirrors repository VERSION and Python package metadata; unreleased behavior is
 # documented in CHANGELOG, not labeled as a second public release.
-PACKAGE_VERSION = "0.14.0"
+PACKAGE_VERSION = "0.14.1"
 
 @dataclass
 class Envelope:

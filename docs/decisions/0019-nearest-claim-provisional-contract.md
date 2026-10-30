@@ -35,7 +35,7 @@ pass the checker end to end.
   novelty wording is rejected for A claims.
 - The current-judgment section is parsed into claim units (paragraphs and list
   items); every unit needs a `[C#]` ID except plan units that start with
-  下一步/行动/核验动作/获取路径. C IDs may appear there only in the qualified
+  下一步/行动/核验动作/获取路径/成本与停止. C IDs may appear there only in the qualified
   form `倾向……（见 [C#]）`; elsewhere they are rejected. All referenced IDs must
   exist in the claim table. Hard judgment terms outside the claim-bearing
   sections without an ID are errors.
