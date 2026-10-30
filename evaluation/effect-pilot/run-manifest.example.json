@@ -1,0 +1,47 @@
+{
+  "manifest_version": "effect-pilot-run-v1",
+  "pilot_id": "EP-PILOT-2026-01",
+  "record_status": "EXAMPLE_ONLY_NOT_A_RUN",
+  "note": "Illustrative schema only. No model was run. output_sha256 is SHA-256 of the literal UTF-8 string 'example output'; request_log_sha256 is SHA-256 of 'example request log'. Replace every example value with the real run record.",
+  "hash_algorithm": "sha256",
+  "run": {
+    "run_id": "EP01-A-001",
+    "task_id": "EP-01",
+    "arm": "A",
+    "model": {
+      "provider": "example-provider",
+      "name": "example-model",
+      "version": "example-version",
+      "snapshot": "example-snapshot-2026-11-02",
+      "decoding": {
+        "temperature": 0.0,
+        "top_p": 1.0,
+        "max_output_tokens": 5000
+      }
+    },
+    "tool_permissions": {
+      "public_web_search": true,
+      "public_url_fetch": true,
+      "local_file_read_write": true,
+      "local_python_sandbox": true,
+      "private_data": false,
+      "external_model_calls": false,
+      "evaluation_or_gold_access": false
+    },
+    "caps": {
+      "wall_clock_minutes": 30,
+      "max_output_tokens": 5000,
+      "max_retrieval_calls": 12
+    },
+    "timestamps": {
+      "started_at": "2026-11-02T09:00:00+08:00",
+      "ended_at": "2026-11-02T09:24:31+08:00"
+    },
+    "operator": "OP-01",
+    "output_sha256": "78a58dfd5926ede0fa76eb42d6256d5b7242f9417bd0a5f31fce2ab716a0b674",
+    "request_log_sha256": "6a5ccd8e157bb885643149e788bddab80119820e4ecdace9d8c048fc8439c8ce",
+    "artifact_path": "runs/EP-PILOT-2026-01/EP-01/A/EP01-A-001/output.raw.md",
+    "request_log_path": "runs/EP-PILOT-2026-01/EP-01/A/EP01-A-001/request.log.jsonl",
+    "status": "example"
+  }
+}
